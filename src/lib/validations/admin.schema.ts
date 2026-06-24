@@ -24,7 +24,7 @@ export const reportCreateSchema = z.object({
 
 export const reportUpdateSchema = z.object({
   reportId: z.string().min(1),
-  status: z.enum(["open", "dismissed", "action_taken"]),
+  status: z.enum(["open", "dismissed", "resolved"]),
   note: z.string().optional()
 });
 

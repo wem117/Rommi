@@ -3,28 +3,17 @@
 import { CalendarDays, Home, Mail, MapPin, Pencil, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 
 import { ListingGallery } from "@/components/listings/listing-gallery";
 import { ListingGrid } from "@/components/listings/listing-grid";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { useAuth } from "@/context/auth-context";
-import { db } from "@/lib/firebase/client";
-import { converter, timestampToDate } from "@/lib/firebase/firestore";
+import { getProfileById } from "@/lib/data/profiles";
 import { formatDate, formatMonthlyRent } from "@/lib/utils/format";
 import { useListing } from "@/hooks/use-listing";
 import { useListings } from "@/hooks/use-listings";
 import type { UserProfile } from "@/types/user";
-
-function normalizeProfile(profile: UserProfile): UserProfile {
-  return {
-    ...profile,
-    preferredMoveInDate: timestampToDate(profile.preferredMoveInDate) ?? null,
-    createdAt: timestampToDate(profile.createdAt) ?? new Date(),
-    updatedAt: timestampToDate(profile.updatedAt) ?? new Date()
-  };
-}
 
 export default function ListingDetailPage() {
   const params = useParams<{ listingId: string }>();
@@ -37,8 +26,8 @@ export default function ListingDetailPage() {
     let cancelled = false;
     async function loadOwner() {
       if (!listing?.ownerId) return;
-      const snapshot = await getDoc(doc(db, "users", listing.ownerId).withConverter(converter<UserProfile>()));
-      if (!cancelled) setOwner(snapshot.exists() ? normalizeProfile(snapshot.data()) : null);
+      const nextOwner = await getProfileById(listing.ownerId);
+      if (!cancelled) setOwner(nextOwner);
     }
     void loadOwner();
     return () => {

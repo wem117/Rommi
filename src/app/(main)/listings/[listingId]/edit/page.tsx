@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { ListingForm } from "@/components/listings/listing-form/listing-form";
 import { useAuth } from "@/context/auth-context";
-import { deleteImageByUrl } from "@/lib/firebase/storage";
+import { deleteImageByUrl } from "@/lib/supabase/storage";
 import type { ListingInput } from "@/lib/validations/listing.schema";
 import { useListing } from "@/hooks/use-listing";
 

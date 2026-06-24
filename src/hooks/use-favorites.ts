@@ -1,17 +1,14 @@
 "use client";
 
-import { arrayRemove, arrayUnion, doc, updateDoc } from "firebase/firestore";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/context/auth-context";
+import { toggleFavoriteListing } from "@/lib/data/profiles";
 
 export function useFavorites() {
   const { user, profile } = useAuth();
-  const favoriteListingIds = useMemo(
-    () => ((profile as unknown as { favoriteListingIds?: string[] } | null)?.favoriteListingIds ?? []),
-    [profile]
-  );
+  const favoriteListingIds = useMemo(() => profile?.favoriteListingIds ?? [], [profile]);
 
   const isFavorite = useCallback(
     (listingId: string) => favoriteListingIds.includes(listingId),
@@ -25,10 +22,7 @@ export function useFavorites() {
         return;
       }
 
-      const { db } = await import("@/lib/firebase/client");
-      await updateDoc(doc(db, "users", user.uid), {
-        favoriteListingIds: isFavorite(listingId) ? arrayRemove(listingId) : arrayUnion(listingId)
-      });
+      await toggleFavoriteListing(user.uid, listingId, isFavorite(listingId));
     },
     [isFavorite, user]
   );

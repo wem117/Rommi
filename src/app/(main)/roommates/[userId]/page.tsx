@@ -1,6 +1,5 @@
 "use client";
 
-import { doc, getDoc } from "firebase/firestore";
 import { Mail } from "lucide-react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
@@ -9,20 +8,10 @@ import { useEffect, useState } from "react";
 import { CompatibilityBar } from "@/components/roommates/compatibility-bar";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { useAuth } from "@/context/auth-context";
-import { db } from "@/lib/firebase/client";
-import { converter, timestampToDate } from "@/lib/firebase/firestore";
+import { getProfileById } from "@/lib/data/profiles";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import type { UserProfile } from "@/types/user";
-
-function normalize(profile: UserProfile): UserProfile {
-  return {
-    ...profile,
-    preferredMoveInDate: timestampToDate(profile.preferredMoveInDate) ?? null,
-    createdAt: timestampToDate(profile.createdAt) ?? new Date(),
-    updatedAt: timestampToDate(profile.updatedAt) ?? new Date()
-  };
-}
 
 export default function RoommateDetailPage() {
   const { userId } = useParams<{ userId: string }>();
@@ -33,9 +22,9 @@ export default function RoommateDetailPage() {
   useEffect(() => {
     let cancelled = false;
     async function loadProfile() {
-      const snapshot = await getDoc(doc(db, "users", userId).withConverter(converter<UserProfile>()));
+      const nextProfile = await getProfileById(userId);
       if (!cancelled) {
-        setProfile(snapshot.exists() ? normalize(snapshot.data()) : null);
+        setProfile(nextProfile);
         setLoading(false);
       }
     }

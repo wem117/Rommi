@@ -1,31 +1,22 @@
 import { NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/firebase/admin";
-import { listingActionSchema } from "@/lib/validations/admin.schema";
 
-async function requireAdmin(request: Request) {
-  const session = request.headers.get("cookie")?.split("; ").find((c) => c.startsWith("__session="))?.split("=")[1];
-  if (!session) throw new Error("Unauthenticated");
-  const decoded = await adminAuth.verifySessionCookie(session, true);
-  const profile = await adminDb.collection("users").doc(decoded.uid).get();
-  const role = decoded.role ?? (profile.exists ? profile.data()?.role : null);
-  if (role !== "admin") throw new Error("Forbidden");
-  return decoded;
-}
+import { requireAdminUser } from "@/lib/supabase/admin";
+import { listingActionSchema } from "@/lib/validations/admin.schema";
 
 export async function POST(request: Request) {
   try {
-    await requireAdmin(request);
-    const body = await request.json();
-    const data = listingActionSchema.parse(body);
+    const { supabase } = await requireAdminUser();
+    const data = listingActionSchema.parse(await request.json());
 
-    const { listingId, action } = data;
-    const docRef = adminDb.collection("listings").doc(listingId);
-    if (action === "remove") {
-      await docRef.set({ removed: true, removedAt: new Date() }, { merge: true });
-    } else {
-      await docRef.set({ removed: false, removedAt: null }, { merge: true });
-    }
+    const { error } = await supabase
+      .from("listings")
+      .update({
+        removed: data.action === "remove",
+        removed_at: data.action === "remove" ? new Date().toISOString() : null
+      })
+      .eq("id", data.listingId);
 
+    if (error) throw error;
     return NextResponse.json({ ok: true });
   } catch (error: any) {
     console.error("Listing action failed", error);

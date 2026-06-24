@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { useAuth } from "@/context/auth-context";
-import { collection, getDocs, limit, query, where } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import type { UserProfile } from "@/types/user";
 
 export default function AdminUsersPage() {
   const { profile } = useAuth();
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
@@ -20,11 +20,12 @@ export default function AdminUsersPage() {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      const usersQ = query(collection(db, "users"), limit(200));
-      const snapshot = await getDocs(usersQ);
-      if (cancelled) return;
-      setUsers(snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
-      setLoading(false);
+      const response = await fetch("/api/admin/users");
+      const payload = (await response.json()) as { users?: UserProfile[] };
+      if (!cancelled) {
+        setUsers(payload.users ?? []);
+        setLoading(false);
+      }
     }
 
     void load();
@@ -51,19 +52,30 @@ export default function AdminUsersPage() {
     );
   }
 
-  const filtered = users.filter((u) => {
+  const filtered = users.filter((user) => {
     if (!search) return true;
-    return [u.displayName, u.email, u.id].some((v) => v && String(v).toLowerCase().includes(search.toLowerCase()));
+    return [user.fullName, user.email, user.uid].some(
+      (value) => value && String(value).toLowerCase().includes(search.toLowerCase())
+    );
   });
 
   async function toggleBan(userId: string, ban: boolean) {
-    await fetch("/api/admin/users/ban", { method: "POST", body: JSON.stringify({ userId, ban }), headers: { "Content-Type": "application/json" } });
-    setUsers((s) => s.map((u) => (u.id === userId ? { ...u, banned: ban } : u)));
+    await fetch("/api/admin/users/ban", {
+      method: "POST",
+      body: JSON.stringify({ userId, ban }),
+      headers: { "Content-Type": "application/json" }
+    });
   }
 
   async function toggleVerify(userId: string, verify: boolean) {
-    await fetch("/api/admin/users/verify", { method: "POST", body: JSON.stringify({ userId, verify }), headers: { "Content-Type": "application/json" } });
-    setUsers((s) => s.map((u) => (u.id === userId ? { ...u, verified: verify } : u)));
+    await fetch("/api/admin/users/verify", {
+      method: "POST",
+      body: JSON.stringify({ userId, verify }),
+      headers: { "Content-Type": "application/json" }
+    });
+    setUsers((current) =>
+      current.map((user) => (user.uid === userId ? { ...user, verified: verify } : user))
+    );
   }
 
   return (
@@ -72,21 +84,38 @@ export default function AdminUsersPage() {
       <p className="mt-2 text-foreground/65">Search and moderate user accounts.</p>
 
       <div className="mt-6">
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search users" className="w-full rounded-md border border-border px-3 py-2" />
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search users"
+          className="w-full rounded-md border border-border px-3 py-2"
+        />
       </div>
 
       <div className="mt-6 overflow-hidden rounded-2xl bg-white shadow-soft">
         {loading ? <div className="p-4">Loading...</div> : null}
         {!loading && filtered.length === 0 ? <div className="p-4">No users found.</div> : null}
-        {filtered.map((u) => (
-          <div key={u.id} className="flex items-center justify-between border-b border-border p-4">
+        {filtered.map((user) => (
+          <div key={user.uid} className="flex items-center justify-between border-b border-border p-4">
             <div>
-              <div className="font-semibold">{u.displayName || "—"} <span className="text-xs text-foreground/50">{u.email || u.id}</span></div>
-              <div className="text-sm text-foreground/60">Role: {u.role || "user"} • Verified: {u.verified ? "yes" : "no"} • Banned: {u.banned ? "yes" : "no"}</div>
+              <div className="font-semibold">
+                {user.fullName || "—"}{" "}
+                <span className="text-xs text-foreground/50">{user.email || user.uid}</span>
+              </div>
+              <div className="text-sm text-foreground/60">
+                Role: {user.role || "user"} • Verified: {user.verified ? "yes" : "no"}
+              </div>
             </div>
             <div className="flex gap-2">
-              <button className="rounded-md bg-red-600 px-3 py-1 text-white" onClick={() => toggleBan(u.id, !u.banned)}>{u.banned ? "Unban" : "Ban"}</button>
-              <button className="rounded-md bg-emerald-600 px-3 py-1 text-white" onClick={() => toggleVerify(u.id, !u.verified)}>{u.verified ? "Revoke" : "Verify"}</button>
+              <button className="rounded-md bg-red-600 px-3 py-1 text-white" onClick={() => toggleBan(user.uid, true)}>
+                Flag
+              </button>
+              <button
+                className="rounded-md bg-emerald-600 px-3 py-1 text-white"
+                onClick={() => toggleVerify(user.uid, !user.verified)}
+              >
+                {user.verified ? "Revoke" : "Verify"}
+              </button>
             </div>
           </div>
         ))}

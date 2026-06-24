@@ -1,45 +1,20 @@
-import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 
-import { adminDb } from "@/lib/firebase/admin";
-import { requireSessionUser } from "@/lib/firebase/session";
+import { deleteListing, updateListing } from "@/lib/data/listings-admin";
+import { requireSessionUser } from "@/lib/supabase/session";
 import { listingSchema } from "@/lib/validations/listing.schema";
 
 interface RouteContext {
   params: Promise<{ listingId: string }>;
 }
 
-async function getOwnedListing(listingId: string, uid: string) {
-  const listingRef = adminDb.collection("listings").doc(listingId);
-  const snapshot = await listingRef.get();
-
-  if (!snapshot.exists) {
-    return { listingRef, status: 404 as const };
-  }
-
-  const data = snapshot.data() as { ownerId?: string };
-  if (data.ownerId !== uid) {
-    return { listingRef, status: 403 as const };
-  }
-
-  return { listingRef, status: 200 as const };
-}
-
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const decoded = await requireSessionUser();
+    const user = await requireSessionUser();
     const { listingId } = await context.params;
-    const ownership = await getOwnedListing(listingId, decoded.uid);
-
-    if (ownership.status !== 200) {
-      return NextResponse.json(
-        { error: ownership.status === 404 ? "Listing not found" : "Forbidden" },
-        { status: ownership.status }
-      );
-    }
-
     const input = listingSchema.parse(await request.json());
-    await ownership.listingRef.update({
+
+    await updateListing(listingId, user.id, {
       title: input.title,
       description: input.description,
       propertyType: input.propertyType,
@@ -57,8 +32,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         smoking: input.smoking,
         pets: input.pets
       },
-      photoUrls: input.photoUrls,
-      updatedAt: FieldValue.serverTimestamp()
+      photoUrls: input.photoUrls
     });
 
     return NextResponse.json({ ok: true });
@@ -71,18 +45,10 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    const decoded = await requireSessionUser();
+    const user = await requireSessionUser();
     const { listingId } = await context.params;
-    const ownership = await getOwnedListing(listingId, decoded.uid);
 
-    if (ownership.status !== 200) {
-      return NextResponse.json(
-        { error: ownership.status === 404 ? "Listing not found" : "Forbidden" },
-        { status: ownership.status }
-      );
-    }
-
-    await ownership.listingRef.delete();
+    await deleteListing(listingId, user.id);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Delete listing failed", error);

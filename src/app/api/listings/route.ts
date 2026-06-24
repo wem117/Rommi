@@ -1,20 +1,15 @@
-import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 
-import { adminDb } from "@/lib/firebase/admin";
-import { requireSessionUser } from "@/lib/firebase/session";
+import { createListing } from "@/lib/data/listings-admin";
+import { requireSessionUser } from "@/lib/supabase/session";
 import { listingSchema } from "@/lib/validations/listing.schema";
 
 export async function POST(request: Request) {
   try {
-    const decoded = await requireSessionUser();
+    const user = await requireSessionUser();
     const input = listingSchema.parse(await request.json());
-    const listingRef = adminDb.collection("listings").doc();
-    const now = FieldValue.serverTimestamp();
 
-    await listingRef.set({
-      id: listingRef.id,
-      ownerId: decoded.uid,
+    const id = await createListing(user.id, {
       title: input.title,
       description: input.description,
       propertyType: input.propertyType,
@@ -32,12 +27,10 @@ export async function POST(request: Request) {
         smoking: input.smoking,
         pets: input.pets
       },
-      photoUrls: input.photoUrls,
-      createdAt: now,
-      updatedAt: now
+      photoUrls: input.photoUrls
     });
 
-    return NextResponse.json({ id: listingRef.id }, { status: 201 });
+    return NextResponse.json({ id }, { status: 201 });
   } catch (error) {
     console.error("Create listing failed", error);
     const status = error instanceof Error && error.message === "UNAUTHENTICATED" ? 401 : 400;

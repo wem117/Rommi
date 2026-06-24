@@ -1,0 +1,124 @@
+import type { Listing, ListingPreferences } from "@/types/listing";
+import type { Conversation, Message } from "@/types/chat";
+import type { Report } from "@/types/report";
+import type { LifestylePreferences, UserProfile } from "@/types/user";
+
+type GenericRecord = Record<string, unknown>;
+
+function asDate(value: unknown, fallback = new Date()) {
+  if (value instanceof Date) return value;
+  if (typeof value === "string" || typeof value === "number") {
+    const next = new Date(value);
+    if (!Number.isNaN(next.getTime())) return next;
+  }
+  return fallback;
+}
+
+function asStringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function asNumber(value: unknown, fallback = 0) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+export function mapProfileRow(row: GenericRecord): UserProfile {
+  const lifestyle = (row.lifestyle as LifestylePreferences | null) ?? {
+    smoking: "no",
+    pets: "no_pets",
+    cleanliness: "moderate",
+    sleepSchedule: "balanced",
+    guests: "sometimes"
+  };
+
+  return {
+    uid: String(row.uid ?? row.id ?? ""),
+    email: typeof row.email === "string" ? row.email : null,
+    fullName: String(row.full_name ?? row.fullName ?? "Roommate user"),
+    age: asNumber(row.age, 18),
+    gender: (row.gender as UserProfile["gender"]) ?? "prefer_not_to_say",
+    university: String(row.university ?? ""),
+    occupation: String(row.occupation ?? ""),
+    minBudget: asNumber(row.min_budget ?? row.minBudget, 0),
+    maxBudget: asNumber(row.max_budget ?? row.maxBudget, 0),
+    preferredMoveInDate: row.preferred_move_in_date || row.preferredMoveInDate ? asDate(row.preferred_move_in_date ?? row.preferredMoveInDate) : null,
+    lifestyle,
+    onboardingComplete: Boolean(row.onboarding_complete ?? row.onboardingComplete),
+    photoURL: typeof row.photo_url === "string" ? row.photo_url : typeof row.photoURL === "string" ? row.photoURL : null,
+    bio: typeof row.bio === "string" ? row.bio : "",
+    role: (row.role as UserProfile["role"]) ?? "user",
+    verified: Boolean(row.verified),
+    profileCompletion: asNumber(row.profile_completion ?? row.profileCompletion, 0),
+    favoriteListingIds: asStringArray(row.favorite_listing_ids ?? row.favoriteListingIds),
+    createdAt: asDate(row.created_at ?? row.createdAt),
+    updatedAt: asDate(row.updated_at ?? row.updatedAt)
+  };
+}
+
+export function mapListingRow(row: GenericRecord): Listing {
+  return {
+    id: String(row.id ?? ""),
+    ownerId: String(row.owner_id ?? row.ownerId ?? ""),
+    title: String(row.title ?? ""),
+    description: String(row.description ?? ""),
+    propertyType: (row.property_type ?? row.propertyType ?? "apartment") as Listing["propertyType"],
+    listingType: (row.listing_type ?? row.listingType ?? "private_room") as Listing["listingType"],
+    monthlyRent: asNumber(row.monthly_rent ?? row.monthlyRent),
+    city: String(row.city ?? ""),
+    district: typeof row.district === "string" ? row.district : "",
+    address: String(row.address ?? ""),
+    bedrooms: asNumber(row.bedrooms, 1),
+    bathrooms: asNumber(row.bathrooms, 1),
+    availableFrom: asDate(row.available_from ?? row.availableFrom),
+    amenities: asStringArray(row.amenities),
+    preferences: ((row.preferences as ListingPreferences | null) ?? {
+      genderPreference: "any",
+      smoking: "no",
+      pets: "no_pets"
+    }) as ListingPreferences,
+    photoUrls: asStringArray(row.photo_urls ?? row.photoUrls),
+    createdAt: asDate(row.created_at ?? row.createdAt),
+    updatedAt: asDate(row.updated_at ?? row.updatedAt)
+  };
+}
+
+export function mapConversationRow(row: GenericRecord): Conversation {
+  return {
+    id: String(row.id ?? ""),
+    participantIds: asStringArray(row.participant_ids ?? row.participantIds),
+    listingId: typeof row.listing_id === "string" ? row.listing_id : null,
+    listingTitle: typeof row.listing_title === "string" ? row.listing_title : null,
+    lastMessage: typeof row.last_message === "string" ? row.last_message : null,
+    lastMessageAt: row.last_message_at ? asDate(row.last_message_at) : null,
+    createdAt: asDate(row.created_at ?? row.createdAt),
+    updatedAt: asDate(row.updated_at ?? row.updatedAt),
+    unreadCounts: (row.unread_counts as Record<string, number> | null) ?? null
+  };
+}
+
+export function mapMessageRow(row: GenericRecord): Message {
+  return {
+    id: String(row.id ?? ""),
+    conversationId: String(row.conversation_id ?? row.conversationId ?? ""),
+    senderId: String(row.sender_id ?? row.senderId ?? ""),
+    text: String(row.text ?? ""),
+    imageUrl: typeof row.image_url === "string" ? row.image_url : null,
+    createdAt: asDate(row.created_at ?? row.createdAt),
+    readBy: asStringArray(row.read_by ?? row.readBy)
+  };
+}
+
+export function mapReportRow(row: GenericRecord): Report {
+  return {
+    id: String(row.id ?? ""),
+    reporterId: String(row.reporter_id ?? row.reporterId ?? ""),
+    targetId: String(row.target_id ?? row.targetId ?? ""),
+    targetType: (row.target_type ?? row.targetType ?? "listing") as Report["targetType"],
+    reason: String(row.reason ?? ""),
+    details: typeof row.details === "string" ? row.details : "",
+    status: (row.status ?? "open") as Report["status"],
+    createdAt: asDate(row.created_at ?? row.createdAt),
+    updatedAt: asDate(row.updated_at ?? row.updatedAt)
+  };
+}
+

@@ -4,9 +4,11 @@ import { LogOut, Plus, UserCircle } from "lucide-react";
 import Link from "next/link";
 
 import { useAuth } from "@/context/auth-context";
+import { useLocale } from "@/context/locale-context";
 
 export function Navbar() {
   const { user, profile, loading, signOut } = useAuth();
+  const { locale, setLocale } = useLocale();
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
@@ -28,6 +30,15 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <select
+            aria-label="Language"
+            value={locale}
+            onChange={(event) => setLocale(event.target.value as "en" | "ru")}
+            className="w-auto rounded-full border border-border bg-white px-3 py-2 text-sm"
+          >
+            <option value="en">EN</option>
+            <option value="ru">RU</option>
+          </select>
           {user ? (
             <>
               <Link

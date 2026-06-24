@@ -1,27 +1,19 @@
-import {
-  type DocumentData,
-  type FirestoreDataConverter,
-  type QueryDocumentSnapshot,
-  Timestamp
-} from "firebase/firestore";
-
-export function converter<T>(): FirestoreDataConverter<T> {
-  return {
-    toFirestore(data: T): DocumentData {
-      return data as DocumentData;
-    },
-    fromFirestore(snapshot: QueryDocumentSnapshot): T {
-      return snapshot.data() as T;
-    }
-  };
-}
-
-export function timestampToDate(value: unknown): Date | null {
-  if (!value) return null;
+export function timestampToDate<T>(value: T) {
   if (value instanceof Date) return value;
-  if (value instanceof Timestamp) return value.toDate();
-  if (typeof value === "object" && "toDate" in value && typeof value.toDate === "function") {
-    return value.toDate();
+  if (typeof value === "string" || typeof value === "number") {
+    const next = new Date(value);
+    if (!Number.isNaN(next.getTime())) return next;
   }
   return null;
+}
+
+export function converter<T>() {
+  return {
+    toFirestore(value: T) {
+      return value;
+    },
+    fromFirestore(value: T) {
+      return value;
+    }
+  };
 }

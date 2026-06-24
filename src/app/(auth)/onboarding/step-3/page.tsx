@@ -6,10 +6,9 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 
 import { useAuth } from "@/context/auth-context";
-import { db } from "@/lib/firebase/client";
+import { upsertProfile } from "@/lib/data/profiles";
 import { profileCompletion } from "@/lib/utils/compatibility";
 import {
   lifestyleSchema,
@@ -143,12 +142,7 @@ export default function OnboardingStepThreePage() {
 
     try {
       window.localStorage.setItem("roommate-kz:onboarding:step-3", JSON.stringify(values));
-      const now = serverTimestamp();
-      const profile: Omit<UserProfile, "createdAt" | "updatedAt" | "preferredMoveInDate"> & {
-        createdAt: typeof now;
-        updatedAt: typeof now;
-        preferredMoveInDate: Date;
-      } = {
+      const profile: UserProfile = {
         uid: user.uid,
         email: user.email,
         fullName: basics.fullName,
@@ -167,16 +161,15 @@ export default function OnboardingStepThreePage() {
         verified: user.emailVerified,
         favoriteListingIds: existingProfile?.favoriteListingIds ?? [],
         profileCompletion: 0,
-        createdAt: now,
-        updatedAt: now
+        createdAt: existingProfile?.createdAt ?? new Date(),
+        updatedAt: new Date()
       };
       profile.profileCompletion = profileCompletion({
         ...profile,
-        createdAt: new Date(),
         updatedAt: new Date()
       });
 
-      await setDoc(doc(db, "users", user.uid), profile, { merge: true });
+      await upsertProfile(profile);
       window.localStorage.removeItem("roommate-kz:onboarding:step-1");
       window.localStorage.removeItem("roommate-kz:onboarding:step-2");
       window.localStorage.removeItem("roommate-kz:onboarding:step-3");

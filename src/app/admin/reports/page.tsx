@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { useAuth } from "@/context/auth-context";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import type { Report } from "@/types/report";
 
 export default function AdminReportsPage() {
   const { profile } = useAuth();
-  const [reports, setReports] = useState<any[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,10 +19,12 @@ export default function AdminReportsPage() {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      const snapshot = await getDocs(query(collection(db, "reports")));
-      if (cancelled) return;
-      setReports(snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
-      setLoading(false);
+      const response = await fetch("/api/reports");
+      const payload = (await response.json()) as { reports?: Report[] };
+      if (!cancelled) {
+        setReports(payload.reports ?? []);
+        setLoading(false);
+      }
     }
 
     void load();
@@ -49,9 +51,13 @@ export default function AdminReportsPage() {
     );
   }
 
-  async function updateReport(reportId: string, status: string) {
-    await fetch('/api/reports', { method: 'PATCH', body: JSON.stringify({ reportId, status }), headers: { 'Content-Type': 'application/json' } });
-    setReports((s) => s.map((r) => (r.id === reportId ? { ...r, status } : r)));
+  async function updateReport(reportId: string, status: "resolved" | "dismissed") {
+    await fetch("/api/reports", {
+      method: "PATCH",
+      body: JSON.stringify({ reportId, status }),
+      headers: { "Content-Type": "application/json" }
+    });
+    setReports((current) => current.map((report) => (report.id === reportId ? { ...report, status } : report)));
   }
 
   return (
@@ -62,16 +68,26 @@ export default function AdminReportsPage() {
       <div className="mt-6 overflow-hidden rounded-2xl bg-white shadow-soft">
         {loading ? <div className="p-4">Loading...</div> : null}
         {!loading && reports.length === 0 ? <div className="p-4">No reports found.</div> : null}
-        {reports.map((r) => (
-          <div key={r.id} className="flex items-center justify-between border-b border-border p-4">
+        {reports.map((report) => (
+          <div key={report.id} className="flex items-center justify-between border-b border-border p-4">
             <div>
-              <div className="font-semibold">{r.targetType} • {r.targetId}</div>
-              <div className="text-sm text-foreground/60">{r.reason} — {r.details}</div>
-              <div className="text-xs text-foreground/50">Reporter: {r.reporterId} • Status: {r.status}</div>
+              <div className="font-semibold">
+                {report.targetType} • {report.targetId}
+              </div>
+              <div className="text-sm text-foreground/60">
+                {report.reason} — {report.details}
+              </div>
+              <div className="text-xs text-foreground/50">
+                Reporter: {report.reporterId} • Status: {report.status}
+              </div>
             </div>
             <div className="flex gap-2">
-              <button className="rounded-md bg-emerald-600 px-3 py-1 text-white" onClick={() => updateReport(r.id, 'action_taken')}>Action Taken</button>
-              <button className="rounded-md bg-yellow-500 px-3 py-1 text-white" onClick={() => updateReport(r.id, 'dismissed')}>Dismiss</button>
+              <button className="rounded-md bg-emerald-600 px-3 py-1 text-white" onClick={() => updateReport(report.id, "resolved")}>
+                Resolve
+              </button>
+              <button className="rounded-md bg-yellow-500 px-3 py-1 text-white" onClick={() => updateReport(report.id, "dismissed")}>
+                Dismiss
+              </button>
             </div>
           </div>
         ))}

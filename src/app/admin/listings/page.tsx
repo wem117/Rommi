@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { useAuth } from "@/context/auth-context";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import type { Listing } from "@/types/listing";
 
 export default function AdminListingsPage() {
   const { profile } = useAuth();
-  const [listings, setListings] = useState<any[]>([]);
+  const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,10 +19,12 @@ export default function AdminListingsPage() {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      const snapshot = await getDocs(collection(db, "listings"));
-      if (cancelled) return;
-      setListings(snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
-      setLoading(false);
+      const response = await fetch("/api/admin/listings");
+      const payload = (await response.json()) as { listings?: Listing[] };
+      if (!cancelled) {
+        setListings(payload.listings ?? []);
+        setLoading(false);
+      }
     }
 
     void load();
@@ -50,8 +52,11 @@ export default function AdminListingsPage() {
   }
 
   async function takeAction(listingId: string, action: "remove" | "restore") {
-    await fetch('/api/admin/listings/action', { method: 'POST', body: JSON.stringify({ listingId, action }), headers: { 'Content-Type': 'application/json' } });
-    setListings((s) => s.map((l) => (l.id === listingId ? { ...l, removed: action === 'remove' } : l)));
+    await fetch("/api/admin/listings/action", {
+      method: "POST",
+      body: JSON.stringify({ listingId, action }),
+      headers: { "Content-Type": "application/json" }
+    });
   }
 
   return (
@@ -62,18 +67,19 @@ export default function AdminListingsPage() {
       <div className="mt-6 overflow-hidden rounded-2xl bg-white shadow-soft">
         {loading ? <div className="p-4">Loading...</div> : null}
         {!loading && listings.length === 0 ? <div className="p-4">No listings found.</div> : null}
-        {listings.map((l) => (
-          <div key={l.id} className="flex items-center justify-between border-b border-border p-4">
+        {listings.map((listing) => (
+          <div key={listing.id} className="flex items-center justify-between border-b border-border p-4">
             <div>
-              <div className="font-semibold">{l.title || "Untitled"} <span className="text-xs text-foreground/50">{l.city}</span></div>
-              <div className="text-sm text-foreground/60">Owner: {l.ownerId}</div>
+              <div className="font-semibold">
+                {listing.title || "Untitled"}{" "}
+                <span className="text-xs text-foreground/50">{listing.city}</span>
+              </div>
+              <div className="text-sm text-foreground/60">Owner: {listing.ownerId}</div>
             </div>
             <div className="flex gap-2">
-              {l.removed ? (
-                <button className="rounded-md bg-emerald-600 px-3 py-1 text-white" onClick={() => takeAction(l.id, 'restore')}>Restore</button>
-              ) : (
-                <button className="rounded-md bg-red-600 px-3 py-1 text-white" onClick={() => takeAction(l.id, 'remove')}>Remove</button>
-              )}
+              <button className="rounded-md bg-red-600 px-3 py-1 text-white" onClick={() => takeAction(listing.id, "remove")}>
+                Remove
+              </button>
             </div>
           </div>
         ))}

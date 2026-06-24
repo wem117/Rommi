@@ -1,6 +1,5 @@
 "use client";
 
-import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { Loader2, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -9,8 +8,8 @@ import { toast } from "sonner";
 import { AvatarUpload } from "@/components/profile/avatar-upload";
 import { useAuth } from "@/context/auth-context";
 import { UNIVERSITIES } from "@/lib/constants/universities";
-import { db } from "@/lib/firebase/client";
-import { sendCurrentUserVerificationEmail } from "@/lib/firebase/auth";
+import { updateProfile } from "@/lib/data/profiles";
+import { sendCurrentUserVerificationEmail } from "@/lib/supabase/auth";
 import { profileCompletion } from "@/lib/utils/compatibility";
 import type { LifestylePreferences, UserProfile } from "@/types/user";
 
@@ -49,7 +48,8 @@ export default function EditProfilePage() {
     setSaving(true);
     try {
       const completion = profileCompletion(draft);
-      await updateDoc(doc(db, "users", user.uid), {
+      await updateProfile({
+        uid: user.uid,
         fullName: draft.fullName,
         age: Number(draft.age),
         gender: draft.gender,
@@ -62,8 +62,7 @@ export default function EditProfilePage() {
         bio: draft.bio ?? "",
         photoURL: draft.photoURL ?? null,
         profileCompletion: completion,
-        onboardingComplete: true,
-        updatedAt: serverTimestamp()
+        onboardingComplete: true
       });
       toast.success("Profile updated");
       router.push("/profile");

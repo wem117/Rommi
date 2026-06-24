@@ -1,6 +1,6 @@
 "use client";
 
-import type { User as FirebaseUser } from "firebase/auth";
+import type { Session, User } from "@supabase/supabase-js";
 import {
   createContext,
   useCallback,
@@ -12,11 +12,15 @@ import {
 } from "react";
 import { toast } from "sonner";
 
-import { converter, timestampToDate } from "@/lib/firebase/firestore";
+import { getProfileById } from "@/lib/data/profiles";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { signOut as signOutFromSupabase } from "@/lib/supabase/auth";
+import type { AuthUser } from "@/types/auth";
 import type { UserProfile } from "@/types/user";
 
 interface AuthContextValue {
-  user: FirebaseUser | null;
+  user: AuthUser | null;
   profile: UserProfile | null;
   loading: boolean;
   signOut: () => Promise<void>;
@@ -24,26 +28,30 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function normalizeProfile(data: UserProfile): UserProfile {
+function mapUser(user: User | null): AuthUser | null {
+  if (!user) return null;
+
   return {
-    ...data,
-    preferredMoveInDate: timestampToDate(data.preferredMoveInDate) ?? null,
-    createdAt: timestampToDate(data.createdAt) ?? new Date(),
-    updatedAt: timestampToDate(data.updatedAt) ?? new Date()
+    uid: user.id,
+    email: user.email ?? null,
+    photoURL: (user.user_metadata?.avatar_url as string | undefined) ?? null,
+    emailVerified: Boolean(user.email_confirmed_at)
   };
 }
 
-async function syncSession(user: FirebaseUser | null) {
-  if (!user) {
+async function syncServerSession(session: Session | null) {
+  if (!session?.access_token) {
     await fetch("/api/auth/session", { method: "DELETE" });
     return;
   }
 
-  const idToken = await user.getIdToken();
   const response = await fetch("/api/auth/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idToken })
+    body: JSON.stringify({
+      accessToken: session.access_token,
+      refreshToken: session.refresh_token
+    })
   });
 
   if (!response.ok) {
@@ -52,85 +60,70 @@ async function syncSession(user: FirebaseUser | null) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let unsubscribeProfile: (() => void) | undefined;
-    let unsubscribeAuth: (() => void) | undefined;
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
     let cancelled = false;
 
-    async function startAuthListener() {
+    async function loadProfile(nextUser: User | null) {
+      setUser(mapUser(nextUser));
+      setProfile(null);
+
       try {
-        const [{ auth, db }, { onAuthStateChanged }, { doc, onSnapshot }] = await Promise.all([
-          import("@/lib/firebase/client"),
-          import("firebase/auth"),
-          import("firebase/firestore")
-        ]);
+        const { data } = await supabase.auth.getSession();
+        await syncServerSession(data.session ?? null);
 
-        if (cancelled) return;
+        if (!nextUser) {
+          if (!cancelled) setLoading(false);
+          return;
+        }
 
-        unsubscribeAuth = onAuthStateChanged(auth, async (nextUser) => {
-          unsubscribeProfile?.();
-          setUser(nextUser);
-          setProfile(null);
-
-          try {
-            await syncSession(nextUser);
-
-            if (!nextUser) {
-              setLoading(false);
-              return;
-            }
-
-            const profileRef = doc(db, "users", nextUser.uid).withConverter(converter<UserProfile>());
-            unsubscribeProfile = onSnapshot(
-              profileRef,
-              (snapshot) => {
-                setProfile(snapshot.exists() ? normalizeProfile(snapshot.data()) : null);
-                setLoading(false);
-              },
-              (error) => {
-                console.error("Profile listener failed", error);
-                toast.error("Could not load your profile");
-                setLoading(false);
-              }
-            );
-          } catch (error) {
-            console.error("Auth session sync failed", error);
-            toast.error("Could not start your secure session");
-            setLoading(false);
-          }
-        });
+        const nextProfile = await getProfileById(nextUser.id);
+        if (!cancelled) {
+          setProfile(nextProfile);
+          setLoading(false);
+        }
       } catch (error) {
-        console.error("Firebase auth initialization failed", error);
-        setLoading(false);
+        console.error("Auth session sync failed", error);
+        if (!cancelled) {
+          toast.error("Could not start your secure session");
+          setLoading(false);
+        }
       }
     }
 
-    void startAuthListener();
+    void supabase.auth.getUser().then(({ data }) => loadProfile(data.user ?? null));
+
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setLoading(true);
+      void loadProfile(session?.user ?? null);
+    });
 
     return () => {
       cancelled = true;
-      unsubscribeProfile?.();
-      unsubscribeAuth?.();
+      subscription.unsubscribe();
     };
   }, []);
 
   const signOut = useCallback(async () => {
-    const [{ auth }, { signOut: firebaseSignOut }] = await Promise.all([
-      import("@/lib/firebase/client"),
-      import("firebase/auth")
-    ]);
-    await fetch("/api/auth/session", { method: "DELETE" });
-    await firebaseSignOut(auth);
+    await signOutFromSupabase();
     setProfile(null);
+    setUser(null);
   }, []);
 
   const value = useMemo(
     () => ({ user, profile, loading, signOut }),
-    [user, profile, loading, signOut]
+    [loading, profile, signOut, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

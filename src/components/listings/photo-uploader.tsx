@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { deleteImageByUrl, storagePathForImage, uploadImageFile, validateImageFile } from "@/lib/firebase/storage";
+import { deleteImageByUrl, storagePathForImage, uploadImageFile, validateImageFile } from "@/lib/supabase/storage";
 
 const MAX_LISTING_IMAGES = 10;
 

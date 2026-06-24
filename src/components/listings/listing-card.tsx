@@ -5,6 +5,9 @@ import Link from "next/link";
 import { FavoriteButton } from "@/components/favorites/favorite-button";
 import { formatDate, formatMonthlyRent } from "@/lib/utils/format";
 import type { Listing } from "@/types/listing";
+import { useAuth } from "@/context/auth-context";
+import { useRouter } from "next/navigation";
+import { createConversation } from "@/hooks/use-conversations";
 
 const propertyLabels: Record<Listing["propertyType"], string> = {
   apartment: "Apartment",
@@ -21,6 +24,8 @@ const listingTypeLabels: Record<Listing["listingType"], string> = {
 
 export function ListingCard({ listing }: { listing: Listing }) {
   const cover = listing.photoUrls[0];
+  const { user } = useAuth();
+  const router = useRouter();
 
   return (
     <Link
@@ -78,6 +83,27 @@ export function ListingCard({ listing }: { listing: Listing }) {
             <CalendarDays className="h-3.5 w-3.5" />
             {formatDate(listing.availableFrom)}
           </span>
+        </div>
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <div />
+          <div>
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!user) return router.push(`/sign-in?redirect=/rooms/${listing.id}`);
+                try {
+                  const id = await createConversation({ participantIds: [user.uid, listing.ownerId], listingId: listing.id, listingTitle: listing.title });
+                  router.push(`/inbox/${id}`);
+                } catch (err) {
+                  console.error(err);
+                }
+              }}
+              className="rounded-md bg-primary px-3 py-1 text-sm font-semibold text-white"
+            >
+              Message
+            </button>
+          </div>
         </div>
       </div>
     </Link>

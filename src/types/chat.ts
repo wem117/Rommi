@@ -7,6 +7,7 @@ export interface Conversation {
   lastMessageAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  unreadCounts?: Record<string, number> | null;
 }
 
 export interface Message {
@@ -14,6 +15,7 @@ export interface Message {
   conversationId: string;
   senderId: string;
   text: string;
+  imageUrl?: string | null;
   createdAt: Date;
   readBy: string[];
 }

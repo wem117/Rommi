@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { adminAuth } from "@/lib/firebase/admin";
+import { adminAuth, adminDb } from "@/lib/firebase/admin";
 
 const SESSION_COOKIE = "__session";
 const EXPIRES_IN = 60 * 60 * 24 * 5 * 1000;
@@ -43,10 +43,13 @@ export async function GET() {
     }
 
     const decoded = await adminAuth.verifySessionCookie(session, true);
+    const profile = await adminDb.collection("users").doc(decoded.uid).get();
+    const profileRole = profile.exists ? (profile.data()?.role as string | undefined) : undefined;
+
     return NextResponse.json({
       authenticated: true,
       uid: decoded.uid,
-      role: decoded.role ?? null
+      role: decoded.role ?? profileRole ?? null
     });
   } catch {
     return NextResponse.json({ authenticated: false }, { status: 401 });

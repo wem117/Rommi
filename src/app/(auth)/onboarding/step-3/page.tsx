@@ -10,6 +10,7 @@ import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 
 import { useAuth } from "@/context/auth-context";
 import { db } from "@/lib/firebase/client";
+import { profileCompletion } from "@/lib/utils/compatibility";
 import {
   lifestyleSchema,
   type BasicInfoInput,
@@ -79,7 +80,7 @@ function readDraft<T>(key: string): T | null {
 
 export default function OnboardingStepThreePage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile: existingProfile } = useAuth();
   const {
     control,
     handleSubmit,
@@ -98,8 +99,12 @@ export default function OnboardingStepThreePage() {
 
   useEffect(() => {
     const saved = window.localStorage.getItem("roommate-kz:onboarding:step-3");
-    if (saved) reset(JSON.parse(saved) as LifestyleInput);
-  }, [reset]);
+    if (saved) {
+      reset(JSON.parse(saved) as LifestyleInput);
+      return;
+    }
+    if (existingProfile?.lifestyle) reset(existingProfile.lifestyle);
+  }, [existingProfile?.lifestyle, reset]);
 
   async function onSubmit(values: LifestyleInput) {
     if (!user) {
@@ -108,8 +113,27 @@ export default function OnboardingStepThreePage() {
       return;
     }
 
-    const basics = readDraft<BasicInfoInput>("roommate-kz:onboarding:step-1");
-    const housing = readDraft<HousingInput>("roommate-kz:onboarding:step-2");
+    const basics =
+      readDraft<BasicInfoInput>("roommate-kz:onboarding:step-1") ??
+      (existingProfile
+        ? {
+            fullName: existingProfile.fullName,
+            age: existingProfile.age,
+            gender: existingProfile.gender,
+            university: existingProfile.university,
+            occupation: existingProfile.occupation
+          }
+        : null);
+    const housing =
+      readDraft<HousingInput>("roommate-kz:onboarding:step-2") ??
+      (existingProfile
+        ? {
+            minBudget: existingProfile.minBudget,
+            maxBudget: existingProfile.maxBudget,
+            preferredMoveInDate:
+              existingProfile.preferredMoveInDate?.toISOString().slice(0, 10) ?? new Date().toISOString().slice(0, 10)
+          }
+        : null);
 
     if (!basics || !housing) {
       toast.error("Please complete the previous onboarding steps");
@@ -137,12 +161,20 @@ export default function OnboardingStepThreePage() {
         preferredMoveInDate: new Date(housing.preferredMoveInDate),
         lifestyle: values as LifestylePreferences,
         onboardingComplete: true,
-        photoURL: user.photoURL,
-        bio: "",
+        photoURL: existingProfile?.photoURL ?? user.photoURL,
+        bio: existingProfile?.bio ?? "",
         role: "user",
+        verified: user.emailVerified,
+        favoriteListingIds: existingProfile?.favoriteListingIds ?? [],
+        profileCompletion: 0,
         createdAt: now,
         updatedAt: now
       };
+      profile.profileCompletion = profileCompletion({
+        ...profile,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
 
       await setDoc(doc(db, "users", user.uid), profile, { merge: true });
       window.localStorage.removeItem("roommate-kz:onboarding:step-1");

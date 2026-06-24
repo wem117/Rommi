@@ -1,9 +1,9 @@
 export function formatCurrency(value: number) {
   if (value >= 1000) {
-    return `${Math.round(value / 1000)}K ₸`;
+    return `${Math.round(value / 1000)}K KZT`;
   }
 
-  return `${new Intl.NumberFormat("kk-KZ").format(value)} ₸`;
+  return `${new Intl.NumberFormat("kk-KZ").format(value)} KZT`;
 }
 
 export function formatMonthlyRent(value: number) {

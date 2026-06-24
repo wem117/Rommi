@@ -5,6 +5,8 @@ import { Loader2 } from "lucide-react";
 import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 
+import { PhotoUploader } from "@/components/listings/photo-uploader";
+import { useAuth } from "@/context/auth-context";
 import { CITIES } from "@/lib/constants/cities";
 import { listingSchema, type ListingInput } from "@/lib/validations/listing.schema";
 import type { Listing } from "@/types/listing";
@@ -58,6 +60,7 @@ export function ListingForm({
   onSubmit: (values: ListingInput) => Promise<void>;
   onDelete?: () => Promise<void>;
 }) {
+  const { user } = useAuth();
   const defaultValues = useMemo<ListingInput>(
     () =>
       initialListing
@@ -86,11 +89,14 @@ export function ListingForm({
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors, isSubmitting }
   } = useForm<ListingInput>({
     resolver: zodResolver(listingSchema),
     defaultValues
   });
+  const photoUrls = watch("photoUrls") ?? [];
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-2xl bg-white p-6 shadow-soft">
@@ -219,19 +225,9 @@ export function ListingForm({
       </div>
 
       <div>
-        <label htmlFor="photoUrls">Photo URLs</label>
-        <textarea
-          id="photoUrls"
-          rows={3}
-          placeholder="https://..."
-          {...register("photoUrls", {
-            setValueAs: (value: string) =>
-              value
-                .split("\n")
-                .map((item) => item.trim())
-                .filter(Boolean)
-          })}
-        />
+        {user ? (
+          <PhotoUploader ownerId={user.uid} value={photoUrls} onChange={(urls) => setValue("photoUrls", urls)} />
+        ) : null}
         {errors.photoUrls ? <p className="mt-1 text-xs text-red-600">{errors.photoUrls.message}</p> : null}
       </div>
 

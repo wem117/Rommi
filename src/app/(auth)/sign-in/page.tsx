@@ -4,13 +4,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Chrome, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { doc, getDoc } from "firebase/firestore";
 
 import { converter } from "@/lib/firebase/firestore";
+import { useAuth } from "@/context/auth-context";
 import type { UserProfile } from "@/types/user";
 
 const authSchema = z.object({
@@ -48,9 +49,10 @@ async function establishSessionAndDestination(uid: string, redirectTo: string) {
     : redirectTo;
 }
 
-export default function SignInPage() {
+function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, profile, loading } = useAuth();
   const redirectTo = searchParams.get("redirect") || "/rooms";
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -63,6 +65,15 @@ export default function SignInPage() {
     resolver: zodResolver(authSchema),
     defaultValues: { email: "", password: "" }
   });
+
+  useEffect(() => {
+    if (loading || !user) return;
+    if (!profile?.onboardingComplete) {
+      router.replace("/onboarding/step-1");
+      return;
+    }
+    router.replace(redirectTo.startsWith("/sign-in") || redirectTo.startsWith("/onboarding") ? "/rooms" : redirectTo);
+  }, [loading, profile?.onboardingComplete, redirectTo, router, user]);
 
   async function completeAuth(uid: string) {
     const destination = await establishSessionAndDestination(uid, redirectTo);
@@ -77,10 +88,30 @@ export default function SignInPage() {
         mode === "sign-in"
           ? await signInWithEmail(values.email, values.password)
           : await signUpWithEmail(values.email, values.password);
+      if (mode === "sign-up" && !credential.user.emailVerified) {
+        toast.success("Verification email sent");
+      }
       await completeAuth(credential.user.uid);
     } catch (error) {
       console.error(error);
       toast.error(mode === "sign-in" ? "Could not sign in" : "Could not create account");
+    }
+  }
+
+  async function handlePasswordReset() {
+    const email = document.querySelector<HTMLInputElement>("#email")?.value;
+    if (!email) {
+      toast.error("Enter your email first");
+      return;
+    }
+
+    try {
+      const { sendResetPassword } = await import("@/lib/firebase/auth");
+      await sendResetPassword(email);
+      toast.success("Password reset email sent");
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not send reset email");
     }
   }
 
@@ -101,8 +132,12 @@ export default function SignInPage() {
   return (
     <section className="w-full rounded-2xl bg-white p-6 shadow-soft">
       <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold tracking-normal">Welcome back</h1>
-        <p className="mt-2 text-sm text-foreground/65">Sign in to access your account</p>
+        <h1 className="text-3xl font-bold tracking-normal">
+          {mode === "sign-in" ? "Welcome back" : "Create your account"}
+        </h1>
+        <p className="mt-2 text-sm text-foreground/65">
+          {mode === "sign-in" ? "Sign in to access your account" : "Verify your email after signing up"}
+        </p>
       </div>
 
       <button
@@ -129,7 +164,14 @@ export default function SignInPage() {
         </div>
 
         <div>
-          <label htmlFor="password">Password</label>
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor="password">Password</label>
+            {mode === "sign-in" ? (
+              <button type="button" onClick={handlePasswordReset} className="text-xs font-semibold text-primary">
+                Reset password
+              </button>
+            ) : null}
+          </div>
           <input
             id="password"
             type="password"
@@ -168,5 +210,13 @@ export default function SignInPage() {
         </Link>
       </div>
     </section>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<section className="w-full rounded-2xl bg-white p-6 shadow-soft">Loading...</section>}>
+      <SignInContent />
+    </Suspense>
   );
 }

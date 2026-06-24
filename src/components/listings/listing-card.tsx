@@ -2,6 +2,7 @@ import { BedDouble, CalendarDays, MapPin, ShowerHead } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
+import { FavoriteButton } from "@/components/favorites/favorite-button";
 import { formatDate, formatMonthlyRent } from "@/lib/utils/format";
 import type { Listing } from "@/types/listing";
 
@@ -42,6 +43,9 @@ export function ListingCard({ listing }: { listing: Listing }) {
         )}
         <div className="absolute left-3 top-3 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-white">
           {listingTypeLabels[listing.listingType]}
+        </div>
+        <div className="absolute right-3 top-3">
+          <FavoriteButton listingId={listing.id} />
         </div>
       </div>
 

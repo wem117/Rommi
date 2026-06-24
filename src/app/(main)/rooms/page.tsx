@@ -1,12 +1,15 @@
 "use client";
 
 import { Loader2, RefreshCcw } from "lucide-react";
+import { useState } from "react";
 
-import { ListingCard } from "@/components/listings/listing-card";
-import { useListings } from "@/hooks/use-listings";
+import { ListingFiltersBar } from "@/components/listings/listing-filters";
+import { ListingGrid } from "@/components/listings/listing-grid";
+import { type ListingFilters, useListings } from "@/hooks/use-listings";
 
 export default function RoomsPage() {
-  const { listings, loading, loadingMore, error, hasMore, reload, loadMore } = useListings();
+  const [filters, setFilters] = useState<ListingFilters>({ sort: "newest" });
+  const { listings, loading, loadingMore, error, hasMore, reload, loadMore } = useListings(filters);
 
   return (
     <main className="mx-auto min-h-[70vh] max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
@@ -16,6 +19,8 @@ export default function RoomsPage() {
           <p className="mt-2 text-foreground/65">Real listings published by Roommate KZ users.</p>
         </div>
       </div>
+
+      <ListingFiltersBar filters={filters} onChange={setFilters} />
 
       {loading ? (
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -43,16 +48,14 @@ export default function RoomsPage() {
       {!loading && !error && listings.length === 0 ? (
         <div className="mt-10 rounded-2xl bg-white p-8 text-center shadow-soft">
           <h2 className="font-heading text-2xl font-bold">No listings yet</h2>
-          <p className="mt-2 text-sm text-foreground/60">Published listings will appear here.</p>
+          <p className="mt-2 text-sm text-foreground/60">Create the first room listing to start the marketplace.</p>
         </div>
       ) : null}
 
       {!loading && !error && listings.length > 0 ? (
         <>
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {listings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))}
+          <div className="mt-10">
+            <ListingGrid listings={listings} />
           </div>
 
           {hasMore ? (

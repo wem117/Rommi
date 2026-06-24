@@ -13,11 +13,11 @@ export const listingSchema = z
     bedrooms: z.number().int().min(0).max(20),
     bathrooms: z.number().min(0).max(20),
     availableFrom: z.string().min(1, "Available date is required"),
-    amenities: z.array(z.string()).max(20).default([]),
+    amenities: z.array(z.string()).max(20),
     genderPreference: z.enum(["any", "male", "female"]),
     smoking: z.enum(["no", "yes"]),
     pets: z.enum(["no_pets", "allowed"]),
-    photoUrls: z.array(z.string().url("Photo must be a valid URL")).max(10).default([])
+    photoUrls: z.array(z.string().url("Photo must be a valid URL")).max(10)
   })
   .refine((data) => new Date(data.availableFrom).toString() !== "Invalid Date", {
     path: ["availableFrom"],

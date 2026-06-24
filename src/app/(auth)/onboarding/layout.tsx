@@ -1,6 +1,11 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+import { useAuth } from "@/context/auth-context";
 
 const steps = [
   { href: "/onboarding/step-1", label: "Basics" },
@@ -10,10 +15,31 @@ const steps = [
 
 export default function OnboardingLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, profile, loading } = useAuth();
   const activeIndex = Math.max(
     steps.findIndex((step) => pathname.endsWith(step.href)),
     0
   );
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      router.replace(`/sign-in?redirect=${encodeURIComponent(pathname)}`);
+      return;
+    }
+    if (profile?.onboardingComplete) {
+      router.replace("/rooms");
+    }
+  }, [loading, pathname, profile?.onboardingComplete, router, user]);
+
+  if (loading || !user || profile?.onboardingComplete) {
+    return (
+      <div className="grid min-h-80 place-items-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full rounded-2xl bg-white p-6 shadow-soft">

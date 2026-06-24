@@ -7,9 +7,11 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 import { housingSchema, type HousingInput } from "@/lib/validations/profile.schema";
+import { useAuth } from "@/context/auth-context";
 
 export default function OnboardingStepTwoPage() {
   const router = useRouter();
+  const { profile } = useAuth();
   const {
     register,
     handleSubmit,
@@ -26,8 +28,18 @@ export default function OnboardingStepTwoPage() {
 
   useEffect(() => {
     const saved = window.localStorage.getItem("roommate-kz:onboarding:step-2");
-    if (saved) reset(JSON.parse(saved) as HousingInput);
-  }, [reset]);
+    if (saved) {
+      reset(JSON.parse(saved) as HousingInput);
+      return;
+    }
+    if (profile) {
+      reset({
+        minBudget: profile.minBudget,
+        maxBudget: profile.maxBudget,
+        preferredMoveInDate: profile.preferredMoveInDate?.toISOString().slice(0, 10) ?? new Date().toISOString().slice(0, 10)
+      });
+    }
+  }, [profile, reset]);
 
   function onSubmit(values: HousingInput) {
     window.localStorage.setItem("roommate-kz:onboarding:step-2", JSON.stringify(values));

@@ -8,9 +8,11 @@ import { useForm } from "react-hook-form";
 
 import { UNIVERSITIES } from "@/lib/constants/universities";
 import { basicInfoSchema, type BasicInfoInput } from "@/lib/validations/profile.schema";
+import { useAuth } from "@/context/auth-context";
 
 export default function OnboardingStepOnePage() {
   const router = useRouter();
+  const { profile } = useAuth();
   const {
     register,
     handleSubmit,
@@ -29,8 +31,20 @@ export default function OnboardingStepOnePage() {
 
   useEffect(() => {
     const saved = window.localStorage.getItem("roommate-kz:onboarding:step-1");
-    if (saved) reset(JSON.parse(saved) as BasicInfoInput);
-  }, [reset]);
+    if (saved) {
+      reset(JSON.parse(saved) as BasicInfoInput);
+      return;
+    }
+    if (profile) {
+      reset({
+        fullName: profile.fullName,
+        age: profile.age,
+        gender: profile.gender,
+        university: profile.university,
+        occupation: profile.occupation
+      });
+    }
+  }, [profile, reset]);
 
   function onSubmit(values: BasicInfoInput) {
     window.localStorage.setItem("roommate-kz:onboarding:step-1", JSON.stringify(values));

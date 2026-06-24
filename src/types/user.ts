@@ -29,6 +29,9 @@ export interface UserProfile {
   photoURL?: string | null;
   bio?: string;
   role?: "user" | "admin";
+  verified?: boolean;
+  profileCompletion?: number;
+  favoriteListingIds?: string[];
   createdAt: Date;
   updatedAt: Date;
 }

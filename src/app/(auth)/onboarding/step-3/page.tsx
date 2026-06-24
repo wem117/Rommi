@@ -57,10 +57,10 @@ export default function OnboardingStepThreePage() {
       const step2 = JSON.parse(step2Raw);
 
       // 2. Инициализируем клиент Supabase
-      const supabase = getSupabaseBrowserClient();
+      const supabase = getSupabaseBrowserClient() as any;
 
-      // 3. Безопасное извлечение ID (учитывает и Firebase uid, и Supabase id)
-      const finalUid = user?.id || (user as any)?.uid;
+      // 3. Безопасное извлечение ID
+      const finalUid = user.uid;
 
       if (!finalUid) {
         throw new Error("Could not find user ID in your session. Please re-login.");

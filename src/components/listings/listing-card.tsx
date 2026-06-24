@@ -1,13 +1,14 @@
-import { BedDouble, CalendarDays, MapPin, ShowerHead } from "lucide-react";
+import { BedDouble, CalendarDays, MapPin, ShieldCheck, ShowerHead } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
 import { FavoriteButton } from "@/components/favorites/favorite-button";
+import { createConversation } from "@/hooks/use-conversations";
+import { demoProfiles } from "@/lib/data/demo";
 import { formatDate, formatMonthlyRent } from "@/lib/utils/format";
 import type { Listing } from "@/types/listing";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
-import { createConversation } from "@/hooks/use-conversations";
 
 const propertyLabels: Record<Listing["propertyType"], string> = {
   apartment: "Apartment",
@@ -17,28 +18,37 @@ const propertyLabels: Record<Listing["propertyType"], string> = {
 };
 
 const listingTypeLabels: Record<Listing["listingType"], string> = {
-  private_room: "Private room",
-  shared_room: "Shared room",
-  entire_place: "Entire place"
+  private_room: "Private Room",
+  shared_room: "Shared Room",
+  entire_place: "Entire Place"
 };
 
 export function ListingCard({ listing }: { listing: Listing }) {
   const cover = listing.photoUrls[0];
   const { user } = useAuth();
   const router = useRouter();
+  const owner = demoProfiles.find((profile) => profile.uid === listing.ownerId);
+  const statusBadge =
+    listing.monthlyRent >= 220000 ? "2 days" : listing.monthlyRent <= 120000 ? "Flexible" : "Today";
+  const propertyBadge =
+    listing.propertyType === "studio"
+      ? "Studio"
+      : listing.propertyType === "apartment"
+        ? "Apartment"
+        : listingTypeLabels[listing.listingType];
 
   return (
     <Link
       href={`/rooms/${listing.id}`}
-      className="group overflow-hidden rounded-2xl bg-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg"
+      className="group overflow-hidden rounded-[1.75rem] border border-[#ece1d3] bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl"
     >
-      <div className="relative aspect-[4/3] bg-background">
+      <div className="relative h-[220px] overflow-hidden bg-background">
         {cover ? (
           <Image
             src={cover}
             alt={listing.title}
             fill
-            className="object-cover transition group-hover:scale-105"
+            className="object-cover transition duration-500 group-hover:scale-105"
             sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
           />
         ) : (
@@ -46,64 +56,103 @@ export function ListingCard({ listing }: { listing: Listing }) {
             No photo
           </div>
         )}
-        <div className="absolute left-3 top-3 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-white">
-          {listingTypeLabels[listing.listingType]}
+
+        <div className="absolute left-3 top-3 flex flex-wrap items-center gap-2">
+          <div className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm backdrop-blur">
+            {propertyBadge}
+          </div>
+          {listing.monthlyRent >= 150000 ? (
+            <div className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-white shadow-sm">
+              <ShieldCheck className="h-3 w-3" />
+              Verified
+            </div>
+          ) : null}
         </div>
-        <div className="absolute right-3 top-3">
+
+        <div className="absolute right-3 top-3 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-white shadow-sm">
+          {statusBadge}
+        </div>
+
+        <div className="absolute bottom-3 right-3">
           <FavoriteButton listingId={listing.id} />
         </div>
       </div>
 
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="line-clamp-2 font-heading text-lg font-bold">{listing.title}</h3>
-            <p className="mt-1 flex items-center gap-1 text-sm text-foreground/60">
-              <MapPin className="h-4 w-4" />
-              {listing.city}
-              {listing.district ? `, ${listing.district}` : ""}
-            </p>
-          </div>
-          <div className="shrink-0 text-right font-heading text-lg font-bold text-primary">
-            {formatMonthlyRent(listing.monthlyRent)}
-          </div>
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="line-clamp-2 flex-1 font-heading text-sm font-semibold text-foreground sm:text-base">
+            {listing.title}
+          </h3>
+          <span className="shrink-0 text-base font-bold text-primary">{formatMonthlyRent(listing.monthlyRent)}</span>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium text-foreground/65">
-          <span className="rounded-full bg-background px-3 py-1">{propertyLabels[listing.propertyType]}</span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-background px-3 py-1">
+        <div className="mt-2 flex items-center gap-1 text-xs text-foreground/55">
+          <MapPin className="h-3.5 w-3.5" />
+          <span className="line-clamp-1">
+            {listing.city}
+            {listing.district ? `, ${listing.district}` : ""}
+          </span>
+        </div>
+
+        {owner ? (
+          <div className="mt-3 flex items-center gap-3 rounded-xl bg-[#f5efe6] p-2">
+            <div className="relative h-8 w-8 overflow-hidden rounded-full bg-background">
+              {owner.photoURL ? (
+                <Image src={owner.photoURL} alt={owner.fullName} fill className="object-cover" sizes="32px" />
+              ) : (
+                <div className="grid h-full place-items-center text-xs font-bold text-primary">
+                  {owner.fullName.slice(0, 1).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-foreground">
+                {owner.fullName}, {owner.age}
+              </div>
+              <p className="text-xs text-foreground/50">Current roommate</p>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-3 flex items-center gap-4 text-xs text-foreground/55">
+          <span className="inline-flex items-center gap-1">
             <BedDouble className="h-3.5 w-3.5" />
-            {listing.bedrooms} bed
+            {listing.bedrooms} bd
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-background px-3 py-1">
+          <span className="inline-flex items-center gap-1">
             <ShowerHead className="h-3.5 w-3.5" />
-            {listing.bathrooms} bath
+            {listing.bathrooms} ba
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-background px-3 py-1">
+          <span className="ml-auto inline-flex items-center gap-1">
             <CalendarDays className="h-3.5 w-3.5" />
             {formatDate(listing.availableFrom)}
           </span>
         </div>
+
         <div className="mt-4 flex items-center justify-between gap-2">
-          <div />
-          <div>
-            <button
-              type="button"
-              onClick={async (e) => {
-                e.preventDefault();
-                if (!user) return router.push(`/sign-in?redirect=/rooms/${listing.id}`);
-                try {
-                  const id = await createConversation({ participantIds: [user.uid, listing.ownerId], listingId: listing.id, listingTitle: listing.title });
-                  router.push(`/inbox/${id}`);
-                } catch (err) {
-                  console.error(err);
-                }
-              }}
-              className="rounded-md bg-primary px-3 py-1 text-sm font-semibold text-white"
-            >
-              Message
-            </button>
-          </div>
+          <span className="rounded-full bg-background px-3 py-1 text-xs font-medium text-foreground/65">
+            {propertyLabels[listing.propertyType]}
+          </span>
+          <button
+            type="button"
+            onClick={async (e) => {
+              e.preventDefault();
+              if (!user) return router.push(`/sign-in?redirect=/rooms/${listing.id}`);
+              try {
+                const id = await createConversation({
+                  participantIds: [user.uid, listing.ownerId],
+                  listingId: listing.id,
+                  listingTitle: listing.title
+                });
+                router.push(`/inbox/${id}`);
+              } catch (err) {
+                console.error(err);
+              }
+            }}
+            className="rounded-xl bg-primary px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-primary/90"
+          >
+            Message
+          </button>
         </div>
       </div>
     </Link>

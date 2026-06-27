@@ -2,6 +2,7 @@ import { BadgeCheck, CalendarDays, Coins } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
+import { FavoriteRoommateButton } from "@/components/favorites/favorite-roommate-button";
 import { CompatibilityBar } from "@/components/roommates/compatibility-bar";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
 import { formatCurrency } from "@/lib/utils/format";
@@ -45,6 +46,8 @@ export function RoommateCard({
             {profile.university} · {city}
           </p>
         </div>
+
+        <FavoriteRoommateButton roommateId={profile.uid} />
       </div>
 
       <div className="mt-6">

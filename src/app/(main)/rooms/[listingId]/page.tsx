@@ -9,8 +9,12 @@ import { ListingGallery } from "@/components/listings/listing-gallery";
 import { ListingGrid } from "@/components/listings/listing-grid";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { useAuth } from "@/context/auth-context";
-import { getProfileById } from "@/lib/data/profiles";
-import { formatDate, formatMonthlyRent } from "@/lib/utils/format";
+import {
+  getProfileById,
+  recordContactedListing,
+  recordViewedListing
+} from "@/lib/data/profiles";
+import { formatDate, formatListingPrice } from "@/lib/utils/format";
 import { useListing } from "@/hooks/use-listing";
 import { useListings } from "@/hooks/use-listings";
 import type { UserProfile } from "@/types/user";
@@ -34,6 +38,11 @@ export default function ListingDetailPage() {
       cancelled = true;
     };
   }, [listing?.ownerId]);
+
+  useEffect(() => {
+    if (!user?.uid || !listing?.id) return;
+    void recordViewedListing(user.uid, listing.id);
+  }, [listing?.id, user?.uid]);
 
   if (loading) {
     return <main className="mx-auto max-w-6xl px-4 py-10">Loading listing...</main>;
@@ -64,7 +73,9 @@ export default function ListingDetailPage() {
                 {listing.district ? `, ${listing.district}` : ""}
               </p>
             </div>
-            <div className="text-2xl font-bold text-primary">{formatMonthlyRent(listing.monthlyRent)}</div>
+            <div className="text-right text-2xl font-bold text-primary">
+              {formatListingPrice(listing.monthlyRent, listing.depositRequired, listing.depositAmount)}
+            </div>
           </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
@@ -111,6 +122,10 @@ export default function ListingDetailPage() {
             {owner?.email ? (
               <a
                 href={`mailto:${owner.email}`}
+                onClick={() => {
+                  if (!user?.uid) return;
+                  void recordContactedListing(user.uid, listing.id);
+                }}
                 className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white"
               >
                 <Mail className="h-4 w-4" />

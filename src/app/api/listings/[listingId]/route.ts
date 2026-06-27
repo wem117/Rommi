@@ -20,6 +20,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       propertyType: input.propertyType,
       listingType: input.listingType,
       monthlyRent: input.monthlyRent,
+      depositRequired: input.depositRequired,
+      depositAmount: input.depositAmount,
       city: input.city,
       district: input.district ?? "",
       address: input.address,

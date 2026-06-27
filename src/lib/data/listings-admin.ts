@@ -11,6 +11,8 @@ function toListingPayload(ownerId: string, input: Partial<Listing>) {
     property_type: input.propertyType,
     listing_type: input.listingType,
     monthly_rent: input.monthlyRent,
+    deposit_required: input.depositRequired ?? false,
+    deposit_amount: input.depositAmount ?? 0,
     city: input.city,
     district: input.district ?? "",
     address: input.address,

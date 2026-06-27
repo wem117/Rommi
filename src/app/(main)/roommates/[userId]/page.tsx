@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { FavoriteRoommateButton } from "@/components/favorites/favorite-roommate-button";
 import { CompatibilityBar } from "@/components/roommates/compatibility-bar";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { useAuth } from "@/context/auth-context";
@@ -77,15 +78,18 @@ export default function RoommateDetailPage() {
           ))}
         </div>
 
-        {profile.email ? (
-          <a
-            href={`mailto:${profile.email}`}
-            className="mt-8 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white"
-          >
-            <Mail className="h-4 w-4" />
-            Contact
-          </a>
-        ) : null}
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          {profile.email ? (
+            <a
+              href={`mailto:${profile.email}`}
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white"
+            >
+              <Mail className="h-4 w-4" />
+              Contact
+            </a>
+          ) : null}
+          <FavoriteRoommateButton roommateId={profile.uid} />
+        </div>
       </section>
     </main>
   );

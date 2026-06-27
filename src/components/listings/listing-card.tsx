@@ -5,7 +5,8 @@ import Link from "next/link";
 import { FavoriteButton } from "@/components/favorites/favorite-button";
 import { createConversation } from "@/hooks/use-conversations";
 import { demoProfiles } from "@/lib/data/demo";
-import { formatDate, formatMonthlyRent } from "@/lib/utils/format";
+import { recordContactedListing } from "@/lib/data/profiles";
+import { formatDate, formatListingPrice } from "@/lib/utils/format";
 import type { Listing } from "@/types/listing";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
@@ -83,7 +84,9 @@ export function ListingCard({ listing }: { listing: Listing }) {
           <h3 className="line-clamp-2 flex-1 font-heading text-sm font-semibold text-foreground sm:text-base">
             {listing.title}
           </h3>
-          <span className="shrink-0 text-base font-bold text-primary">{formatMonthlyRent(listing.monthlyRent)}</span>
+          <span className="shrink-0 text-right text-sm font-bold text-primary">
+            {formatListingPrice(listing.monthlyRent, listing.depositRequired, listing.depositAmount)}
+          </span>
         </div>
 
         <div className="mt-2 flex items-center gap-1 text-xs text-foreground/55">
@@ -144,6 +147,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
                   listingId: listing.id,
                   listingTitle: listing.title
                 });
+                await recordContactedListing(user.uid, listing.id);
                 router.push(`/inbox/${id}`);
               } catch (err) {
                 console.error(err);

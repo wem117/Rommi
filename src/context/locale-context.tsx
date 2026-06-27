@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-type Locale = "en" | "ru";
+type Locale = "en" | "kz";
 
 interface LocaleContextValue {
   locale: Locale;
@@ -16,8 +16,13 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const saved = window.localStorage.getItem("roommate-kz:locale");
-    if (saved === "en" || saved === "ru") {
+    if (saved === "en" || saved === "kz") {
       setLocaleState(saved);
+      return;
+    }
+
+    if (saved === "ru") {
+      setLocaleState("kz");
     }
   }, []);
 
@@ -36,4 +41,3 @@ export function useLocale() {
   if (!context) throw new Error("useLocale must be used within LocaleProvider");
   return context;
 }
-

@@ -1,15 +1,14 @@
 "use client";
 
-import React from "react";
-import { LocaleProvider } from "@/context/locale-context"; // Adjust matching your exact filename case
-import { AuthProvider } from "@/context/AuthContext"; // Replace with your auth filename
+import type { ReactNode } from "react";
 
-export function Providers({ children }: { children: React.ReactNode }) {
+import { AuthProvider } from "@/context/auth-context";
+import { LocaleProvider } from "@/context/locale-context";
+
+export function Providers({ children }: { children: ReactNode }) {
   return (
     <LocaleProvider>
-      <AuthProvider>
-        {children}
-      </AuthProvider>
+      <AuthProvider>{children}</AuthProvider>
     </LocaleProvider>
   );
 }

@@ -35,24 +35,34 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <select
-            aria-label="Language"
-            value={locale}
-            onChange={(event) => setLocale(event.target.value as "en" | "ru")}
-            className="w-auto rounded-full border border-[#e6d8c6] bg-white px-4 py-2.5 text-sm font-medium text-[#2e2622] shadow-sm"
-          >
-            <option value="en">EN</option>
-            <option value="ru">KZ</option>
-          </select>
+          <div className="inline-flex items-center rounded-full border border-[#e6d8c6] bg-white p-1 shadow-sm">
+            {([
+              { value: "en", label: "EN" },
+              { value: "kz", label: "KZ" }
+            ] as const).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setLocale(option.value)}
+                className={`rounded-full px-3 py-1.5 text-sm font-semibold transition ${
+                  locale === option.value
+                    ? "bg-[#12b000] text-white"
+                    : "text-[#2e2622] hover:bg-[#f5efe5]"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
 
           {user ? (
             <>
               <Link
                 href="/profile"
-                className="hidden items-center gap-2 rounded-full border border-[#e6d8c6] bg-white px-4 py-2.5 text-sm font-semibold text-[#2e2622] shadow-sm transition hover:border-[#12b000] hover:text-[#12b000] sm:inline-flex"
+                className="inline-flex items-center gap-2 rounded-full border border-[#e6d8c6] bg-white px-3 py-2.5 text-sm font-semibold text-[#2e2622] shadow-sm transition hover:border-[#12b000] hover:text-[#12b000] sm:px-4"
               >
                 <UserCircle className="h-4 w-4" />
-                {profile?.fullName ?? user.email ?? "Profile"}
+                <span className="hidden sm:inline">My Account</span>
               </Link>
               <button
                 type="button"

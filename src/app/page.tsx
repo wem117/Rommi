@@ -181,8 +181,7 @@ export default function HomePage() {
                   type="button"
                   className="hidden rounded-full px-3 py-2 text-sm font-medium text-white/85 transition hover:bg-white/10 sm:inline-flex"
                 >
-                  <span className="mr-1.5">🇬🇧</span>
-                  EN
+                  EN / KZ
                 </button>
                 <Link
                   href="/sign-in"

@@ -7,6 +7,8 @@ export const listingSchema = z
     propertyType: z.enum(["apartment", "house", "dorm", "studio"]),
     listingType: z.enum(["private_room", "shared_room", "entire_place"]),
     monthlyRent: z.number().int().min(1, "Rent is required"),
+    depositRequired: z.boolean().default(false),
+    depositAmount: z.number().int().min(0).default(0),
     city: z.string().min(1, "City is required"),
     district: z.string().optional(),
     address: z.string().min(5, "Address is required"),
@@ -18,6 +20,10 @@ export const listingSchema = z
     smoking: z.enum(["no", "yes"]),
     pets: z.enum(["no_pets", "allowed"]),
     photoUrls: z.array(z.string().url("Photo must be a valid URL")).max(10)
+  })
+  .refine((data) => !data.depositRequired || data.depositAmount > 0, {
+    path: ["depositAmount"],
+    message: "Enter a deposit amount"
   })
   .refine((data) => new Date(data.availableFrom).toString() !== "Invalid Date", {
     path: ["availableFrom"],

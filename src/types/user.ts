@@ -26,12 +26,16 @@ export interface UserProfile {
   preferredMoveInDate: Date | null;
   lifestyle: LifestylePreferences;
   onboardingComplete: boolean;
+  lookingForApartment: boolean;
   photoURL?: string | null;
   bio?: string;
   role?: "user" | "admin";
   verified?: boolean;
   profileCompletion?: number;
   favoriteListingIds?: string[];
+  favoriteRoommateIds?: string[];
+  viewedListingIds?: string[];
+  contactedListingIds?: string[];
   createdAt: Date;
   updatedAt: Date;
 }

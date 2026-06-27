@@ -4,12 +4,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useMemo } from "react";
 import { useForm } from "react-hook-form";
+import type { z } from "zod";
 
 import { PhotoUploader } from "@/components/listings/photo-uploader";
 import { useAuth } from "@/context/auth-context";
 import { CITIES } from "@/lib/constants/cities";
 import { listingSchema, type ListingInput } from "@/lib/validations/listing.schema";
 import type { Listing } from "@/types/listing";
+
+type ListingFormValues = z.input<typeof listingSchema>;
 
 const amenities = [
   "WiFi",
@@ -35,6 +38,8 @@ export function listingToInput(listing: Listing): ListingInput {
     propertyType: listing.propertyType,
     listingType: listing.listingType,
     monthlyRent: listing.monthlyRent,
+    depositRequired: listing.depositRequired,
+    depositAmount: listing.depositAmount,
     city: listing.city,
     district: listing.district ?? "",
     address: listing.address,
@@ -61,7 +66,7 @@ export function ListingForm({
   onDelete?: () => Promise<void>;
 }) {
   const { user } = useAuth();
-  const defaultValues = useMemo<ListingInput>(
+  const defaultValues = useMemo<ListingFormValues>(
     () =>
       initialListing
         ? listingToInput(initialListing)
@@ -71,6 +76,8 @@ export function ListingForm({
             propertyType: "apartment",
             listingType: "private_room",
             monthlyRent: 150000,
+            depositRequired: false,
+            depositAmount: 0,
             city: "",
             district: "",
             address: "",
@@ -92,11 +99,12 @@ export function ListingForm({
     setValue,
     watch,
     formState: { errors, isSubmitting }
-  } = useForm<ListingInput>({
+  } = useForm<ListingFormValues, unknown, ListingInput>({
     resolver: zodResolver(listingSchema),
     defaultValues
   });
   const photoUrls = watch("photoUrls") ?? [];
+  const depositRequired = watch("depositRequired");
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-2xl bg-white p-6 shadow-soft">
@@ -143,6 +151,38 @@ export function ListingForm({
           />
           {errors.monthlyRent ? <p className="mt-1 text-xs text-red-600">{errors.monthlyRent.message}</p> : null}
         </div>
+
+        <div className="rounded-[1.5rem] border border-[#e8dccd] bg-[#f8f2e8] p-4">
+          <label className="flex items-center justify-between gap-4">
+            <span>
+              <span className="block text-sm font-semibold text-foreground">Deposit required?</span>
+              <span className="mt-1 block text-xs text-foreground/55">
+                Turn this on if tenants must pay a deposit upfront.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              {...register("depositRequired")}
+              className="h-5 w-5 rounded border-border accent-primary"
+            />
+          </label>
+        </div>
+
+        {depositRequired ? (
+          <div>
+            <label htmlFor="depositAmount">Deposit amount (₸)</label>
+            <input
+              id="depositAmount"
+              type="number"
+              min={0}
+              step={1000}
+              {...register("depositAmount", { valueAsNumber: true })}
+            />
+            {errors.depositAmount ? (
+              <p className="mt-1 text-xs text-red-600">{errors.depositAmount.message}</p>
+            ) : null}
+          </div>
+        ) : null}
 
         <div>
           <label htmlFor="availableFrom">Available from</label>

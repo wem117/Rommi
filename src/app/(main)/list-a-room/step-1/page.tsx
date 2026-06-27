@@ -6,11 +6,13 @@ import { toast } from "sonner";
 
 import { ListingForm } from "@/components/listings/listing-form/listing-form";
 import { useAuth } from "@/context/auth-context";
+import { useLocale } from "@/context/locale-context";
 import type { ListingInput } from "@/lib/validations/listing.schema";
 
 export default function CreateListingPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
+  const { t } = useLocale();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -26,12 +28,13 @@ export default function CreateListingPage() {
     });
 
     if (!response.ok) {
-      toast.error("Could not publish listing");
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      toast.error(payload?.error || t("listingForm.publishError"));
       return;
     }
 
     const data = (await response.json()) as { id: string };
-    toast.success("Listing published");
+    toast.success(t("listingForm.publishSuccess"));
     router.replace(`/rooms/${data.id}`);
   }
 
@@ -47,10 +50,10 @@ export default function CreateListingPage() {
   return (
     <section>
       <div className="mb-6">
-        <h1 className="text-4xl font-bold">List a room</h1>
-        <p className="mt-2 text-foreground/65">Publish a real room listing connected to your account.</p>
+        <h1 className="text-4xl font-bold">{t("listingForm.pageTitle")}</h1>
+        <p className="mt-2 text-foreground/65">{t("listingForm.pageDescription")}</p>
       </div>
-      <ListingForm submitLabel="Publish Listing" onSubmit={createListing} />
+      <ListingForm submitLabel={t("listingForm.publish")} onSubmit={createListing} />
     </section>
   );
 }

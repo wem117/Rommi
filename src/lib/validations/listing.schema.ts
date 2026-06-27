@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_MONTHLY_RENT } from "@/lib/validations/monthly-rent";
 
 export const listingSchema = z
   .object({
@@ -6,7 +7,11 @@ export const listingSchema = z
     description: z.string().min(30, "Description must be at least 30 characters").max(2000),
     propertyType: z.enum(["apartment", "house", "dorm", "studio"]),
     listingType: z.enum(["private_room", "shared_room", "entire_place"]),
-    monthlyRent: z.number().int().min(1, "Rent is required"),
+    monthlyRent: z
+      .number()
+      .int()
+      .min(0, "Rent must be at least 0")
+      .max(MAX_MONTHLY_RENT, `Rent must be at most ${MAX_MONTHLY_RENT.toLocaleString()} KZT`),
     depositRequired: z.boolean().default(false),
     depositAmount: z.number().int().min(0).default(0),
     city: z.string().min(1, "City is required"),

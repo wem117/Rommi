@@ -2,12 +2,21 @@ import { NextResponse } from "next/server";
 
 import { createListing } from "@/lib/data/listings-admin";
 import { requireSessionUser } from "@/lib/supabase/session";
+import { friendlySupabaseError } from "@/lib/utils/errors";
 import { listingSchema } from "@/lib/validations/listing.schema";
+import { isValidMonthlyRent } from "@/lib/validations/monthly-rent";
 
 export async function POST(request: Request) {
   try {
     const user = await requireSessionUser();
     const input = listingSchema.parse(await request.json());
+
+    if (!isValidMonthlyRent(input.monthlyRent)) {
+      return NextResponse.json(
+        { error: "Monthly rent must be between 0 and 10,000,000 KZT." },
+        { status: 400 }
+      );
+    }
 
     const id = await createListing(user.id, {
       title: input.title,
@@ -36,6 +45,9 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Create listing failed", error);
     const status = error instanceof Error && error.message === "UNAUTHENTICATED" ? 401 : 400;
-    return NextResponse.json({ error: "Could not create listing" }, { status });
+    return NextResponse.json(
+      { error: friendlySupabaseError(error, "Could not create listing") },
+      { status }
+    );
   }
 }

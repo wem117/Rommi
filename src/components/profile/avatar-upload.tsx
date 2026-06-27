@@ -5,7 +5,8 @@ import Image from "next/image";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { deleteImageByUrl, storagePathForImage, uploadImageFile, validateImageFile } from "@/lib/supabase/storage";
+import { deleteImageByUrl, uploadImageFile, validateImageFile } from "@/lib/supabase/storage";
+import { friendlySupabaseError } from "@/lib/utils/errors";
 
 export function AvatarUpload({
   userId,
@@ -34,16 +35,16 @@ export function AvatarUpload({
     setUploading(true);
     setProgress(0);
     try {
-      const url = await uploadImageFile({
+      const result = await uploadImageFile({
         file,
-        path: storagePathForImage("avatars", userId, file),
+        kind: "avatars",
         onProgress: setProgress
       });
       if (value) await deleteImageByUrl(value).catch(() => undefined);
-      onChange(url);
+      onChange(result.url);
     } catch (error) {
       console.error(error);
-      toast.error("Could not upload avatar");
+      toast.error(friendlySupabaseError(error, "Could not upload avatar"));
     } finally {
       setUploading(false);
     }

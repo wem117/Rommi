@@ -2,6 +2,7 @@ import { demoConversations, demoMessages } from "@/lib/data/demo";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { mapConversationRow, mapMessageRow } from "@/lib/supabase/mappers";
+import { isMissingSupabaseTable } from "@/lib/utils/errors";
 import type { Conversation, Message } from "@/types/chat";
 
 export async function getConversationsForUser(uid: string) {
@@ -15,6 +16,10 @@ export async function getConversationsForUser(uid: string) {
     .select("*")
     .contains("participant_ids", [uid])
     .order("updated_at", { ascending: false });
+
+  if (error && isMissingSupabaseTable(error, "conversations")) {
+    return demoConversations.filter((conversation) => conversation.participantIds.includes(uid));
+  }
 
   if (error) throw error;
   return (data ?? []).map(mapConversationRow);
@@ -45,6 +50,17 @@ export async function ensureConversation({
     .from("conversations")
     .select("*")
     .contains("participant_ids", [participantIds[0]]);
+
+  if (lookupError && isMissingSupabaseTable(lookupError, "conversations")) {
+    const existing = demoConversations.find(
+      (conversation) =>
+        conversation.listingId === (listingId ?? null) &&
+        conversation.participantIds.length === participantIds.length &&
+        conversation.participantIds.every((id) => participantIds.includes(id))
+    );
+
+    return existing?.id ?? demoConversations[0]?.id ?? "conversation-1";
+  }
 
   if (lookupError) throw lookupError;
 
@@ -89,6 +105,10 @@ export async function getMessagesForConversation(conversationId: string) {
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true });
 
+  if (error && isMissingSupabaseTable(error, "messages")) {
+    return demoMessages.filter((message) => message.conversationId === conversationId);
+  }
+
   if (error) throw error;
   return (data ?? []).map(mapMessageRow);
 }
@@ -114,6 +134,10 @@ export async function sendConversationMessage({
     image_url: imageUrl ?? null,
     read_by: [senderId]
   });
+
+  if (error && isMissingSupabaseTable(error, "messages")) {
+    return;
+  }
 
   if (error) throw error;
 

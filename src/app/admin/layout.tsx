@@ -1,6 +1,19 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+import { requireAdminUser } from "@/lib/supabase/admin";
+
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  try {
+    await requireAdminUser();
+  } catch (error) {
+    if (error instanceof Error && error.message === "UNAUTHENTICATED") {
+      redirect("/sign-in?redirect=/admin");
+    }
+
+    redirect("/rooms");
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-white">

@@ -1,5 +1,5 @@
 export const supabaseConfig = {
-  url: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+  url: process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "",
   anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
   serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
   storageBucket: process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ?? "roommate-assets",
@@ -12,4 +12,3 @@ export const isSupabaseConfigured =
 
 export const isSupabaseAdminConfigured =
   isSupabaseConfigured && Boolean(supabaseConfig.serviceRoleKey);
-

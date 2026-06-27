@@ -1,32 +1,35 @@
 "use client";
 
-import { MessageCircle, Pencil, ShieldCheck } from "lucide-react";
+import { Loader2, MessageCircle, Pencil, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { useAuth } from "@/context/auth-context";
+import { useLocale } from "@/context/locale-context";
 import { useConversations } from "@/hooks/use-conversations";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useListings } from "@/hooks/use-listings";
-import { getProfileById } from "@/lib/data/profiles";
+import { getProfileById, updateProfile } from "@/lib/data/profiles";
 import { formatCurrency, formatDate, formatListingPrice } from "@/lib/utils/format";
 import { profileCompletion } from "@/lib/utils/compatibility";
 import type { Conversation } from "@/types/chat";
 import type { UserProfile } from "@/types/user";
 
 const tabs = [
-  { id: "overview", label: "Overview" },
-  { id: "chats", label: "Chats" },
-  { id: "saved", label: "Saved Listings" },
-  { id: "history", label: "History" }
+  { id: "overview", key: "profile.overview" },
+  { id: "chats", key: "profile.chats" },
+  { id: "saved", key: "profile.savedListings" },
+  { id: "history", key: "profile.history" }
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
 
 export default function ProfilePage() {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
+  const { t } = useLocale();
   const { conversations, loading: conversationsLoading } = useConversations();
   const { listings, loading: listingsLoading } = useListings();
   const {
@@ -38,6 +41,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [savedRoommates, setSavedRoommates] = useState<UserProfile[]>([]);
   const [conversationProfiles, setConversationProfiles] = useState<Record<string, UserProfile | null>>({});
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,11 +73,13 @@ export default function ProfilePage() {
         return;
       }
 
-      const participantIds = [...new Set(
-        conversations
-          .flatMap((conversation) => conversation.participantIds)
-          .filter((participantId) => participantId !== user.uid)
-      )];
+      const participantIds = [
+        ...new Set(
+          conversations
+            .flatMap((conversation) => conversation.participantIds)
+            .filter((participantId) => participantId !== user.uid)
+        )
+      ];
 
       const profiles = await Promise.all(
         participantIds.map(async (participantId) => [participantId, await getProfileById(participantId)] as const)
@@ -96,6 +102,27 @@ export default function ProfilePage() {
   const favoriteListings = listings.filter((listing) => favoriteListingIds.includes(listing.id));
   const historyListings = getHistoryListings(listings, profile.viewedListingIds, profile.contactedListingIds);
 
+  async function toggleVisibility() {
+    if (!user || !profile) return;
+    setVisibilitySaving(true);
+
+    try {
+      await updateProfile({
+        uid: user.uid,
+        lookingForApartment: !profile.lookingForApartment
+      });
+      await refreshProfile();
+      toast.success(
+        profile.lookingForApartment ? t("profile.searchVisibilityOff") : t("profile.searchVisibilityOn")
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not update roommate visibility");
+    } finally {
+      setVisibilitySaving(false);
+    }
+  }
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <section className="rounded-[2rem] bg-white p-6 shadow-soft">
@@ -115,13 +142,13 @@ export default function ProfilePage() {
                 <h1 className="text-3xl font-bold">{profile.fullName}</h1>
                 <VerifiedBadge verified={profile.verified || user?.emailVerified} />
               </div>
-              <p className="mt-2 max-w-2xl text-foreground/65">{profile.bio || "No bio added yet."}</p>
+              <p className="mt-2 max-w-2xl text-foreground/65">{profile.bio || t("profile.noBio")}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <StatusBadge label={profile.university} />
                 <StatusBadge label={profile.occupation} />
                 <StatusBadge label={`${profile.age} years old`} />
                 <StatusBadge
-                  label={profile.lookingForApartment ? "Visible in roommate search" : "Hidden from roommate search"}
+                  label={profile.lookingForApartment ? t("profile.visible") : t("profile.hidden")}
                   active={profile.lookingForApartment}
                 />
               </div>
@@ -134,12 +161,12 @@ export default function ProfilePage() {
               className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white"
             >
               <Pencil className="h-4 w-4" />
-              Edit profile
+              {t("profile.editProfile")}
             </Link>
             <div className="rounded-[1.5rem] border border-[#e8dccd] bg-[#f8f2e8] px-5 py-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <ShieldCheck className="h-4 w-4 text-primary" />
-                {completion}% complete
+                {completion}% {t("profile.complete")}
               </div>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e2d6c8]">
                 <div className="h-full rounded-full bg-primary" style={{ width: `${completion}%` }} />
@@ -160,7 +187,7 @@ export default function ProfilePage() {
                 activeTab === tab.id ? "bg-primary text-white" : "bg-background text-foreground/65 hover:text-primary"
               }`}
             >
-              {tab.label}
+              {t(tab.key)}
             </button>
           ))}
         </div>
@@ -168,25 +195,53 @@ export default function ProfilePage() {
         <div className="mt-6">
           {activeTab === "overview" ? (
             <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-              <Panel title="Housing Preferences">
+              <Panel title={t("profile.housingPreferences")}>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <Info
-                    label="Budget"
+                    label={t("profile.budget")}
                     value={`${formatCurrency(profile.minBudget)} - ${formatCurrency(profile.maxBudget)}`}
                   />
-                  <Info label="Move-in" value={formatDate(profile.preferredMoveInDate)} />
-                  <Info label="Gender" value={profile.gender.replaceAll("_", " ")} />
+                  <Info label={t("profile.moveIn")} value={formatDate(profile.preferredMoveInDate)} />
+                  <Info label={t("profile.gender")} value={profile.gender.replaceAll("_", " ")} />
+                </div>
+
+                <div className="mt-4 rounded-[1.5rem] border border-[#e8dccd] bg-[#f8f2e8] p-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">{t("profile.searchVisibility")}</h3>
+                      <p className="mt-1 text-sm leading-6 text-foreground/60">
+                        {t("profile.searchVisibilityDescription")}
+                      </p>
+                      <p className="mt-2 text-xs font-semibold text-primary">
+                        {profile.lookingForApartment ? t("profile.searchVisibilityOn") : t("profile.searchVisibilityOff")}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => void toggleVisibility()}
+                      disabled={visibilitySaving}
+                      className={`inline-flex h-11 w-20 items-center rounded-full p-1 transition disabled:cursor-not-allowed disabled:opacity-70 ${
+                        profile.lookingForApartment ? "bg-primary" : "bg-[#d8cdbd]"
+                      }`}
+                      aria-pressed={profile.lookingForApartment}
+                    >
+                      <span
+                        className={`grid h-9 w-9 place-items-center rounded-full bg-white shadow-sm transition ${
+                          profile.lookingForApartment ? "translate-x-9" : "translate-x-0"
+                        }`}
+                      >
+                        {visibilitySaving ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : null}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </Panel>
 
-              <Panel title="Lifestyle Preferences">
+              <Panel title={t("profile.lifestylePreferences")}>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {Object.entries(profile.lifestyle).map(([key, value]) => (
-                    <Info
-                      key={key}
-                      label={key.replace(/([A-Z])/g, " $1")}
-                      value={String(value).replaceAll("_", " ")}
-                    />
+                    <Info key={key} label={formatLabel(key)} value={String(value).replaceAll("_", " ")} />
                   ))}
                 </div>
               </Panel>
@@ -196,14 +251,9 @@ export default function ProfilePage() {
           {activeTab === "chats" ? (
             <div>
               {conversationsLoading ? (
-                <div className="rounded-2xl bg-background p-6 text-sm text-foreground/60">
-                  Loading conversations...
-                </div>
+                <div className="rounded-2xl bg-background p-6 text-sm text-foreground/60">Loading conversations...</div>
               ) : conversations.length === 0 ? (
-                <EmptyState
-                  title="No chats yet"
-                  text="Start messaging roommates or listing owners and your conversations will appear here."
-                />
+                <EmptyState title={t("profile.emptyChatsTitle")} text={t("profile.emptyChatsText")} />
               ) : (
                 <div className="grid gap-4">
                   {conversations.map((conversation) => (
@@ -211,6 +261,8 @@ export default function ProfilePage() {
                       key={conversation.id}
                       conversation={conversation}
                       roommate={getConversationRoommate(conversation, conversationProfiles, user?.uid)}
+                      openChatLabel={t("profile.openChat")}
+                      noMessagesLabel={t("profile.noMessages")}
                     />
                   ))}
                 </div>
@@ -220,15 +272,11 @@ export default function ProfilePage() {
 
           {activeTab === "saved" ? (
             <div className="grid gap-6 lg:grid-cols-2">
-              <Panel title="Saved Rooms">
+              <Panel title={t("profile.savedRooms")}>
                 {listingsLoading ? (
                   <div className="text-sm text-foreground/60">Loading saved rooms...</div>
                 ) : favoriteListings.length === 0 ? (
-                  <EmptyState
-                    title="No saved rooms"
-                    text="Tap the heart on a listing to save it for later."
-                    compact
-                  />
+                  <EmptyState title={t("profile.emptyRoomsTitle")} text={t("profile.emptyRoomsText")} compact />
                 ) : (
                   <div className="grid gap-4">
                     {favoriteListings.map((listing) => (
@@ -243,17 +291,19 @@ export default function ProfilePage() {
                         )}
                         href={`/rooms/${listing.id}`}
                         onRemove={() => void toggleFavorite(listing.id)}
+                        viewLabel={t("profile.viewListing")}
+                        removeLabel={t("profile.remove")}
                       />
                     ))}
                   </div>
                 )}
               </Panel>
 
-              <Panel title="Saved Roommates">
+              <Panel title={t("profile.savedRoommates")}>
                 {favoriteRoommateIds.length === 0 ? (
                   <EmptyState
-                    title="No saved roommates"
-                    text="Tap the heart on roommate cards to build your shortlist."
+                    title={t("profile.emptyRoommatesTitle")}
+                    text={t("profile.emptyRoommatesText")}
                     compact
                   />
                 ) : (
@@ -264,6 +314,8 @@ export default function ProfilePage() {
                         profile={roommate}
                         href={`/roommates/${roommate.uid}`}
                         onRemove={() => void toggleFavoriteRoommate(roommate.uid)}
+                        viewLabel={t("profile.viewProfile")}
+                        removeLabel={t("profile.remove")}
                       />
                     ))}
                   </div>
@@ -275,10 +327,7 @@ export default function ProfilePage() {
           {activeTab === "history" ? (
             <div>
               {historyListings.length === 0 ? (
-                <EmptyState
-                  title="No listing history yet"
-                  text="Viewed and contacted listings will show up here automatically."
-                />
+                <EmptyState title={t("profile.emptyHistoryTitle")} text={t("profile.emptyHistoryText")} />
               ) : (
                 <div className="grid gap-4">
                   {historyListings.map(({ listing, contacted }) => (
@@ -289,7 +338,7 @@ export default function ProfilePage() {
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-lg font-bold">{listing.title}</h3>
-                          <StatusBadge label={contacted ? "Contacted" : "Viewed"} active={contacted} />
+                          <StatusBadge label={contacted ? t("profile.contacted") : t("profile.viewed")} active={contacted} />
                         </div>
                         <p className="mt-1 text-sm text-foreground/60">
                           {listing.city}
@@ -308,7 +357,7 @@ export default function ProfilePage() {
                         href={`/rooms/${listing.id}`}
                         className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white"
                       >
-                        View Listing
+                        {t("profile.viewListing")}
                       </Link>
                     </div>
                   ))}
@@ -371,10 +420,14 @@ function EmptyState({
 
 function ChatCard({
   conversation,
-  roommate
+  roommate,
+  openChatLabel,
+  noMessagesLabel
 }: {
   conversation: Conversation;
   roommate: UserProfile | null;
+  openChatLabel: string;
+  noMessagesLabel: string;
 }) {
   return (
     <Link
@@ -396,8 +449,8 @@ function ChatCard({
             <h3 className="font-bold">{roommate?.fullName ?? "Conversation"}</h3>
             <StatusBadge label={conversation.listingTitle ?? "Roommate chat"} active />
           </div>
-          <p className="mt-1 text-sm text-foreground/60 line-clamp-1">
-            {conversation.lastMessage || "No messages yet"}
+          <p className="mt-1 line-clamp-1 text-sm text-foreground/60">
+            {conversation.lastMessage || noMessagesLabel}
           </p>
         </div>
       </div>
@@ -406,7 +459,7 @@ function ChatCard({
         <span>{formatDate(conversation.updatedAt)}</span>
         <span className="inline-flex items-center gap-2 rounded-full bg-background px-3 py-1.5 font-medium text-foreground/70">
           <MessageCircle className="h-4 w-4 text-primary" />
-          Open chat
+          {openChatLabel}
         </span>
       </div>
     </Link>
@@ -418,13 +471,17 @@ function MiniListingCard({
   subtitle,
   price,
   href,
-  onRemove
+  onRemove,
+  viewLabel,
+  removeLabel
 }: {
   title: string;
   subtitle: string;
   price: string;
   href: string;
   onRemove: () => void;
+  viewLabel: string;
+  removeLabel: string;
 }) {
   return (
     <div className="rounded-[1.5rem] border border-[#eadfce] bg-[#fffdf9] p-4">
@@ -436,14 +493,14 @@ function MiniListingCard({
           href={href}
           className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white"
         >
-          View Listing
+          {viewLabel}
         </Link>
         <button
           type="button"
           onClick={onRemove}
           className="inline-flex items-center justify-center rounded-full border border-[#e2d5c5] px-4 py-2 text-sm font-semibold text-foreground/70"
         >
-          Remove
+          {removeLabel}
         </button>
       </div>
     </div>
@@ -453,11 +510,15 @@ function MiniListingCard({
 function MiniProfileCard({
   profile,
   href,
-  onRemove
+  onRemove,
+  viewLabel,
+  removeLabel
 }: {
   profile: UserProfile;
   href: string;
   onRemove: () => void;
+  viewLabel: string;
+  removeLabel: string;
 }) {
   return (
     <div className="rounded-[1.5rem] border border-[#eadfce] bg-[#fffdf9] p-4">
@@ -479,14 +540,14 @@ function MiniProfileCard({
           href={href}
           className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white"
         >
-          View Profile
+          {viewLabel}
         </Link>
         <button
           type="button"
           onClick={onRemove}
           className="inline-flex items-center justify-center rounded-full border border-[#e2d5c5] px-4 py-2 text-sm font-semibold text-foreground/70"
         >
-          Remove
+          {removeLabel}
         </button>
       </div>
     </div>
@@ -519,4 +580,8 @@ function getHistoryListings(
       };
     })
     .filter((item): item is { listing: (typeof listings)[number]; contacted: boolean } => Boolean(item));
+}
+
+function formatLabel(value: string) {
+  return value.replace(/([A-Z])/g, " $1");
 }

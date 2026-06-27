@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { RoommateCard } from "@/components/roommates/roommate-card";
 import { useAuth } from "@/context/auth-context";
+import { useLocale } from "@/context/locale-context";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
 import { useRoommates } from "@/hooks/use-roommates";
 import type { Gender, UserProfile } from "@/types/user";
@@ -12,29 +13,30 @@ import type { Gender, UserProfile } from "@/types/user";
 type BudgetFilter = "any" | "100000" | "150000" | "200000" | "250000";
 
 const cityOptions = ["All Cities", "Almaty", "Astana", "Shymkent", "Karaganda", "Aktobe", "Taraz"];
-const genderOptions: Array<{ label: string; value: Gender | "all" }> = [
-  { label: "All", value: "all" },
-  { label: "Male", value: "male" },
-  { label: "Female", value: "female" },
-  { label: "Other", value: "other" },
-  { label: "Prefer not to say", value: "prefer_not_to_say" }
-];
-const budgetOptions: Array<{ label: string; value: BudgetFilter }> = [
-  { label: "Any", value: "any" },
-  { label: "100,000 KZT", value: "100000" },
-  { label: "150,000 KZT", value: "150000" },
-  { label: "200,000 KZT", value: "200000" },
-  { label: "250,000 KZT", value: "250000" }
-];
 
 export default function RoommatesPage() {
   const { profile } = useAuth();
+  const { t } = useLocale();
   const { roommates, loading, error } = useRoommates();
   const [city, setCity] = useState("All Cities");
   const [gender, setGender] = useState<Gender | "all">("all");
   const [minAge, setMinAge] = useState("18");
   const [maxAge, setMaxAge] = useState("30");
   const [maxBudget, setMaxBudget] = useState<BudgetFilter>("any");
+  const genderOptions: Array<{ label: string; value: Gender | "all" }> = [
+    { label: t("roommates.all"), value: "all" },
+    { label: t("listingForm.male"), value: "male" },
+    { label: t("listingForm.female"), value: "female" },
+    { label: t("roommates.other"), value: "other" },
+    { label: t("roommates.preferNotToSay"), value: "prefer_not_to_say" }
+  ];
+  const budgetOptions: Array<{ label: string; value: BudgetFilter }> = [
+    { label: t("roommates.any"), value: "any" },
+    { label: "100,000 KZT", value: "100000" },
+    { label: "150,000 KZT", value: "150000" },
+    { label: "200,000 KZT", value: "200000" },
+    { label: "250,000 KZT", value: "250000" }
+  ];
 
   const filteredRoommates = useMemo(() => {
     const parsedMinAge = Number(minAge) || 18;
@@ -66,24 +68,24 @@ export default function RoommatesPage() {
       <section className="border-y border-[#eadfce] bg-[#f5efe5]">
         <div className="mx-auto max-w-[1180px] px-4 py-12 sm:px-6 lg:px-8">
           <h1 className="text-4xl font-bold tracking-tight text-[#16110f] sm:text-5xl">
-            Find Roommates
+            {t("roommates.title")}
           </h1>
           <p className="mt-4 max-w-3xl text-lg text-[#9a6e56]">
-            Discover compatible roommates based on lifestyle, budget, and location.
+            {t("roommates.description")}
           </p>
 
           <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <Field label="City">
+            <Field label={t("roommates.city")}>
               <select value={city} onChange={(event) => setCity(event.target.value)}>
                 {cityOptions.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {option === "All Cities" ? t("roommates.allCities") : option}
                   </option>
                 ))}
               </select>
             </Field>
 
-            <Field label="Gender">
+            <Field label={t("roommates.gender")}>
               <select value={gender} onChange={(event) => setGender(event.target.value as Gender | "all")}>
                 {genderOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -93,7 +95,7 @@ export default function RoommatesPage() {
               </select>
             </Field>
 
-            <Field label="Min Age">
+            <Field label={t("roommates.minAge")}>
               <input
                 type="number"
                 min="18"
@@ -102,7 +104,7 @@ export default function RoommatesPage() {
               />
             </Field>
 
-            <Field label="Max Age">
+            <Field label={t("roommates.maxAge")}>
               <input
                 type="number"
                 min="18"
@@ -111,7 +113,7 @@ export default function RoommatesPage() {
               />
             </Field>
 
-            <Field label="Max Budget">
+            <Field label={t("roommates.maxBudget")}>
               <select value={maxBudget} onChange={(event) => setMaxBudget(event.target.value as BudgetFilter)}>
                 {budgetOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -123,8 +125,7 @@ export default function RoommatesPage() {
           </div>
 
           <p className="mt-6 text-sm font-medium text-[#9a6e56]">
-            <span className="font-semibold text-[#1b1715]">{filteredRoommates.length}</span> roommate
-            {filteredRoommates.length === 1 ? "" : "s"} found
+            <span className="font-semibold text-[#1b1715]">{filteredRoommates.length}</span> {t("roommates.found")}
           </p>
         </div>
       </section>
@@ -143,7 +144,7 @@ export default function RoommatesPage() {
 
         {!loading && error ? (
           <div className="rounded-[2rem] border border-[#ece1d3] bg-white p-6 shadow-soft">
-            <h2 className="text-xl font-bold text-[#16110f]">Roommates unavailable</h2>
+            <h2 className="text-xl font-bold text-[#16110f]">{t("roommates.unavailableTitle")}</h2>
             <p className="mt-2 text-sm text-foreground/65">{error}</p>
             <button
               type="button"
@@ -151,16 +152,16 @@ export default function RoommatesPage() {
               className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#12b000] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#109900]"
             >
               <RefreshCcw className="h-4 w-4" />
-              Retry
+              {t("roommates.retry")}
             </button>
           </div>
         ) : null}
 
         {!loading && !error && filteredRoommates.length === 0 ? (
           <div className="rounded-[2rem] border border-[#ece1d3] bg-white p-10 text-center shadow-soft">
-            <h2 className="text-2xl font-bold text-[#16110f]">No roommate profiles match these filters</h2>
+            <h2 className="text-2xl font-bold text-[#16110f]">{t("roommates.emptyTitle")}</h2>
             <p className="mt-3 text-sm text-foreground/60">
-              Try widening the age, budget, or city filters to discover more people.
+              {t("roommates.emptyText")}
             </p>
           </div>
         ) : null}

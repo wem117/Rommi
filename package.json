@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "crawl": "node scripts/crawl.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useDebounce } from "@/hooks/use-debounce";
 import { getListings } from "@/lib/data/listings";
+import { debugSupabaseError, friendlySupabaseError } from "@/lib/utils/errors";
+import { type AsyncStatus, withRetry } from "@/lib/utils/retry";
 import type { Listing } from "@/types/listing";
 
 const PAGE_SIZE = 9;
@@ -22,6 +24,7 @@ export function useListings(filters: ListingFilters = {}) {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<AsyncStatus>("idle");
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(1);
   const debouncedSearch = useDebounce(filters.search ?? "", 250);
@@ -34,18 +37,28 @@ export function useListings(filters: ListingFilters = {}) {
         setLoading(true);
         setPage(1);
         setError(null);
+        setStatus("loading");
       } else {
         setLoadingMore(true);
       }
 
       try {
-        const response = await getListings({ ...filters, search: debouncedSearch }, nextPage, PAGE_SIZE);
+        const response = await withRetry(
+          () => getListings({ ...filters, search: debouncedSearch }, nextPage, PAGE_SIZE),
+          {
+            onRetry: () => setStatus("retrying")
+          }
+        );
         setHasMore(response.hasMore);
         setListings((current) => (mode === "more" ? [...current, ...response.listings] : response.listings));
         setPage(nextPage);
+        setStatus("success");
       } catch (loadError) {
-        console.error("Load listings failed", loadError);
-        setError("Could not load listings. Check Supabase configuration and policies.");
+        console.error("Load listings failed", debugSupabaseError(loadError));
+        setError(
+          friendlySupabaseError(loadError, "Could not load listings. Check Supabase configuration and policies.")
+        );
+        setStatus("error");
       } finally {
         setLoading(false);
         setLoadingMore(false);
@@ -63,6 +76,7 @@ export function useListings(filters: ListingFilters = {}) {
     loading,
     loadingMore,
     error,
+    status,
     hasMore,
     reload: () => loadListings("initial"),
     loadMore: () => loadListings("more")

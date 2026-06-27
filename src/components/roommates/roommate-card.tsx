@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { FavoriteRoommateButton } from "@/components/favorites/favorite-roommate-button";
 import { CompatibilityBar } from "@/components/roommates/compatibility-bar";
+import { useLocale } from "@/context/locale-context";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
 import { formatCurrency } from "@/lib/utils/format";
 import type { LifestylePreferences, UserProfile } from "@/types/user";
@@ -15,6 +16,7 @@ export function RoommateCard({
   profile: UserProfile;
   currentUser?: UserProfile | null;
 }) {
+  const { t } = useLocale();
   const score = calculateCompatibilityScore(currentUser, profile);
   const lifestyleTags = getLifestyleTags(profile.lifestyle);
   const city = getUniversityCity(profile.university);
@@ -78,14 +80,14 @@ export function RoommateCard({
 
       <p className="mt-5 line-clamp-3 text-[15px] leading-8 text-[#8a644f]">
         {profile.bio ||
-          "Looking for a clean, respectful roommate with a compatible routine and shared budget expectations."}
+          t("roommates.cardFallbackBio")}
       </p>
 
       <Link
         href={`/roommates/${profile.uid}`}
         className="mt-6 inline-flex items-center justify-center rounded-full bg-[#12b000] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#109900]"
       >
-        Connect
+        {t("roommates.connect")}
       </Link>
     </article>
   );

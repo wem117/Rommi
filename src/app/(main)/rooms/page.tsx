@@ -6,10 +6,12 @@ import { useState } from "react";
 
 import { ListingFiltersBar } from "@/components/listings/listing-filters";
 import { ListingGrid } from "@/components/listings/listing-grid";
+import { useLocale } from "@/context/locale-context";
 import { type ListingFilters, useListings } from "@/hooks/use-listings";
 
 export default function RoomsPage() {
   const [filters, setFilters] = useState<ListingFilters>({ sort: "newest" });
+  const { t } = useLocale();
   const { listings, loading, loadingMore, error, hasMore, reload, loadMore } = useListings(filters);
 
   return (
@@ -19,12 +21,11 @@ export default function RoomsPage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <span className="inline-flex rounded-full bg-[#fde8c9] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#b97716]">
-                Browse Rooms
+                {t("rooms.badge")}
               </span>
-              <h1 className="mt-4 text-4xl font-bold sm:text-5xl">Verified rooms across Kazakhstan</h1>
+              <h1 className="mt-4 text-4xl font-bold sm:text-5xl">{t("rooms.title")}</h1>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-foreground/60 sm:text-base">
-                Search by location, budget, and housing type to find student-friendly rooms and
-                shared apartments that fit your lifestyle.
+                {t("rooms.description")}
               </p>
             </div>
 
@@ -32,7 +33,7 @@ export default function RoomsPage() {
               href="/list-a-room/step-1"
               className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary/90"
             >
-              List a Room
+              {t("rooms.listRoom")}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -54,7 +55,7 @@ export default function RoomsPage() {
 
         {!loading && error ? (
           <div className="rounded-[1.75rem] bg-white p-6 shadow-soft">
-            <h2 className="font-heading text-xl font-bold">Listings unavailable</h2>
+            <h2 className="font-heading text-xl font-bold">{t("rooms.unavailableTitle")}</h2>
             <p className="mt-2 text-sm text-foreground/65">{error}</p>
             <button
               type="button"
@@ -62,16 +63,16 @@ export default function RoomsPage() {
               className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white"
             >
               <RefreshCcw className="h-4 w-4" />
-              Retry
+              {t("rooms.retry")}
             </button>
           </div>
         ) : null}
 
         {!loading && !error && listings.length === 0 ? (
           <div className="rounded-[1.75rem] bg-white p-8 text-center shadow-soft">
-            <h2 className="font-heading text-2xl font-bold">No listings yet</h2>
+            <h2 className="font-heading text-2xl font-bold">{t("rooms.emptyTitle")}</h2>
             <p className="mt-2 text-sm text-foreground/60">
-              Create the first room listing to start the marketplace.
+              {t("rooms.emptyText")}
             </p>
           </div>
         ) : null}
@@ -89,7 +90,7 @@ export default function RoomsPage() {
                   className="inline-flex items-center gap-2 rounded-full border border-[#e6daca] bg-white px-6 py-3 text-sm font-semibold shadow-soft disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Load more
+                  {t("rooms.loadMore")}
                 </button>
               </div>
             ) : null}

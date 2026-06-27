@@ -9,6 +9,7 @@ import {
   sendConversationMessage
 } from "@/lib/data/conversations";
 import { uploadImageFile } from "@/lib/supabase/storage";
+import { friendlySupabaseError } from "@/lib/utils/errors";
 import type { Message } from "@/types/chat";
 
 export function useMessages(conversationId?: string) {
@@ -39,7 +40,7 @@ export function useMessages(conversationId?: string) {
         }
       } catch (loadError) {
         console.error("Messages load failed", loadError);
-        if (!cancelled) setError("Could not load messages.");
+        if (!cancelled) setError(friendlySupabaseError(loadError, "Could not load messages."));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -59,8 +60,8 @@ export function useMessages(conversationId?: string) {
 
     let imageUrl: string | undefined;
     if (imageFile) {
-      const path = `messages/${conversationId}/${crypto.randomUUID()}.${imageFile.name.split(".").pop()}`;
-      imageUrl = await uploadImageFile({ file: imageFile, path });
+      const result = await uploadImageFile({ file: imageFile, kind: "listings" });
+      imageUrl = result.url;
     }
 
     await sendConversationMessage({

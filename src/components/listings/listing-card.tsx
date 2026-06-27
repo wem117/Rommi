@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { FavoriteButton } from "@/components/favorites/favorite-button";
 import { createConversation } from "@/hooks/use-conversations";
+import { useLocale } from "@/context/locale-context";
 import { demoProfiles } from "@/lib/data/demo";
 import { recordContactedListing } from "@/lib/data/profiles";
 import { formatDate, formatListingPrice } from "@/lib/utils/format";
@@ -11,24 +12,23 @@ import type { Listing } from "@/types/listing";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 
-const propertyLabels: Record<Listing["propertyType"], string> = {
-  apartment: "Apartment",
-  house: "House",
-  dorm: "Dorm",
-  studio: "Studio"
-};
-
-const listingTypeLabels: Record<Listing["listingType"], string> = {
-  private_room: "Private Room",
-  shared_room: "Shared Room",
-  entire_place: "Entire Place"
-};
-
 export function ListingCard({ listing }: { listing: Listing }) {
   const cover = listing.photoUrls[0];
   const { user } = useAuth();
+  const { t } = useLocale();
   const router = useRouter();
   const owner = demoProfiles.find((profile) => profile.uid === listing.ownerId);
+  const propertyLabels: Record<Listing["propertyType"], string> = {
+    apartment: t("listing.types.apartment"),
+    house: t("listing.types.house"),
+    dorm: t("listing.types.dorm"),
+    studio: t("listing.types.studio")
+  };
+  const listingTypeLabels: Record<Listing["listingType"], string> = {
+    private_room: t("listing.types.privateRoom"),
+    shared_room: t("listing.types.sharedRoom"),
+    entire_place: t("listing.types.entirePlace")
+  };
   const statusBadge =
     listing.monthlyRent >= 220000 ? "2 days" : listing.monthlyRent <= 120000 ? "Flexible" : "Today";
   const propertyBadge =
@@ -54,7 +54,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm font-medium text-foreground/45">
-            No photo
+            {t("listing.noPhoto")}
           </div>
         )}
 
@@ -65,7 +65,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
           {listing.monthlyRent >= 150000 ? (
             <div className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-white shadow-sm">
               <ShieldCheck className="h-3 w-3" />
-              Verified
+              {t("listing.verified")}
             </div>
           ) : null}
         </div>
@@ -112,7 +112,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
               <div className="text-xs font-semibold text-foreground">
                 {owner.fullName}, {owner.age}
               </div>
-              <p className="text-xs text-foreground/50">Current roommate</p>
+              <p className="text-xs text-foreground/50">{t("listing.currentRoommate")}</p>
             </div>
           </div>
         ) : null}
@@ -155,7 +155,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
             }}
             className="rounded-xl bg-primary px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-primary/90"
           >
-            Message
+            {t("listing.message")}
           </button>
         </div>
       </div>

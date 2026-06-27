@@ -5,7 +5,9 @@ import Image from "next/image";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { deleteImageByUrl, storagePathForImage, uploadImageFile, validateImageFile } from "@/lib/supabase/storage";
+import { useLocale } from "@/context/locale-context";
+import { deleteImageByUrl, uploadImageFile, validateImageFile } from "@/lib/supabase/storage";
+import { friendlySupabaseError } from "@/lib/utils/errors";
 
 const MAX_LISTING_IMAGES = 10;
 
@@ -18,6 +20,7 @@ export function PhotoUploader({
   value: string[];
   onChange: (urls: string[]) => void;
 }) {
+  const { t } = useLocale();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -27,7 +30,7 @@ export function PhotoUploader({
 
     const selected = Array.from(files);
     if (value.length + selected.length > MAX_LISTING_IMAGES) {
-      toast.error("Listings can have up to 10 images");
+      toast.error(t("listingForm.maxImages"));
       return;
     }
 
@@ -42,17 +45,17 @@ export function PhotoUploader({
     try {
       const urls: string[] = [];
       for (const file of selected) {
-        const url = await uploadImageFile({
+        const result = await uploadImageFile({
           file,
-          path: storagePathForImage("listings", ownerId, file),
+          kind: "listings",
           onProgress: setProgress
         });
-        urls.push(url);
+        urls.push(result.url);
       }
       onChange([...value, ...urls]);
     } catch (error) {
       console.error(error);
-      toast.error("Could not upload image");
+      toast.error(friendlySupabaseError(error, "Could not upload image"));
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -68,8 +71,8 @@ export function PhotoUploader({
     <div>
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <label>Photos</label>
-          <p className="mt-1 text-xs text-foreground/55">JPG, JPEG, PNG, WEBP. Max 5 MB each, 10 images total.</p>
+          <label>{t("listingForm.photos")}</label>
+          <p className="mt-1 text-xs text-foreground/55">{t("listingForm.photosHelp")}</p>
         </div>
         <input
           ref={inputRef}
@@ -86,7 +89,7 @@ export function PhotoUploader({
           className="inline-flex items-center justify-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-semibold disabled:opacity-60"
         >
           {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-          {uploading ? `${progress}%` : "Add photos"}
+          {uploading ? `${progress}%` : t("listingForm.addPhotos")}
         </button>
       </div>
 
@@ -99,7 +102,7 @@ export function PhotoUploader({
                 type="button"
                 onClick={() => void removePhoto(url)}
                 className="absolute right-2 top-2 rounded-full bg-white p-2 text-red-700 shadow-soft"
-                aria-label="Remove photo"
+                aria-label={t("listingForm.removePhoto")}
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -108,7 +111,7 @@ export function PhotoUploader({
         </div>
       ) : (
         <div className="mt-4 rounded-2xl border border-dashed border-border bg-background p-8 text-center text-sm text-foreground/55">
-          Add at least one clear photo to make your listing easier to trust.
+          {t("listingForm.photoEmpty")}
         </div>
       )}
     </div>

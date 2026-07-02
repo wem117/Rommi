@@ -24,7 +24,7 @@ const config: Config = {
           foreground: "hsl(var(--muted-foreground))"
         },
         card: {
-          DEFAULT: "#ffffff",
+          DEFAULT: "#000000",
           foreground: "#15100c"
         }
       },

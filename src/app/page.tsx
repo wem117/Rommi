@@ -30,7 +30,7 @@ const testimonials = [
     role: "Student at KazNU",
     badge: "Verified Tenant",
     quote:
-      "I found my perfect roommate in just 3 days. The platform felt safer, and the compatibility score was surprisingly accurate."
+      "Я нашел иделаьную комнату для себя за 3 дня. Платформа очень удобная, также процент соотношениий хорошо подбирает варианты."
   }
 ];
 

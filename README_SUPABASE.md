@@ -6,22 +6,20 @@ Create or update `.env.local` with placeholders like these:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=roommate-assets
-NEXT_PUBLIC_SUPABASE_GOOGLE_REDIRECT_TO=http://localhost:3000
+NEXT_PUBLIC_SUPABASE_GOOGLE_REDIRECT_TO=http://localhost:3000/api/auth/callback
 NEXT_PUBLIC_SUPPORT_EMAIL=support@example.com
 ```
 
 ## What each credential does
 
 - `NEXT_PUBLIC_SUPABASE_URL`: browser and server project URL.
-- `SUPABASE_URL`: server-side alias used by admin/upload helpers.
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: browser auth, reads, and signed-in client requests.
 - `SUPABASE_SERVICE_ROLE_KEY`: server-only admin key for `/api/upload`, admin APIs, and protected email lookup.
 - `NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET`: storage bucket for listing and avatar uploads.
-- `NEXT_PUBLIC_SUPABASE_GOOGLE_REDIRECT_TO`: local redirect target for Google OAuth.
+- `NEXT_PUBLIC_SUPABASE_GOOGLE_REDIRECT_TO`: OAuth callback URL, for example `http://localhost:3000/api/auth/callback`.
 
 ## Quick setup
 
@@ -30,7 +28,7 @@ NEXT_PUBLIC_SUPPORT_EMAIL=support@example.com
 3. Create a public storage bucket named `roommate-assets` or change `NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET`.
 4. Run [supabase-policies.sql](/D:/fullstack/Roomate-Superapp/supabase-policies.sql).
 5. In Supabase Auth, keep Google OAuth and email/password enabled. Do not enable phone/SMS auth.
-6. Add `http://localhost:3000` to your allowed Google OAuth redirect list and set `NEXT_PUBLIC_SUPABASE_GOOGLE_REDIRECT_TO=http://localhost:3000`.
+6. Add `http://localhost:3000/api/auth/callback` to your Supabase Auth redirect allow list and set `NEXT_PUBLIC_SUPABASE_GOOGLE_REDIRECT_TO=http://localhost:3000/api/auth/callback`.
 7. Restart the dev server after any `.env.local` change.
 
 ## Image upload notes

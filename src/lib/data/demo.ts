@@ -6,10 +6,10 @@ const now = new Date();
 
 export const demoProfiles: UserProfile[] = [
   {
-    uid: "demo-aidar",
-    email: "aidar@example.com",
-    fullName: "Aidar",
-    age: 23,
+    uid: "demo-yera",
+    email: "yeraly@example.com",
+    fullName: "Yeraly",
+    age: 19,
     gender: "male",
     university: "KBTU",
     occupation: "Software Developer",
@@ -70,15 +70,15 @@ export const demoProfiles: UserProfile[] = [
     updatedAt: now
   },
   {
-    uid: "demo-admin",
-    email: "admin@example.com",
-    fullName: "Platform Admin",
-    age: 29,
-    gender: "prefer_not_to_say",
-    university: "Roommate KZ",
-    occupation: "Operations",
-    minBudget: 0,
-    maxBudget: 0,
+    uid: "demo-temirbek",
+    email: "temirbek@example.com",
+    fullName: "Temirbek",
+    age: 20,
+    gender: "male",
+    university: "KIMEP",
+    occupation: "Information Systems",
+    minBudget: 99000,
+    maxBudget: 150000,
     preferredMoveInDate: null,
     lifestyle: {
       smoking: "no_preference",
@@ -89,7 +89,7 @@ export const demoProfiles: UserProfile[] = [
     },
     onboardingComplete: true,
     lookingForApartment: false,
-    photoURL: null,
+    photoURL: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80",
     bio: "Demo administrator account.",
     role: "admin",
     verified: true,
@@ -131,7 +131,7 @@ export const demoListings: Listing[] = [
   {
     id: "listing-astana-1",
     ownerId: "demo-aizhan",
-    title: "Cozy studio in Astana with flexible lease",
+    title: "studio in Astana",
     description: "Great for one student or two close friends, with security and furnished interiors.",
     propertyType: "studio",
     listingType: "entire_place",

@@ -102,7 +102,7 @@ function SignInContent() {
     setBannerMessage(null);
 
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(redirectTo);
     } catch (error) {
       setBannerTone("error");
       setBannerMessage(friendlySupabaseError(error, "Google sign-in failed."));

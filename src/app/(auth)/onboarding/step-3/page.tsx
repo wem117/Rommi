@@ -56,14 +56,37 @@ export default function OnboardingStepThreePage() {
       const step1 = JSON.parse(step1Raw);
       const step2 = JSON.parse(step2Raw);
 
-      // 2. Инициализируем клиент Supabase
-      const supabase = getSupabaseBrowserClient() as any;
+      // 2. Инициализируем клиент Supabase и явно проверяем активную browser-сессию.
+      const supabase = getSupabaseBrowserClient();
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        console.error("Onboarding session lookup failed", {
+          message: sessionError.message,
+          status: sessionError.status
+        });
+        throw new Error("Could not verify your session. Please sign in again.");
+      }
+
+      if (!sessionData.session?.user) {
+        console.error("Onboarding blocked because Supabase returned no active browser session", {
+          authContextUserId: user.uid
+        });
+        throw new Error("Session expired. Please sign in again before finishing onboarding.");
+      }
 
       // 3. Безопасное извлечение ID
-      const finalUid = user.uid;
+      const finalUid = sessionData.session.user.id || user.uid;
 
       if (!finalUid) {
         throw new Error("Could not find user ID in your session. Please re-login.");
+      }
+
+      if (user.uid !== sessionData.session.user.id) {
+        console.error("Onboarding user mismatch", {
+          authContextUserId: user.uid,
+          supabaseSessionUserId: sessionData.session.user.id
+        });
       }
 
       // 4. Формируем payload с маппингом camelCase -> snake_case под структуру Postgres
@@ -88,7 +111,16 @@ export default function OnboardingStepThreePage() {
         .from("profiles")
         .upsert(profilePayload, { onConflict: "uid" });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Onboarding profile upsert failed", {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          uid: finalUid
+        });
+        throw error;
+      }
 
       // 6. Очищаем локальное хранилище после успешного сохранения в базу
       window.localStorage.removeItem("roommate-kz:onboarding:step-1");
@@ -96,9 +128,9 @@ export default function OnboardingStepThreePage() {
 
       // 7. Перенаправляем в основную часть приложения
       router.replace("/rooms");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Onboarding submission failed:", err);
-      setSubmitError(err.message || "Could not save your profile. Check your database tables.");
+      setSubmitError(err instanceof Error ? err.message : "Could not save your profile. Check your database tables.");
     } finally {
       setIsSubmitting(false);
     }

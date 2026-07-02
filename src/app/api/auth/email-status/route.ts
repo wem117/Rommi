@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { isSupabaseAdminConfigured } from "@/lib/supabase/config";
+import { isSupabaseAdminConfigured } from "@/lib/supabase-server";
 import { friendlySupabaseError } from "@/lib/utils/errors";
 
 const schema = z.object({

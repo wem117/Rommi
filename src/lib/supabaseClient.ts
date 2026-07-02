@@ -1,18 +1,13 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserSupabaseClient, supabase } from "@/lib/supabase";
 
-let client:
-  | ReturnType<typeof createClient>
-  | null = null;
+let client: typeof supabase | null = null;
 
 export function getSupabaseClient() {
   if (!client) {
-    client = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key"
-    );
+    client = createBrowserSupabaseClient();
   }
 
   return client;
 }
 
-export const supabase = getSupabaseClient();
+export { supabase };

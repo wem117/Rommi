@@ -55,12 +55,16 @@ Create tables that match the new service layer:
 - `preferred_move_in_date` timestamptz nullable
 - `lifestyle` jsonb
 - `onboarding_complete` boolean
+- `looking_for_apartment` boolean default `true`
 - `photo_url` text nullable
 - `bio` text nullable
 - `role` text default `'user'`
 - `verified` boolean default `false`
 - `profile_completion` int default `0`
 - `favorite_listing_ids` text[] default `{}`
+- `favorite_roommate_ids` text[] default `{}`
+- `viewed_listing_ids` text[] default `{}`
+- `contacted_listing_ids` text[] default `{}`
 - `banned` boolean default `false`
 - `created_at` timestamptz default now()
 - `updated_at` timestamptz default now()
@@ -73,6 +77,8 @@ Create tables that match the new service layer:
 - `property_type` text
 - `listing_type` text
 - `monthly_rent` int
+- `deposit_required` boolean default `false`
+- `deposit_amount` int default `0`
 - `city` text
 - `district` text nullable
 - `address` text
@@ -137,14 +143,17 @@ Expected paths:
 - Added a demo-data fallback so marketing and browse pages still render before credentials are configured.
 - Expanded the landing page to better match the provided reference: featured listings, compatibility section, FAQ, testimonials, and stronger CTAs.
 - Added a lightweight language selector so the product can grow into bilingual support more cleanly.
+- Added listing deposit support, roommate visibility toggles, saved roommate data, and lightweight viewed/contacted history fields.
 - Simplified future maintenance by centralizing data access in `src/lib/data/*` instead of calling the database directly from many pages.
 
 ## Setup Checklist
 
 1. Create the Supabase project.
 2. Fill `.env.local` with the values listed above.
-3. Create the tables and storage bucket.
-4. Add Google Auth in Supabase if you want Google sign-in.
-5. Run `npm install`.
-6. Start the app with `npm run dev`.
+3. Run `supabase-schema.sql` in the Supabase SQL editor.
+4. Create the storage bucket.
+5. Run `supabase-policies.sql` in the Supabase SQL editor.
+6. Add Google Auth in Supabase if you want Google sign-in.
+7. Run `npm install`.
+8. Start the app with `npm run dev`.
 

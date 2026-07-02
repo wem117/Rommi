@@ -1,5 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { isSupabaseAdminConfigured } from "@/lib/supabase/config";
+import { isSupabaseAdminConfigured } from "@/lib/supabase-server";
 import { mapReportRow } from "@/lib/supabase/mappers";
 import type { Report, ReportTargetType } from "@/types/report";
 
@@ -39,4 +39,3 @@ export async function getReports() {
   if (error) throw error;
   return (data ?? []).map(mapReportRow);
 }
-

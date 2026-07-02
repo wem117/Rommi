@@ -1,3 +1,4 @@
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const protectedPrefixes = [
@@ -15,37 +16,65 @@ function isProtected(pathname: string) {
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  let response = NextResponse.next({ request });
 
   if (!isProtected(pathname)) {
-    return NextResponse.next();
+    return response;
   }
 
-  const session = request.cookies.get("__session")?.value;
   const redirectPath = `${pathname}${search}`;
   const signInUrl = new URL("/sign-in", request.url);
   signInUrl.searchParams.set("redirect", redirectPath);
 
-  if (!session) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    signInUrl.searchParams.set("error", "supabase_not_configured");
     return NextResponse.redirect(signInUrl);
   }
 
-  const verifyUrl = new URL("/api/auth/session", request.url);
-  const response = await fetch(verifyUrl, {
-    headers: { cookie: `__session=${session}` }
-  }).catch(() => null);
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) => {
+          request.cookies.set(name, value);
+        });
 
-  if (!response?.ok) {
+        response = NextResponse.next({ request });
+
+        cookiesToSet.forEach(({ name, value, options }) => {
+          response.cookies.set(name, value, options);
+        });
+      }
+    }
+  });
+
+  const {
+    data: { user },
+    error
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
     return NextResponse.redirect(signInUrl);
   }
 
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-    const data = (await response.json()) as { role?: string | null };
-    if (data.role !== "admin") {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("uid", user.id)
+      .maybeSingle();
+
+    if (profileError || profile?.role !== "admin") {
       return NextResponse.redirect(new URL("/rooms", request.url));
     }
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {

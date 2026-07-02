@@ -4,12 +4,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useMemo } from "react";
 import { useForm } from "react-hook-form";
+import type { z } from "zod";
 
 import { PhotoUploader } from "@/components/listings/photo-uploader";
 import { useAuth } from "@/context/auth-context";
+import { useLocale } from "@/context/locale-context";
 import { CITIES } from "@/lib/constants/cities";
 import { listingSchema, type ListingInput } from "@/lib/validations/listing.schema";
 import type { Listing } from "@/types/listing";
+
+type ListingFormValues = z.input<typeof listingSchema>;
 
 const amenities = [
   "WiFi",
@@ -35,6 +39,8 @@ export function listingToInput(listing: Listing): ListingInput {
     propertyType: listing.propertyType,
     listingType: listing.listingType,
     monthlyRent: listing.monthlyRent,
+    depositRequired: listing.depositRequired,
+    depositAmount: listing.depositAmount,
     city: listing.city,
     district: listing.district ?? "",
     address: listing.address,
@@ -61,7 +67,8 @@ export function ListingForm({
   onDelete?: () => Promise<void>;
 }) {
   const { user } = useAuth();
-  const defaultValues = useMemo<ListingInput>(
+  const { t } = useLocale();
+  const defaultValues = useMemo<ListingFormValues>(
     () =>
       initialListing
         ? listingToInput(initialListing)
@@ -71,6 +78,8 @@ export function ListingForm({
             propertyType: "apartment",
             listingType: "private_room",
             monthlyRent: 150000,
+            depositRequired: false,
+            depositAmount: 0,
             city: "",
             district: "",
             address: "",
@@ -92,68 +101,109 @@ export function ListingForm({
     setValue,
     watch,
     formState: { errors, isSubmitting }
-  } = useForm<ListingInput>({
+  } = useForm<ListingFormValues, unknown, ListingInput>({
     resolver: zodResolver(listingSchema),
     defaultValues
   });
   const photoUrls = watch("photoUrls") ?? [];
+  const depositRequired = watch("depositRequired");
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-2xl bg-white p-6 shadow-soft">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="md:col-span-2">
-          <label htmlFor="title">Title</label>
+          <label htmlFor="title">{t("listingForm.title")}</label>
           <input id="title" {...register("title")} />
           {errors.title ? <p className="mt-1 text-xs text-red-600">{errors.title.message}</p> : null}
         </div>
 
         <div className="md:col-span-2">
-          <label htmlFor="description">Description</label>
+          <label htmlFor="description">{t("listingForm.description")}</label>
           <textarea id="description" rows={5} {...register("description")} />
           {errors.description ? <p className="mt-1 text-xs text-red-600">{errors.description.message}</p> : null}
         </div>
 
         <div>
-          <label htmlFor="propertyType">Property type</label>
+          <label htmlFor="propertyType">{t("listingForm.propertyType")}</label>
           <select id="propertyType" {...register("propertyType")}>
-            <option value="apartment">Apartment</option>
-            <option value="house">House</option>
-            <option value="dorm">Dorm</option>
-            <option value="studio">Studio</option>
+            <option value="apartment">{t("listing.types.apartment")}</option>
+            <option value="house">{t("listing.types.house")}</option>
+            <option value="dorm">{t("listing.types.dorm")}</option>
+            <option value="studio">{t("listing.types.studio")}</option>
           </select>
         </div>
 
         <div>
-          <label htmlFor="listingType">Listing type</label>
+          <label htmlFor="listingType">{t("listingForm.listingType")}</label>
           <select id="listingType" {...register("listingType")}>
-            <option value="private_room">Private room</option>
-            <option value="shared_room">Shared room</option>
-            <option value="entire_place">Entire place</option>
+            <option value="private_room">{t("listing.types.privateRoom")}</option>
+            <option value="shared_room">{t("listing.types.sharedRoom")}</option>
+            <option value="entire_place">{t("listing.types.entirePlace")}</option>
           </select>
         </div>
 
         <div>
-          <label htmlFor="monthlyRent">Monthly rent (₸)</label>
+          <label htmlFor="monthlyRent">{t("listingForm.monthlyRent")}</label>
           <input
             id="monthlyRent"
-            type="number"
-            min={1}
+            type="text"
+            inputMode="numeric"
+            pattern="\d*"
+            min={0}
             step={1000}
-            {...register("monthlyRent", { valueAsNumber: true })}
+            {...register("monthlyRent", {
+              setValueAs: (value) => Number(String(value ?? "").replace(/[^\d]/g, "") || 0)
+            })}
           />
           {errors.monthlyRent ? <p className="mt-1 text-xs text-red-600">{errors.monthlyRent.message}</p> : null}
         </div>
 
+        <div className="rounded-[1.5rem] border border-[#e8dccd] bg-[#f8f2e8] p-4">
+          <label className="flex items-center justify-between gap-4">
+            <span>
+              <span className="block text-sm font-semibold text-foreground">{t("listingForm.depositRequired")}</span>
+              <span className="mt-1 block text-xs text-foreground/55">
+                {t("listingForm.depositHelp")}
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              {...register("depositRequired")}
+              className="h-5 w-5 rounded border-border accent-primary"
+            />
+          </label>
+        </div>
+
+        {depositRequired ? (
+          <div>
+            <label htmlFor="depositAmount">{t("listingForm.depositAmount")}</label>
+            <input
+              id="depositAmount"
+              type="text"
+              inputMode="numeric"
+              pattern="\d*"
+              min={0}
+              step={1000}
+              {...register("depositAmount", {
+                setValueAs: (value) => Number(String(value ?? "").replace(/[^\d]/g, "") || 0)
+              })}
+            />
+            {errors.depositAmount ? (
+              <p className="mt-1 text-xs text-red-600">{errors.depositAmount.message}</p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div>
-          <label htmlFor="availableFrom">Available from</label>
+          <label htmlFor="availableFrom">{t("listingForm.availableFrom")}</label>
           <input id="availableFrom" type="date" {...register("availableFrom")} />
           {errors.availableFrom ? <p className="mt-1 text-xs text-red-600">{errors.availableFrom.message}</p> : null}
         </div>
 
         <div>
-          <label htmlFor="city">City</label>
+          <label htmlFor="city">{t("listingForm.city")}</label>
           <select id="city" {...register("city")}>
-            <option value="">Select city</option>
+            <option value="">{t("listingForm.selectCity")}</option>
             {CITIES.map((city) => (
               <option key={city} value={city}>
                 {city}
@@ -164,31 +214,31 @@ export function ListingForm({
         </div>
 
         <div>
-          <label htmlFor="district">District</label>
+          <label htmlFor="district">{t("listingForm.district")}</label>
           <input id="district" {...register("district")} />
         </div>
 
         <div className="md:col-span-2">
-          <label htmlFor="address">Full address</label>
+          <label htmlFor="address">{t("listingForm.address")}</label>
           <input id="address" {...register("address")} />
           {errors.address ? <p className="mt-1 text-xs text-red-600">{errors.address.message}</p> : null}
         </div>
 
         <div>
-          <label htmlFor="bedrooms">Bedrooms</label>
+          <label htmlFor="bedrooms">{t("listingForm.bedrooms")}</label>
           <input id="bedrooms" type="number" min={0} {...register("bedrooms", { valueAsNumber: true })} />
           {errors.bedrooms ? <p className="mt-1 text-xs text-red-600">{errors.bedrooms.message}</p> : null}
         </div>
 
         <div>
-          <label htmlFor="bathrooms">Bathrooms</label>
+          <label htmlFor="bathrooms">{t("listingForm.bathrooms")}</label>
           <input id="bathrooms" type="number" min={0} step={0.5} {...register("bathrooms", { valueAsNumber: true })} />
           {errors.bathrooms ? <p className="mt-1 text-xs text-red-600">{errors.bathrooms.message}</p> : null}
         </div>
       </div>
 
       <fieldset>
-        <legend className="text-sm font-medium">Amenities</legend>
+        <legend className="text-sm font-medium">{t("listingForm.amenities")}</legend>
         <div className="mt-3 grid gap-2 sm:grid-cols-2 md:grid-cols-3">
           {amenities.map((amenity) => (
             <label key={amenity} className="flex items-center gap-2 rounded-2xl border border-border bg-white px-3 py-2">
@@ -201,25 +251,25 @@ export function ListingForm({
 
       <div className="grid gap-4 md:grid-cols-3">
         <div>
-          <label htmlFor="genderPreference">Gender preference</label>
+          <label htmlFor="genderPreference">{t("listingForm.genderPreference")}</label>
           <select id="genderPreference" {...register("genderPreference")}>
-            <option value="any">Any</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
+            <option value="any">{t("listingForm.any")}</option>
+            <option value="male">{t("listingForm.male")}</option>
+            <option value="female">{t("listingForm.female")}</option>
           </select>
         </div>
         <div>
-          <label htmlFor="smoking">Smoking</label>
+          <label htmlFor="smoking">{t("listingForm.smoking")}</label>
           <select id="smoking" {...register("smoking")}>
-            <option value="no">No</option>
-            <option value="yes">Yes</option>
+            <option value="no">{t("listingForm.no")}</option>
+            <option value="yes">{t("listingForm.yes")}</option>
           </select>
         </div>
         <div>
-          <label htmlFor="pets">Pets</label>
+          <label htmlFor="pets">{t("listingForm.pets")}</label>
           <select id="pets" {...register("pets")}>
-            <option value="no_pets">No pets</option>
-            <option value="allowed">Allowed</option>
+            <option value="no_pets">{t("listingForm.noPets")}</option>
+            <option value="allowed">{t("listingForm.allowed")}</option>
           </select>
         </div>
       </div>
@@ -238,7 +288,7 @@ export function ListingForm({
             onClick={onDelete}
             className="rounded-full border border-red-200 px-5 py-3 text-sm font-semibold text-red-700"
           >
-            Delete Listing
+            {t("listingForm.delete")}
           </button>
         ) : (
           <span />

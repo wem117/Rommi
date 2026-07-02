@@ -1,3 +1,5 @@
+"use client";
+
 import {
   ArrowRight,
   BedDouble,
@@ -17,76 +19,10 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 
+import { LanguageMenu } from "@/components/layout/language-menu";
+import { useLocale } from "@/context/locale-context";
 import { demoListings, demoProfiles, demoUniversities } from "@/lib/data/demo";
-import { formatDate, formatMonthlyRent } from "@/lib/utils/format";
-
-const stats = [
-  { value: "3,500+", label: "Verified Listings" },
-  { value: "10,000+", label: "Active Students" },
-  { value: "2,400+", label: "Successful Matches" }
-];
-
-const steps = [
-  {
-    icon: Users,
-    number: "01",
-    title: "Create Profile",
-    text: "Sign up and share your budget, university, lifestyle, and move-in preferences."
-  },
-  {
-    icon: Search,
-    number: "02",
-    title: "Browse & Filter",
-    text: "Search rooms and roommates by city, university, budget, and compatibility."
-  },
-  {
-    icon: MessageCircle,
-    number: "03",
-    title: "Connect & Chat",
-    text: "Message potential roommates early, compare expectations, and ask the right questions."
-  },
-  {
-    icon: Home,
-    number: "04",
-    title: "Move In Together",
-    text: "Choose the right fit with more confidence and plan the next chapter together."
-  }
-];
-
-const platformStats = [
-  { value: "3.5K+", label: "Active Listings" },
-  { value: "94%", label: "Match Accuracy" },
-  { value: "24h", label: "Avg Response Time" },
-  { value: "100%", label: "Free to Use" }
-];
-
-const faqs = [
-  {
-    question: "How does the roommate matching work?",
-    answer:
-      "Our match score compares budget, move-in timing, cleanliness, sleep schedule, guests, and other lifestyle preferences so you can shortlist better fits faster."
-  },
-  {
-    question: "Is it safe to use Roommate KZ?",
-    answer:
-      "The platform is designed around verified profiles, room details, and reportable activity so students can make more confident decisions before meeting."
-  },
-  {
-    question: "How much does it cost?",
-    answer:
-      "Browsing listings, discovering roommates, and starting conversations can remain accessible while the product grows with premium tools later if needed."
-  },
-  {
-    question: "Can I list my room or apartment?",
-    answer:
-      "Yes. You can publish a listing, add photos, set roommate preferences, and connect directly with interested students or young professionals."
-  },
-  {
-    question: "What cities in Kazakhstan do you cover?",
-    answer:
-      "The experience is designed around major student hubs like Almaty and Astana, with room to expand as the listing network grows."
-  }
-];
+import { formatCurrency, formatDate, formatMonthlyRent } from "@/lib/utils/format";
 
 const testimonials = [
   {
@@ -94,15 +30,8 @@ const testimonials = [
     role: "Student at KazNU",
     badge: "Verified Tenant",
     quote:
-      "I found my perfect roommate in just 3 days. The platform felt safer, and the compatibility score was surprisingly accurate."
+      "Я нашел иделаьную комнату для себя за 3 дня. Платформа очень удобная, также процент соотношениий хорошо подбирает варианты."
   }
-];
-
-const roommateHighlights = [
-  "Lifestyle compatibility scoring",
-  "Verified student and professional profiles",
-  "Filter by budget, location, and habits",
-  "Direct chat before meeting"
 ];
 
 const listingTypeLabels: Record<(typeof demoListings)[number]["listingType"], string> = {
@@ -111,40 +40,54 @@ const listingTypeLabels: Record<(typeof demoListings)[number]["listingType"], st
   entire_place: "Studio"
 };
 
-const mockSearchFields = [
-  {
-    icon: MapPin,
-    label: "City or university...",
-    element: <input aria-label="Search by city or university" placeholder="City or university..." />
-  },
-  {
-    icon: CalendarDays,
-    label: "Max budget (₸)",
-    element: (
-      <select aria-label="Max budget" defaultValue="">
-        <option value="">Max budget (₸)</option>
-        <option value="100000">Under 100K ₸</option>
-        <option value="150000">Under 150K ₸</option>
-        <option value="200000">Under 200K ₸</option>
-        <option value="300000">Under 300K ₸</option>
-      </select>
-    )
-  },
-  {
-    icon: Home,
-    label: "Any type",
-    element: (
-      <select aria-label="Housing type" defaultValue="">
-        <option value="">Any type</option>
-        <option value="private_room">Private Room</option>
-        <option value="shared_room">Shared Room</option>
-        <option value="entire_place">Studio</option>
-      </select>
-    )
-  }
-];
-
 export default function HomePage() {
+  const { locale, t } = useLocale();
+
+  const stats = [
+    { value: "3,500+", label: t("home.verifiedListings") },
+    { value: "10,000+", label: t("home.activeStudents") },
+    { value: "2,400+", label: t("home.successfulMatches") }
+  ];
+
+  const steps = getSteps(locale);
+  const platformStats = getPlatformStats(locale);
+  const faqs = getFaqs(locale);
+  const roommateHighlights = getRoommateHighlights(locale);
+  const statusLabel = locale === "en" ? "Today" : locale === "ru" ? "Сегодня" : "Бүгін";
+  const delayedStatusLabel = locale === "en" ? "2 days" : locale === "ru" ? "2 дня" : "2 күн";
+  const mockSearchFields = [
+    {
+      icon: MapPin,
+      label: t("home.searchCity"),
+      element: <input aria-label={t("home.searchCity")} placeholder={t("home.searchCity")} />
+    },
+    {
+      icon: CalendarDays,
+      label: t("home.searchBudget"),
+      element: (
+        <select aria-label={t("home.searchBudget")} defaultValue="">
+          <option value="">{t("home.searchBudget")}</option>
+          <option value="100000">Under 100K ₸</option>
+          <option value="150000">Under 150K ₸</option>
+          <option value="200000">Under 200K ₸</option>
+          <option value="300000">Under 300K ₸</option>
+        </select>
+      )
+    },
+    {
+      icon: Home,
+      label: t("home.searchType"),
+      element: (
+        <select aria-label={t("home.searchType")} defaultValue="">
+          <option value="">{t("home.searchType")}</option>
+          <option value="private_room">Private Room</option>
+          <option value="shared_room">Shared Room</option>
+          <option value="entire_place">Studio</option>
+        </select>
+      )
+    }
+  ];
+
   return (
     <main className="min-h-screen bg-[#faf6ef] text-foreground">
       <section className="relative overflow-hidden">
@@ -171,24 +114,20 @@ export default function HomePage() {
               </Link>
 
               <div className="hidden items-center gap-1 md:flex">
-                <NavLink href="/rooms">Rooms</NavLink>
-                <NavLink href="/roommates">Roommates</NavLink>
-                <NavLink href="/list-a-room/step-1">List a Room</NavLink>
+                <NavLink href="/rooms">{t("nav.rooms")}</NavLink>
+                <NavLink href="/roommates">{t("nav.roommates")}</NavLink>
+                <NavLink href="/list-a-room/step-1">{t("nav.listRoom")}</NavLink>
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="hidden rounded-full px-3 py-2 text-sm font-medium text-white/85 transition hover:bg-white/10 sm:inline-flex"
-                >
-                  <span className="mr-1.5">🇬🇧</span>
-                  EN
-                </button>
+                <div className="hidden sm:block">
+                  <LanguageMenu inverted />
+                </div>
                 <Link
                   href="/sign-in"
                   className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
                 >
-                  Sign In
+                  {t("nav.signIn")}
                 </Link>
               </div>
             </div>
@@ -198,15 +137,14 @@ export default function HomePage() {
             <div className="max-w-4xl text-center">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white/90 backdrop-blur-sm">
                 <span className="h-2 w-2 rounded-full bg-[#f1a531]" />
-                #1 Roommate Finder in Kazakhstan
+                {t("home.heroBadge")}
               </div>
 
               <h1 className="mt-6 text-4xl font-bold leading-tight text-white sm:text-5xl lg:text-7xl">
-                Find Your Perfect <span className="text-primary">Roommate & Room</span>
+                {t("home.heroTitleLead")} <span className="text-primary">{t("home.heroTitleAccent")}</span>
               </h1>
               <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-white/80 sm:text-lg">
-                Kazakhstan&apos;s trusted platform for students and young professionals. Connect with
-                compatible roommates, browse verified listings, and find your next home.
+                {t("home.heroDescription")}
               </p>
 
               <div className="mt-10 rounded-[2rem] border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur-xl sm:p-3">
@@ -225,7 +163,7 @@ export default function HomePage() {
                     className="inline-flex items-center justify-center gap-2 rounded-[1.25rem] bg-primary px-6 py-4 text-sm font-semibold text-white transition hover:bg-primary/90"
                   >
                     <Search className="h-4 w-4" />
-                    Search
+                    {t("home.searchButton")}
                   </Link>
                 </div>
               </div>
@@ -249,19 +187,19 @@ export default function HomePage() {
       <section className="bg-[#fffdf9] px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <SectionHeader
-            badge="How It Works"
+            badge={t("home.howItWorksBadge")}
             title={
               <>
-                Find Your Place in <span className="text-primary">4 Steps</span>
+                {t("home.howItWorksTitle")} <span className="text-primary">{t("home.howItWorksAccent")}</span>
               </>
             }
-            description="Find your ideal roommate in four simple steps."
+            description={t("home.howItWorksDescription")}
             centered
           />
 
           <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {steps.map((step, index) => (
-              <div key={step.title} className="relative group">
+              <div key={step.title} className="group relative">
                 <article className="rounded-[1.75rem] border border-[#eee2d2] bg-white p-6 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl">
                   <div className="flex items-center justify-between">
                     <span className="text-5xl font-bold text-primary/15">{step.number}</span>
@@ -294,79 +232,87 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
             <SectionHeader
-              badge="Featured Listings"
-              title="Featured Listings"
-              description="Hand-picked rooms and apartments near top universities."
+              badge={t("home.featuredBadge")}
+              title={t("home.featuredTitle")}
+              description={t("home.featuredDescription")}
             />
             <Link
               href="/rooms"
               className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary/90"
             >
-              View All Listings
+              {t("home.viewAllListings")}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
 
-          <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {demoListings.slice(0, 4).map((listing, index) => {
+          <div className="mt-8 grid gap-6 lg:grid-cols-3">
+            {demoListings.slice(0, 3).map((listing, index) => {
               const owner = demoProfiles.find((profile) => profile.uid === listing.ownerId);
 
               return (
                 <Link
                   key={listing.id}
                   href={`/rooms/${listing.id}`}
-                  className="group overflow-hidden rounded-[1.75rem] border border-[#efe5d9] bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+                  className="group overflow-hidden rounded-[2rem] border border-[#efe5d9] bg-white shadow-[0_20px_40px_rgba(64,43,17,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_26px_48px_rgba(64,43,17,0.14)]"
                 >
-                  <div className="relative aspect-[1.12/1] overflow-hidden">
+                  <div className="relative aspect-[1.08/0.92] overflow-hidden">
                     <Image
                       src={listing.photoUrls[0]}
                       alt={listing.title}
                       fill
                       className="object-cover transition duration-500 group-hover:scale-105"
-                      sizes="(min-width: 1280px) 25vw, (min-width: 768px) 50vw, 100vw"
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                     />
-                    <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur">
+                    <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur">
                         {listingTypeLabels[listing.listingType]}
                       </span>
                       <span className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-white shadow-sm">
                         Verified
                       </span>
                     </div>
-                    <div className="absolute right-3 top-3 rounded-full bg-[#f1a531] px-3 py-1 text-xs font-medium text-white shadow-sm">
-                      {index === 2 ? "2 days" : "Today"}
+                    <div className="absolute right-4 top-4 rounded-full bg-[#f1a531] px-3 py-1 text-xs font-medium text-white shadow-sm">
+                      {index === 2 ? delayedStatusLabel : statusLabel}
                     </div>
+
                     {owner ? (
-                      <div className="absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-full bg-white/90 px-2 py-1 shadow-sm backdrop-blur">
-                        <div className="relative h-6 w-6 overflow-hidden rounded-full bg-[#ece4d8]">
+                      <div className="absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-full bg-white/92 px-2 py-1 shadow-sm backdrop-blur">
+                        <div className="relative h-7 w-7 overflow-hidden rounded-full bg-[#ece4d8]">
                           {owner.photoURL ? (
-                            <Image src={owner.photoURL} alt={owner.fullName} fill className="object-cover" sizes="24px" />
+                            <Image src={owner.photoURL} alt={owner.fullName} fill className="object-cover" sizes="28px" />
                           ) : null}
                         </div>
-                        <span className="pr-1 text-xs font-medium text-foreground">
+                        <span className="pr-2 text-sm font-medium text-foreground">
                           {owner.fullName}, {owner.age}
                         </span>
                       </div>
                     ) : null}
                   </div>
 
-                  <div className="p-5">
+                  <div className="p-6">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="line-clamp-2 font-heading text-base font-bold text-foreground">
+                      <div className="min-w-0">
+                        <h3 className="line-clamp-2 font-heading text-[1.2rem] font-bold leading-8 text-foreground sm:text-[1.35rem]">
                           {listing.title}
                         </h3>
-                        <p className="mt-2 flex items-center gap-1 text-xs text-foreground/55">
+                        <p className="mt-2 flex items-center gap-1 text-sm text-foreground/55">
                           <MapPin className="h-3.5 w-3.5" />
                           {listing.city}, {listing.district}
                         </p>
                       </div>
-                      <span className="shrink-0 text-sm font-bold text-primary">
-                        {formatMonthlyRent(listing.monthlyRent)}
-                      </span>
+                      <div className="shrink-0 text-right">
+                        <span className="block text-lg font-bold text-primary sm:text-xl">
+                          {formatMonthlyRent(listing.monthlyRent)}
+                        </span>
+                        {listing.depositRequired ? (
+                          <span className="mt-1 block text-xs font-medium text-[#8e7d70]">
+                            + {formatCurrency(listing.depositAmount)} deposit
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
 
-                    <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-foreground/55">
+                    <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-foreground/55">
                       <span className="inline-flex items-center gap-1">
                         <BedDouble className="h-3.5 w-3.5" />
                         {listing.bedrooms} bd
@@ -392,11 +338,11 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <SectionHeader
-              title="Popular University Hubs"
-              description="Find housing near Kazakhstan's top universities."
+              title={t("home.universityTitle")}
+              description={t("home.universityDescription")}
             />
             <Link href="/universities" className="text-sm font-semibold text-primary transition hover:text-primary/80">
-              Explore university areas
+              {t("home.exploreUniversityAreas")}
             </Link>
           </div>
 
@@ -437,9 +383,9 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div className="text-white">
             <SectionHeader
-              badge="Find Compatible Roommates"
-              title="Find Compatible Roommates"
-              description="Our matching flow connects you with people who share your lifestyle and preferences."
+              badge={t("home.roommateBadge")}
+              title={t("home.roommateTitle")}
+              description={t("home.roommateDescription")}
               light
             />
 
@@ -456,7 +402,7 @@ export default function HomePage() {
               href="/roommates"
               className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-primary transition hover:bg-[#f6f1e7]"
             >
-              Browse All Roommates
+              {t("home.browseAllRoommates")}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -505,7 +451,7 @@ export default function HomePage() {
 
       <section className="bg-[#fffdf9] px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl">
-          <SectionHeader badge="What Our Users Say" title="What Our Users Say" centered />
+          <SectionHeader badge={t("home.testimonialBadge")} title={t("home.testimonialTitle")} centered />
 
           <div className="mt-10 grid items-center gap-8 rounded-[2rem] border border-[#efe5d9] bg-white p-8 shadow-soft md:grid-cols-[0.9fr_1.1fr] md:p-10">
             <div className="relative mx-auto h-56 w-56 overflow-hidden rounded-[1.75rem] bg-[#f5efe6]">
@@ -547,9 +493,9 @@ export default function HomePage() {
       <section className="bg-[#fbf7f0] px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
           <SectionHeader
-            badge="FAQ"
-            title="Frequently Asked Questions"
-            description="Everything you need to know about finding roommates in Kazakhstan."
+            badge={t("home.faqBadge")}
+            title={t("home.faqTitle")}
+            description={t("home.faqDescription")}
             centered
           />
 
@@ -586,11 +532,9 @@ export default function HomePage() {
         </div>
 
         <div className="relative z-10 mx-auto max-w-6xl overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 px-6 py-14 text-center shadow-2xl backdrop-blur-sm sm:px-10">
-          <h2 className="text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
-            Ready to Find Your Perfect Roommate?
-          </h2>
+          <h2 className="text-3xl font-bold text-white sm:text-4xl lg:text-5xl">{t("home.ctaTitle")}</h2>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-white/80 sm:text-lg">
-            Join thousands of students and young professionals already using Roommate KZ.
+            {t("home.ctaDescription")}
           </p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -598,14 +542,14 @@ export default function HomePage() {
               href="/rooms"
               className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-white transition hover:bg-primary/90"
             >
-              Start Searching
+              {t("home.startSearching")}
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               href="/list-a-room/step-1"
               className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-8 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
             >
-              List Your Room
+              {t("home.listYourRoom")}
             </Link>
           </div>
         </div>
@@ -700,7 +644,11 @@ function SectionHeader({
         {title}
       </h2>
       {description ? (
-        <p className={`mt-3 max-w-2xl text-sm leading-7 sm:text-base ${centered ? "mx-auto" : ""} ${light ? "text-white/75" : "text-foreground/60"}`}>
+        <p
+          className={`mt-3 max-w-2xl text-sm leading-7 sm:text-base ${centered ? "mx-auto" : ""} ${
+            light ? "text-white/75" : "text-foreground/60"
+          }`}
+        >
           {description}
         </p>
       ) : null}
@@ -727,4 +675,235 @@ function FooterColumn({
       </div>
     </div>
   );
+}
+
+function getSteps(locale: "en" | "ru" | "kz") {
+  if (locale === "ru") {
+    return [
+      {
+        icon: Users,
+        number: "01",
+        title: "Создайте профиль",
+        text: "Укажите бюджет, университет, образ жизни и дату заезда, чтобы получать более точные совпадения."
+      },
+      {
+        icon: Search,
+        number: "02",
+        title: "Ищите и фильтруйте",
+        text: "Подбирайте комнаты и соседей по городу, кампусу, бюджету и совместимости."
+      },
+      {
+        icon: MessageCircle,
+        number: "03",
+        title: "Общайтесь заранее",
+        text: "Напишите потенциальным соседям, сравните ожидания и обсудите важные детали до встречи."
+      },
+      {
+        icon: Home,
+        number: "04",
+        title: "Заселяйтесь уверенно",
+        text: "Выбирайте лучший вариант и планируйте переезд вместе без лишнего стресса."
+      }
+    ];
+  }
+
+  if (locale === "kz") {
+    return [
+      {
+        icon: Users,
+        number: "01",
+        title: "Профиль жасаңыз",
+        text: "Дәлірек сәйкестік алу үшін бюджетіңізді, университетіңізді, өмір салтыңызды және көшу күніңізді енгізіңіз."
+      },
+      {
+        icon: Search,
+        number: "02",
+        title: "Іздеп, сүзгіден өткізіңіз",
+        text: "Қала, кампус, бюджет және үйлесім бойынша бөлмелер мен roommate табыңыз."
+      },
+      {
+        icon: MessageCircle,
+        number: "03",
+        title: "Алдын ала сөйлесіңіз",
+        text: "Кездеспей тұрып, ықтимал көршілерге жазып, күтілімдер мен маңызды детальдарды талқылаңыз."
+      },
+      {
+        icon: Home,
+        number: "04",
+        title: "Сенімді қоныстаныңыз",
+        text: "Ең қолайлы нұсқаны таңдап, көшуді бірге жоспарлаңыз."
+      }
+    ];
+  }
+
+  return [
+    {
+      icon: Users,
+      number: "01",
+      title: "Create Profile",
+      text: "Sign up and share your budget, university, lifestyle, and move-in preferences."
+    },
+    {
+      icon: Search,
+      number: "02",
+      title: "Browse & Filter",
+      text: "Search rooms and roommates by city, university, budget, and compatibility."
+    },
+    {
+      icon: MessageCircle,
+      number: "03",
+      title: "Connect & Chat",
+      text: "Message potential roommates early, compare expectations, and ask the right questions."
+    },
+    {
+      icon: Home,
+      number: "04",
+      title: "Move In Together",
+      text: "Choose the right fit with more confidence and plan the next chapter together."
+    }
+  ];
+}
+
+function getPlatformStats(locale: "en" | "ru" | "kz") {
+  if (locale === "ru") {
+    return [
+      { value: "3.5K+", label: "Активные объявления" },
+      { value: "94%", label: "Точность совпадений" },
+      { value: "24h", label: "Средний ответ" },
+      { value: "100%", label: "Бесплатно" }
+    ];
+  }
+
+  if (locale === "kz") {
+    return [
+      { value: "3.5K+", label: "Белсенді хабарландыру" },
+      { value: "94%", label: "Сәйкестік дәлдігі" },
+      { value: "24h", label: "Орташа жауап уақыты" },
+      { value: "100%", label: "Тегін қолдану" }
+    ];
+  }
+
+  return [
+    { value: "3.5K+", label: "Active Listings" },
+    { value: "94%", label: "Match Accuracy" },
+    { value: "24h", label: "Avg Response Time" },
+    { value: "100%", label: "Free to Use" }
+  ];
+}
+
+function getRoommateHighlights(locale: "en" | "ru" | "kz") {
+  if (locale === "ru") {
+    return [
+      "Оценка совместимости по образу жизни",
+      "Проверенные студенческие и рабочие профили",
+      "Фильтры по бюджету, району и привычкам",
+      "Прямой чат до встречи"
+    ];
+  }
+
+  if (locale === "kz") {
+    return [
+      "Өмір салты бойынша үйлесім бағасы",
+      "Тексерілген студент және маман профилі",
+      "Бюджет, орын және әдеттер бойынша сүзгі",
+      "Кездесуге дейін тікелей чат"
+    ];
+  }
+
+  return [
+    "Lifestyle compatibility scoring",
+    "Verified student and professional profiles",
+    "Filter by budget, location, and habits",
+    "Direct chat before meeting"
+  ];
+}
+
+function getFaqs(locale: "en" | "ru" | "kz") {
+  if (locale === "ru") {
+    return [
+      {
+        question: "Как работает подбор соседа?",
+        answer:
+          "Система сравнивает бюджет, дату заезда, чистоту, режим сна, гостей и другие привычки, чтобы сильные совпадения поднимались выше."
+      },
+      {
+        question: "Насколько безопасен Roommate KZ?",
+        answer:
+          "Платформа строится вокруг проверенных профилей, деталей жилья и прозрачной активности, чтобы студентам было спокойнее принимать решения."
+      },
+      {
+        question: "Сколько это стоит?",
+        answer:
+          "Поиск объявлений, соседей и старт общения остаются доступными, пока продукт растет и дополняется новыми инструментами."
+      },
+      {
+        question: "Можно ли разместить свою комнату или квартиру?",
+        answer:
+          "Да. Вы можете опубликовать объявление, добавить фотографии, указать пожелания к соседу и общаться напрямую с заинтересованными людьми."
+      },
+      {
+        question: "Какие города покрывает сервис?",
+        answer:
+          "Сейчас акцент на крупнейших студенческих центрах, таких как Алматы и Астана, с возможностью дальнейшего расширения."
+      }
+    ];
+  }
+
+  if (locale === "kz") {
+    return [
+      {
+        question: "Roommate matching қалай жұмыс істейді?",
+        answer:
+          "Жүйе бюджет, көшу уақыты, тазалық, ұйқы тәртібі, қонақтар және басқа әдеттерді салыстырып, мықты сәйкестіктерді жоғары қояды."
+      },
+      {
+        question: "Roommate KZ қолдану қауіпсіз бе?",
+        answer:
+          "Платформа тексерілген профильдерге, тұрғын үй ақпаратына және ашық белсенділікке сүйеніп, студенттерге сенімдірек шешім қабылдауға көмектеседі."
+      },
+      {
+        question: "Қанша тұрады?",
+        answer:
+          "Хабарландыруларды көру, roommate іздеу және сөйлесуді бастау әзірге қолжетімді және қарапайым болып қалады."
+      },
+      {
+        question: "Өз бөлмемді немесе пәтерімді жариялай аламын ба?",
+        answer:
+          "Иә. Хабарландыру жариялап, фотосурет қосып, roommate талғамын көрсетіп, қызыққан адамдармен тікелей байланыса аласыз."
+      },
+      {
+        question: "Қай қалалар қамтылған?",
+        answer:
+          "Қызмет қазір Алматы мен Астана сияқты негізгі студенттік хабтарға бағытталған және кейін кеңейе алады."
+      }
+    ];
+  }
+
+  return [
+    {
+      question: "How does the roommate matching work?",
+      answer:
+        "Our match score compares budget, move-in timing, cleanliness, sleep schedule, guests, and other lifestyle preferences so you can shortlist better fits faster."
+    },
+    {
+      question: "Is it safe to use Roommate KZ?",
+      answer:
+        "The platform is designed around verified profiles, room details, and reportable activity so students can make more confident decisions before meeting."
+    },
+    {
+      question: "How much does it cost?",
+      answer:
+        "Browsing listings, discovering roommates, and starting conversations can remain accessible while the product grows with premium tools later if needed."
+    },
+    {
+      question: "Can I list my room or apartment?",
+      answer:
+        "Yes. You can publish a listing, add photos, set roommate preferences, and connect directly with interested students or young professionals."
+    },
+    {
+      question: "What cities in Kazakhstan do you cover?",
+      answer:
+        "The experience is designed around major student hubs like Almaty and Astana, with room to expand as the listing network grows."
+    }
+  ];
 }

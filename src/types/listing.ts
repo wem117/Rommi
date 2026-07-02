@@ -18,6 +18,8 @@ export interface Listing {
   propertyType: PropertyType;
   listingType: ListingType;
   monthlyRent: number;
+  depositRequired: boolean;
+  depositAmount: number;
   city: string;
   district?: string;
   address: string;

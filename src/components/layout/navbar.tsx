@@ -3,12 +3,13 @@
 import { Home, LogOut, UserCircle } from "lucide-react";
 import Link from "next/link";
 
+import { LanguageMenu } from "@/components/layout/language-menu";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
 
 export function Navbar() {
   const { user, profile, loading, signOut } = useAuth();
-  const { locale, setLocale } = useLocale();
+  const { t } = useLocale();
 
   return (
     <header className="sticky top-0 z-30 border-b border-[#eadfce] bg-[#fffdf9]/95 backdrop-blur">
@@ -24,35 +25,26 @@ export function Navbar() {
 
         <nav className="hidden items-center gap-12 text-[1.05rem] font-medium text-[#2e2622] md:flex">
           <Link href="/rooms" className="transition hover:text-[#12b000]">
-            Rooms
+            {t("nav.rooms")}
           </Link>
           <Link href="/roommates" className="transition hover:text-[#12b000]">
-            Roommates
+            {t("nav.roommates")}
           </Link>
           <Link href="/list-a-room/step-1" className="transition hover:text-[#12b000]">
-            List a Room
+            {t("nav.listRoom")}
           </Link>
         </nav>
 
         <div className="flex items-center gap-3">
-          <select
-            aria-label="Language"
-            value={locale}
-            onChange={(event) => setLocale(event.target.value as "en" | "ru")}
-            className="w-auto rounded-full border border-[#e6d8c6] bg-white px-4 py-2.5 text-sm font-medium text-[#2e2622] shadow-sm"
-          >
-            <option value="en">EN</option>
-            <option value="ru">KZ</option>
-          </select>
-
+          <LanguageMenu />
           {user ? (
             <>
               <Link
                 href="/profile"
-                className="hidden items-center gap-2 rounded-full border border-[#e6d8c6] bg-white px-4 py-2.5 text-sm font-semibold text-[#2e2622] shadow-sm transition hover:border-[#12b000] hover:text-[#12b000] sm:inline-flex"
+                className="inline-flex items-center gap-2 rounded-full border border-[#e6d8c6] bg-white px-3 py-2.5 text-sm font-semibold text-[#2e2622] shadow-sm transition hover:border-[#12b000] hover:text-[#12b000] sm:px-4"
               >
                 <UserCircle className="h-4 w-4" />
-                {profile?.fullName ?? user.email ?? "Profile"}
+                <span className="hidden sm:inline">{t("nav.myAccount")}</span>
               </Link>
               <button
                 type="button"
@@ -60,7 +52,7 @@ export function Navbar() {
                 className="inline-flex items-center gap-2 rounded-full bg-[#12b000] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#109900]"
               >
                 <LogOut className="h-4 w-4" />
-                Sign Out
+                {t("nav.signOut")}
               </button>
             </>
           ) : (
@@ -68,7 +60,7 @@ export function Navbar() {
               href="/sign-in"
               className="inline-flex items-center gap-2 rounded-full bg-[#12b000] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-[#109900]"
             >
-              {loading ? "Loading" : "Sign In"}
+              {loading ? t("nav.loading") : t("nav.signIn")}
             </Link>
           )}
         </div>

@@ -48,14 +48,28 @@ export async function signUpWithEmail(email: string, password: string) {
   return data;
 }
 
-export async function signInWithGoogle() {
+function getGoogleRedirectTo(nextPath?: string) {
+  if (!supabaseConfig.googleRedirectTo) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_GOOGLE_REDIRECT_TO. Add it to .env.local.");
+  }
+
+  const callbackUrl = new URL(supabaseConfig.googleRedirectTo, window.location.origin);
+
+  if (nextPath?.startsWith("/") && !nextPath.startsWith("//")) {
+    callbackUrl.searchParams.set("next", nextPath);
+  }
+
+  return callbackUrl.toString();
+}
+
+export async function signInWithGoogle(nextPath?: string) {
   if (!isSupabaseConfigured) throw new Error("Supabase is not configured");
 
   const supabase = getSupabaseBrowserClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: supabaseConfig.googleRedirectTo || undefined
+      redirectTo: getGoogleRedirectTo(nextPath)
     }
   });
 
@@ -85,4 +99,3 @@ export async function signOut() {
   await supabase.auth.signOut();
   await fetch("/api/auth/session", { method: "DELETE" });
 }
-

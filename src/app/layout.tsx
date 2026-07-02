@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
 import { Toaster } from "sonner";
 
-import { AuthProvider } from "@/context/auth-context";
-import { LocaleProvider } from "@/context/locale-context";
+import { Providers } from "@/context/Providers";
 
 import "./globals.css";
 
@@ -28,9 +27,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body className={`${inter.variable} ${manrope.variable}`}>
-        <LocaleProvider>
-          <AuthProvider>{children}</AuthProvider>
-        </LocaleProvider>
+        <Providers>{children}</Providers>
         <Toaster richColors position="top-center" />
       </body>
     </html>

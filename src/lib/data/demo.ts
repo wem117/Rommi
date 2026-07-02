@@ -6,10 +6,10 @@ const now = new Date();
 
 export const demoProfiles: UserProfile[] = [
   {
-    uid: "demo-aidar",
-    email: "aidar@example.com",
-    fullName: "Aidar",
-    age: 23,
+    uid: "demo-yera",
+    email: "yeraly@example.com",
+    fullName: "Yeraly",
+    age: 19,
     gender: "male",
     university: "KBTU",
     occupation: "Software Developer",
@@ -24,12 +24,16 @@ export const demoProfiles: UserProfile[] = [
       guests: "rarely"
     },
     onboardingComplete: true,
+    lookingForApartment: true,
     photoURL: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80",
     bio: "Looking for a calm, tidy flat close to classes and coworking spots.",
     role: "user",
     verified: true,
     profileCompletion: 96,
     favoriteListingIds: ["listing-almaty-1"],
+    favoriteRoommateIds: ["demo-aizhan"],
+    viewedListingIds: ["listing-almaty-1", "listing-astana-1"],
+    contactedListingIds: ["listing-almaty-1"],
     createdAt: now,
     updatedAt: now
   },
@@ -52,25 +56,29 @@ export const demoProfiles: UserProfile[] = [
       guests: "rarely"
     },
     onboardingComplete: true,
+    lookingForApartment: true,
     photoURL: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80",
     bio: "Studying medicine and hoping to find a safe, quiet place near campus.",
     role: "user",
     verified: true,
     profileCompletion: 94,
     favoriteListingIds: [],
+    favoriteRoommateIds: [],
+    viewedListingIds: ["listing-almaty-2"],
+    contactedListingIds: [],
     createdAt: now,
     updatedAt: now
   },
   {
-    uid: "demo-admin",
-    email: "admin@example.com",
-    fullName: "Platform Admin",
-    age: 29,
-    gender: "prefer_not_to_say",
-    university: "Roommate KZ",
-    occupation: "Operations",
-    minBudget: 0,
-    maxBudget: 0,
+    uid: "demo-temirbek",
+    email: "temirbek@example.com",
+    fullName: "Temirbek",
+    age: 20,
+    gender: "male",
+    university: "KIMEP",
+    occupation: "Information Systems",
+    minBudget: 99000,
+    maxBudget: 150000,
     preferredMoveInDate: null,
     lifestyle: {
       smoking: "no_preference",
@@ -80,12 +88,16 @@ export const demoProfiles: UserProfile[] = [
       guests: "sometimes"
     },
     onboardingComplete: true,
-    photoURL: null,
+    lookingForApartment: false,
+    photoURL: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80",
     bio: "Demo administrator account.",
     role: "admin",
     verified: true,
     profileCompletion: 100,
     favoriteListingIds: [],
+    favoriteRoommateIds: [],
+    viewedListingIds: [],
+    contactedListingIds: [],
     createdAt: now,
     updatedAt: now
   }
@@ -100,6 +112,8 @@ export const demoListings: Listing[] = [
     propertyType: "apartment",
     listingType: "private_room",
     monthlyRent: 180000,
+    depositRequired: true,
+    depositAmount: 50000,
     city: "Almaty",
     district: "Bogenbay Batyr",
     address: "Bogenbay Batyr 120",
@@ -117,11 +131,13 @@ export const demoListings: Listing[] = [
   {
     id: "listing-astana-1",
     ownerId: "demo-aizhan",
-    title: "Cozy studio in Astana with flexible lease",
+    title: "studio in Astana",
     description: "Great for one student or two close friends, with security and furnished interiors.",
     propertyType: "studio",
     listingType: "entire_place",
     monthlyRent: 220000,
+    depositRequired: true,
+    depositAmount: 80000,
     city: "Astana",
     district: "Nura",
     address: "Nursultan Ave 8",
@@ -144,6 +160,8 @@ export const demoListings: Listing[] = [
     propertyType: "apartment",
     listingType: "shared_room",
     monthlyRent: 120000,
+    depositRequired: false,
+    depositAmount: 0,
     city: "Almaty",
     district: "Auezov",
     address: "Auezov 44",
@@ -219,6 +237,29 @@ export const demoUniversities = [
     students: "6.2K",
     image:
       "https://images.unsplash.com/photo-1498243691581-b145c3f54a5a?auto=format&fit=crop&w=1200&q=80"
+  },
+  {
+    name: "AITU",
+    city: "Astana",
+    listings: 58,
+    students: "7.4K",
+    image:
+      "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1200&q=80"
+  },
+  {
+    name: "ENU",
+    city: "Astana",
+    listings: 76,
+    students: "15.1K",
+    image:
+      "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=1200&q=80"
+  },
+  {
+    name: "KIMEP University",
+    city: "Almaty",
+    listings: 63,
+    students: "4.8K",
+    image:
+      "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80"
   }
 ];
-

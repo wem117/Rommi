@@ -2,8 +2,16 @@ alter table public.profiles enable row level security;
 alter table public.listings enable row level security;
 alter table public.images enable row level security;
 alter table public.conversations enable row level security;
+<<<<<<< HEAD
 alter table public.messages enable row level security;
 alter table public.reports enable row level security;
+=======
+
+alter table public.listings drop constraint if exists monthly_rent_range;
+alter table public.listings
+  add constraint monthly_rent_range
+  check (monthly_rent >= 0 and monthly_rent <= 10000000);
+>>>>>>> 6c5ad34f88195045209d1f9c8e8293090a095822
 
 drop policy if exists select_profiles_authenticated on public.profiles;
 drop policy if exists insert_profiles_owner on public.profiles;
@@ -32,7 +40,11 @@ drop policy if exists update_listings_owner on public.listings;
 create policy select_listings_authenticated
   on public.listings
   for select
+<<<<<<< HEAD
   using (auth.uid() is not null);
+=======
+  using (removed is not true);
+>>>>>>> 6c5ad34f88195045209d1f9c8e8293090a095822
 
 create policy insert_listings_owner
   on public.listings
@@ -70,6 +82,7 @@ create policy insert_conversations_participant
   on public.conversations
   for insert
   with check (auth.uid()::text = any(participant_ids));
+<<<<<<< HEAD
 
 drop policy if exists select_messages_participant on public.messages;
 drop policy if exists insert_messages_participant on public.messages;
@@ -111,3 +124,5 @@ create policy select_reports_admin_or_owner
   on public.reports
   for select
   using (reporter_id::text = auth.uid()::text);
+=======
+>>>>>>> 6c5ad34f88195045209d1f9c8e8293090a095822

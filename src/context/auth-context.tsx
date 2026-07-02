@@ -24,6 +24,7 @@ interface AuthContextValue {
   profile: UserProfile | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -63,6 +64,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const refreshProfile = useCallback(async () => {
+    if (!user?.uid) return;
+    const nextProfile = await getProfileById(user.uid);
+    setProfile(nextProfile);
+  }, [user?.uid]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -122,8 +129,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, profile, loading, signOut }),
-    [loading, profile, signOut, user]
+    () => ({ user, profile, loading, signOut, refreshProfile }),
+    [loading, profile, refreshProfile, signOut, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

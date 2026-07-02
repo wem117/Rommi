@@ -10,6 +10,14 @@ export function formatMonthlyRent(value: number) {
   return `${formatCurrency(value)}/mo`;
 }
 
+export function formatListingPrice(value: number, depositRequired?: boolean, depositAmount?: number) {
+  if (!depositRequired || !depositAmount) {
+    return `${formatCurrency(value)}/month`;
+  }
+
+  return `${formatCurrency(value)}/month + ${formatCurrency(depositAmount)} deposit`;
+}
+
 export function formatDate(value: Date | null | undefined) {
   if (!value) return "Date not set";
   return new Intl.DateTimeFormat("en", {

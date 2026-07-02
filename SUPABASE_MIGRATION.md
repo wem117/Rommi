@@ -5,7 +5,7 @@
 Copy `.env.example` to `.env.local` and fill these values:
 
 `NEXT_PUBLIC_SUPABASE_URL`
-The public project URL. The browser client uses this to connect to Supabase Auth, Database, and Storage.
+The public project URL. Browser and server clients use this to connect to Supabase Auth, Database, and Storage.
 
 `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 The public anonymous key. The client app uses this for sign-in, listing reads, profile reads, and uploads.
@@ -17,7 +17,7 @@ The private server key. Server routes use this for protected actions like creati
 The storage bucket name for avatars, listing photos, and chat images. The code defaults to `roommate-assets`.
 
 `NEXT_PUBLIC_SUPABASE_GOOGLE_REDIRECT_TO`
-Optional OAuth callback URL for Google sign-in. Use your deployed auth callback URL or local dev callback.
+Required OAuth callback URL for Google sign-in. Use your deployed `/api/auth/callback` URL or local dev callback.
 
 `NEXT_PUBLIC_SUPPORT_EMAIL`
 Optional support contact used in future UX and help surfaces.
@@ -150,6 +150,7 @@ Expected paths:
 
 1. Create the Supabase project.
 2. Fill `.env.local` with the values listed above.
+<<<<<<< HEAD
 3. Run `supabase-schema.sql` in the Supabase SQL editor.
 4. Create the storage bucket.
 5. Run `supabase-policies.sql` in the Supabase SQL editor.
@@ -157,3 +158,9 @@ Expected paths:
 7. Run `npm install`.
 8. Start the app with `npm run dev`.
 
+=======
+3. Create the tables and storage bucket.
+4. Add Google Auth in Supabase if you want Google sign-in.
+5. Run `npm install`.
+6. Start the app with `npm run dev`.
+>>>>>>> 6c5ad34f88195045209d1f9c8e8293090a095822

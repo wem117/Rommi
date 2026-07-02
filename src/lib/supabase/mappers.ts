@@ -44,12 +44,16 @@ export function mapProfileRow(row: GenericRecord): UserProfile {
     preferredMoveInDate: row.preferred_move_in_date || row.preferredMoveInDate ? asDate(row.preferred_move_in_date ?? row.preferredMoveInDate) : null,
     lifestyle,
     onboardingComplete: Boolean(row.onboarding_complete ?? row.onboardingComplete),
+    lookingForApartment: Boolean(row.looking_for_apartment ?? row.lookingForApartment ?? true),
     photoURL: typeof row.photo_url === "string" ? row.photo_url : typeof row.photoURL === "string" ? row.photoURL : null,
     bio: typeof row.bio === "string" ? row.bio : "",
     role: (row.role as UserProfile["role"]) ?? "user",
     verified: Boolean(row.verified),
     profileCompletion: asNumber(row.profile_completion ?? row.profileCompletion, 0),
     favoriteListingIds: asStringArray(row.favorite_listing_ids ?? row.favoriteListingIds),
+    favoriteRoommateIds: asStringArray(row.favorite_roommate_ids ?? row.favoriteRoommateIds),
+    viewedListingIds: asStringArray(row.viewed_listing_ids ?? row.viewedListingIds),
+    contactedListingIds: asStringArray(row.contacted_listing_ids ?? row.contactedListingIds),
     createdAt: asDate(row.created_at ?? row.createdAt),
     updatedAt: asDate(row.updated_at ?? row.updatedAt)
   };
@@ -64,6 +68,8 @@ export function mapListingRow(row: GenericRecord): Listing {
     propertyType: (row.property_type ?? row.propertyType ?? "apartment") as Listing["propertyType"],
     listingType: (row.listing_type ?? row.listingType ?? "private_room") as Listing["listingType"],
     monthlyRent: asNumber(row.monthly_rent ?? row.monthlyRent),
+    depositRequired: Boolean(row.deposit_required ?? row.depositRequired),
+    depositAmount: asNumber(row.deposit_amount ?? row.depositAmount),
     city: String(row.city ?? ""),
     district: typeof row.district === "string" ? row.district : "",
     address: String(row.address ?? ""),
@@ -121,4 +127,3 @@ export function mapReportRow(row: GenericRecord): Report {
     updatedAt: asDate(row.updated_at ?? row.updatedAt)
   };
 }
-

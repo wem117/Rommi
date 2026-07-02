@@ -23,7 +23,7 @@ const lifestyleOptions = {
 
 export default function EditProfilePage() {
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<UserProfile | null>(profile);
 
@@ -60,10 +60,12 @@ export default function EditProfilePage() {
         preferredMoveInDate: draft.preferredMoveInDate,
         lifestyle: draft.lifestyle,
         bio: draft.bio ?? "",
+        lookingForApartment: draft.lookingForApartment,
         photoURL: draft.photoURL ?? null,
         profileCompletion: completion,
         onboardingComplete: true
       });
+      await refreshProfile();
       toast.success("Profile updated");
       router.push("/profile");
     } catch (error) {
@@ -161,6 +163,30 @@ export default function EditProfilePage() {
               maxLength={500}
               onChange={(event) => updateField("bio", event.target.value)}
             />
+          </div>
+          <div className="sm:col-span-2 rounded-[1.5rem] border border-[#e8dccd] bg-[#f8f2e8] p-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-sm font-semibold text-foreground">Looking for apartment</div>
+                <p className="mt-1 text-sm text-foreground/60">
+                  When enabled, your roommate profile appears in roommate search results.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => updateField("lookingForApartment", !draft.lookingForApartment)}
+                className={`inline-flex h-11 w-20 items-center rounded-full p-1 transition ${
+                  draft.lookingForApartment ? "bg-primary" : "bg-[#d8cdbd]"
+                }`}
+                aria-pressed={draft.lookingForApartment}
+              >
+                <span
+                  className={`h-9 w-9 rounded-full bg-white shadow-sm transition ${
+                    draft.lookingForApartment ? "translate-x-9" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         </div>
 

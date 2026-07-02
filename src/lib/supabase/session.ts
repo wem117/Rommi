@@ -1,8 +1,8 @@
 import "server-only";
 
-import { cookies } from "next/headers";
+import { headers } from "next/headers";
 
-import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export async function requireSessionUser() {
@@ -10,20 +10,32 @@ export async function requireSessionUser() {
     throw new Error("UNAUTHENTICATED");
   }
 
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get("__session")?.value;
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+    error
+  } = await supabase.auth.getUser();
 
-  if (!accessToken) {
+  if (!error && user) {
+    return user;
+  }
+
+  // Keep Authorization support for non-browser callers and older client code.
+  const headersList = await headers();
+  const authHeader = headersList.get("authorization");
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     throw new Error("UNAUTHENTICATED");
   }
 
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase.auth.getUser(accessToken);
+  const accessToken = authHeader.split("Bearer ")[1];
 
-  if (error || !data.user) {
+  const adminSupabase = createSupabaseAdminClient();
+  const { data, error: adminError } = await adminSupabase.auth.getUser(accessToken);
+
+  if (adminError || !data.user) {
     throw new Error("UNAUTHENTICATED");
   }
 
   return data.user;
 }
-

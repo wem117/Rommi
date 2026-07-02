@@ -2,6 +2,7 @@ import { demoListings } from "@/lib/data/demo";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { mapListingRow } from "@/lib/supabase/mappers";
+import { isMissingSupabaseTable } from "@/lib/utils/errors";
 import type { Listing } from "@/types/listing";
 
 export interface ListingFiltersInput {
@@ -17,6 +18,7 @@ function filterListings(listings: Listing[], filters: ListingFiltersInput = {}) 
   const query = filters.search?.trim().toLowerCase() ?? "";
 
   let next = listings.filter((listing) => {
+    const hidden = "removed" in listing && Boolean((listing as Listing & { removed?: boolean }).removed);
     const matchesCity = !filters.city || listing.city === filters.city;
     const matchesType = !filters.listingType || listing.listingType === filters.listingType;
     const matchesMin = !filters.minRent || listing.monthlyRent >= Number(filters.minRent);
@@ -27,7 +29,7 @@ function filterListings(listings: Listing[], filters: ListingFiltersInput = {}) 
           .filter((value): value is string => Boolean(value))
           .some((value) => value.toLowerCase().includes(query));
 
-    return matchesCity && matchesType && matchesMin && matchesMax && matchesSearch;
+    return !hidden && matchesCity && matchesType && matchesMin && matchesMax && matchesSearch;
   });
 
   if (filters.sort === "rent_asc") {
@@ -50,18 +52,40 @@ export async function getListings(filters: ListingFiltersInput = {}, page = 1, p
   }
 
   const supabase = getSupabaseBrowserClient() as any;
-  let query = supabase.from("listings").select("*", { count: "exact" });
+  function buildQuery(includeRemovedFilter: boolean) {
+    let query = supabase.from("listings").select("*", { count: "exact" });
 
-  if (filters.city) query = query.eq("city", filters.city);
-  if (filters.listingType) query = query.eq("listing_type", filters.listingType);
+    if (includeRemovedFilter) {
+      query = query.or("removed.is.null,removed.eq.false");
+    }
 
-  if (filters.sort === "rent_asc") query = query.order("monthly_rent", { ascending: true });
-  else if (filters.sort === "rent_desc") query = query.order("monthly_rent", { ascending: false });
-  else query = query.order("created_at", { ascending: false });
+    if (filters.city) query = query.eq("city", filters.city);
+    if (filters.listingType) query = query.eq("listing_type", filters.listingType);
+
+    if (filters.sort === "rent_asc") query = query.order("monthly_rent", { ascending: true });
+    else if (filters.sort === "rent_desc") query = query.order("monthly_rent", { ascending: false });
+    else query = query.order("created_at", { ascending: false });
+
+    return query;
+  }
 
   const from = (page - 1) * pageSize;
   const to = from + pageSize + 8;
-  const { data, count, error } = await query.range(from, to);
+  let { data, count, error } = await buildQuery(true).range(from, to);
+
+  if (error && /removed/i.test(String(error.message ?? ""))) {
+    const retried = await buildQuery(false).range(from, to);
+    data = retried.data;
+    count = retried.count;
+    error = retried.error;
+  }
+
+  if (error && isMissingSupabaseTable(error, "listings")) {
+    const filtered = filterListings(demoListings, filters);
+    const start = (page - 1) * pageSize;
+    const paged = filtered.slice(start, start + pageSize);
+    return { listings: paged, hasMore: start + pageSize < filtered.length };
+  }
 
   if (error) throw error;
   const filtered = filterListings((data ?? []).map(mapListingRow), filters).slice(0, pageSize);
@@ -75,6 +99,11 @@ export async function getListingById(listingId: string) {
 
   const supabase = getSupabaseBrowserClient() as any;
   const { data, error } = await supabase.from("listings").select("*").eq("id", listingId).single();
+
+  if (error && isMissingSupabaseTable(error, "listings")) {
+    return demoListings.find((listing) => listing.id === listingId) ?? null;
+  }
+
   if (error) throw error;
   return data ? mapListingRow(data) : null;
 }

@@ -1,1 +1,22 @@
-export const CITIES = ["Almaty", "Astana", "Shymkent", "Karaganda", "Aktobe", "Taraz"] as const;
+export const CITIES = [
+  "Almaty",
+  "Astana",
+  "Shymkent",
+  "Aktau",
+  "Aktobe",
+  "Atyrau",
+  "Kokshetau",
+  "Karaganda",
+  "Konaev",
+  "Kostanay",
+  "Kyzylorda",
+  "Oral",
+  "Oskemen",
+  "Pavlodar",
+  "Petropavl",
+  "Semey",
+  "Taldykorgan",
+  "Taraz",
+  "Turkistan",
+  "Zhezkazgan"
+] as const;

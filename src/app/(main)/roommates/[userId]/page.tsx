@@ -13,6 +13,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { FavoriteRoommateButton } from "@/components/favorites/favorite-roommate-button";
+import { getUniversityCity } from "@/lib/constants/universities";
 import { StatusBanner } from "@/components/StatusBanner";
 import { useAuth } from "@/context/auth-context";
 import { createConversation } from "@/hooks/use-conversations";
@@ -276,16 +277,6 @@ function MetricCard({
       {detail ? <div className="mt-1 text-xl text-[#9a6e56]">{detail}</div> : null}
     </div>
   );
-}
-
-function getUniversityCity(university: string) {
-  const value = university.toLowerCase();
-
-  if (value.includes("nazarbayev") || value.includes("astana") || value.includes("aitu") || value.includes("enu")) {
-    return "Astana";
-  }
-
-  return "Almaty";
 }
 
 function formatMoveDate(date: Date | null) {

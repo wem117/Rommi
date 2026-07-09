@@ -60,7 +60,7 @@ export function useMessages(conversationId?: string) {
 
     let imageUrl: string | undefined;
     if (imageFile) {
-      const result = await uploadImageFile({ file: imageFile, kind: "listings" });
+      const result = await uploadImageFile({ file: imageFile, kind: "messages" });
       imageUrl = result.url;
     }
 

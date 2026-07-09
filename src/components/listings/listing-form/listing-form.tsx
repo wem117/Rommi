@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
 import { PhotoUploader } from "@/components/listings/photo-uploader";
+import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
 import { CITIES } from "@/lib/constants/cities";
@@ -44,6 +45,7 @@ export function listingToInput(listing: Listing): ListingInput {
     city: listing.city,
     district: listing.district ?? "",
     address: listing.address,
+    university: listing.university ?? "",
     bedrooms: listing.bedrooms,
     bathrooms: listing.bathrooms,
     availableFrom: dateInputValue(listing.availableFrom),
@@ -83,6 +85,7 @@ export function ListingForm({
             city: "",
             district: "",
             address: "",
+            university: "",
             bedrooms: 1,
             bathrooms: 1,
             availableFrom: dateInputValue(new Date()),
@@ -216,6 +219,17 @@ export function ListingForm({
         <div>
           <label htmlFor="district">{t("listingForm.district")}</label>
           <input id="district" {...register("district")} />
+        </div>
+
+        <div>
+          <label htmlFor="university">Nearest university</label>
+          <UniversityCombobox
+            id="university"
+            value={watch("university") ?? ""}
+            onChange={(value) => setValue("university", value, { shouldValidate: true })}
+            placeholder="Type to search universities..."
+          />
+          {errors.university ? <p className="mt-1 text-xs text-red-600">{errors.university.message}</p> : null}
         </div>
 
         <div className="md:col-span-2">

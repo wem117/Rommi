@@ -4,6 +4,7 @@ import { Search, SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
 
 import { useLocale } from "@/context/locale-context";
+import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { CITIES } from "@/lib/constants/cities";
 import type { ListingFilters } from "@/hooks/use-listings";
 
@@ -53,8 +54,14 @@ export function ListingFiltersBar({
             onChange({
               search: "",
               city: "",
+              university: "",
               listingType: "",
+              propertyType: "",
+              minRent: "",
               maxRent: "",
+              genderPreference: "",
+              smoking: "",
+              pets: "",
               sort: "newest"
             })
           }
@@ -66,7 +73,7 @@ export function ListingFiltersBar({
 
       {showAdvanced ? (
         <div className="mt-4 grid gap-3 border-t border-[#eadfce] pt-4 md:grid-cols-4">
-          <select value={filters.city ?? ""} onChange={(event) => onChange({ ...filters, city: event.target.value })}>
+          <select value={filters.city ?? ""} onChange={(event) => onChange({ ...filters, city: event.target.value, university: "" })}>
             <option value="">{t("listingFilters.allCities")}</option>
             {CITIES.map((city) => (
               <option key={city} value={city}>
@@ -74,6 +81,11 @@ export function ListingFiltersBar({
               </option>
             ))}
           </select>
+          <UniversityCombobox
+            value={filters.university ?? ""}
+            onChange={(value) => onChange({ ...filters, university: value, city: value ? "" : filters.city })}
+            placeholder="Filter by university"
+          />
           <select
             value={filters.listingType ?? ""}
             onChange={(event) =>
@@ -85,6 +97,27 @@ export function ListingFiltersBar({
             <option value="shared_room">{t("listing.types.sharedRoom")}</option>
             <option value="entire_place">{t("listing.types.entirePlace")}</option>
           </select>
+          <select
+            value={filters.propertyType ?? ""}
+            onChange={(event) =>
+              onChange({ ...filters, propertyType: event.target.value as ListingFilters["propertyType"] })
+            }
+          >
+            <option value="">All property types</option>
+            <option value="apartment">Apartment</option>
+            <option value="house">House</option>
+            <option value="dorm">Dorm</option>
+            <option value="studio">Studio</option>
+          </select>
+          <input
+            type="number"
+            min={0}
+            placeholder="Min rent"
+            value={filters.minRent ?? ""}
+            onChange={(event) =>
+              onChange({ ...filters, minRent: event.target.value ? Number(event.target.value) : "" })
+            }
+          />
           <input
             type="number"
             min={0}
@@ -94,6 +127,33 @@ export function ListingFiltersBar({
               onChange({ ...filters, maxRent: event.target.value ? Number(event.target.value) : "" })
             }
           />
+          <select
+            value={filters.genderPreference ?? ""}
+            onChange={(event) =>
+              onChange({ ...filters, genderPreference: event.target.value as ListingFilters["genderPreference"] })
+            }
+          >
+            <option value="">Any gender preference</option>
+            <option value="any">No preference</option>
+            <option value="male">Male only</option>
+            <option value="female">Female only</option>
+          </select>
+          <select
+            value={filters.smoking ?? ""}
+            onChange={(event) => onChange({ ...filters, smoking: event.target.value as ListingFilters["smoking"] })}
+          >
+            <option value="">Smoking: any</option>
+            <option value="no">No smoking</option>
+            <option value="yes">Smoking allowed</option>
+          </select>
+          <select
+            value={filters.pets ?? ""}
+            onChange={(event) => onChange({ ...filters, pets: event.target.value as ListingFilters["pets"] })}
+          >
+            <option value="">Pets: any</option>
+            <option value="no_pets">No pets</option>
+            <option value="allowed">Pets allowed</option>
+          </select>
           <select
             value={filters.sort ?? "newest"}
             onChange={(event) => onChange({ ...filters, sort: event.target.value as ListingFilters["sort"] })}

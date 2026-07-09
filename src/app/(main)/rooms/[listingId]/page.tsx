@@ -13,13 +13,14 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { ListingGallery } from "@/components/listings/listing-gallery";
 import { ListingGrid } from "@/components/listings/listing-grid";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { useAuth } from "@/context/auth-context";
+import { createConversation } from "@/hooks/use-conversations";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useListing } from "@/hooks/use-listing";
 import { useListings } from "@/hooks/use-listings";
@@ -39,10 +40,12 @@ const listingTypeLabels = {
 
 export default function ListingDetailPage() {
   const params = useParams<{ listingId: string }>();
+  const router = useRouter();
   const { user } = useAuth();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { listing, loading, error } = useListing(params.listingId);
   const [owner, setOwner] = useState<UserProfile | null>(null);
+  const [messageLoading, setMessageLoading] = useState(false);
   const related = useListings(listing ? { city: listing.city, sort: "newest" } : {});
 
   useEffect(() => {
@@ -59,6 +62,26 @@ export default function ListingDetailPage() {
       cancelled = true;
     };
   }, [listing?.ownerId]);
+
+  async function handleMessage() {
+    if (!listing || !owner) return;
+    if (!user) {
+      router.push(`/sign-in?redirect=/rooms/${listing.id}`);
+      return;
+    }
+
+    setMessageLoading(true);
+    try {
+      const conversationId = await createConversation({
+        participantIds: [user.uid, owner.uid],
+        listingId: listing.id,
+        listingTitle: listing.title
+      });
+      router.push(`/inbox/${conversationId}`);
+    } finally {
+      setMessageLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!user?.uid || !listing?.id) return;
@@ -211,17 +234,25 @@ export default function ListingDetailPage() {
               </div>
             </div>
 
+            <button
+              type="button"
+              onClick={() => {
+                if (user?.uid) void recordContactedListing(user.uid, listing.id);
+                void handleMessage();
+              }}
+              disabled={messageLoading}
+              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0f957d] px-5 py-4 text-lg font-semibold text-white transition hover:bg-[#0d856f] disabled:opacity-60"
+            >
+              <Mail className="h-5 w-5" />
+              {messageLoading ? "Opening chat..." : "Message Owner"}
+            </button>
+
             {owner?.email ? (
               <a
                 href={`mailto:${owner.email}`}
-                onClick={() => {
-                  if (!user?.uid) return;
-                  void recordContactedListing(user.uid, listing.id);
-                }}
-                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0f957d] px-5 py-4 text-lg font-semibold text-white transition hover:bg-[#0d856f]"
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#eadfce] px-5 py-3 text-sm font-medium text-foreground/70 transition hover:bg-[#faf6ef]"
               >
-                <Mail className="h-5 w-5" />
-                Contact Roommate
+                Or email directly
               </a>
             ) : null}
 

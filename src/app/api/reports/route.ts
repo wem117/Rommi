@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createReport } from "@/lib/data/reports";
 import { requireAdminUser } from "@/lib/supabase/admin";
 import { requireSessionUser } from "@/lib/supabase/session";
+import { mapReportRow } from "@/lib/supabase/mappers";
 import { reportCreateSchema, reportUpdateSchema } from "@/lib/validations/admin.schema";
 
 export async function GET() {
@@ -11,7 +12,7 @@ export async function GET() {
     const { data, error } = await supabase.from("reports").select("*").order("created_at", { ascending: false });
 
     if (error) throw error;
-    return NextResponse.json({ reports: data ?? [] });
+    return NextResponse.json({ reports: (data ?? []).map(mapReportRow) });
   } catch (error: any) {
     const status = error?.message === "Forbidden" ? 403 : 400;
     return NextResponse.json({ error: error?.message ?? String(error) }, { status });

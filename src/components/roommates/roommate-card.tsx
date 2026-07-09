@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FavoriteRoommateButton } from "@/components/favorites/favorite-roommate-button";
 import { CompatibilityBar } from "@/components/roommates/compatibility-bar";
 import { useLocale } from "@/context/locale-context";
+import { getUniversityCity } from "@/lib/constants/universities";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
 import { formatCurrency } from "@/lib/utils/format";
 import type { LifestylePreferences, UserProfile } from "@/types/user";
@@ -126,16 +127,4 @@ function getGuestsLabel(value: LifestylePreferences["guests"]) {
   if (value === "rarely") return "Rarely";
   if (value === "often") return "Often";
   return "Occasional";
-}
-
-function getUniversityCity(university: string) {
-  const value = university.toLowerCase();
-
-  if (value.includes("nazarbayev") || value.includes("astana")) return "Astana";
-  if (value.includes("kimep")) return "Almaty";
-  if (value.includes("kaznu")) return "Almaty";
-  if (value.includes("kbtu")) return "Almaty";
-  if (value.includes("sdu")) return "Almaty";
-
-  return "Almaty";
 }

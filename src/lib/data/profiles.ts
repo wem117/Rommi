@@ -63,7 +63,7 @@ export async function getProfileById(uid: string) {
   }
 
   const supabase = getSupabaseBrowserClient() as any;
-  const { data, error } = await supabase.from("profiles").select("*").eq("uid", uid).single();
+  const { data, error } = await supabase.from("profiles").select("*").eq("uid", uid).maybeSingle();
   if (error) throw error;
   return data ? mapProfileRow(data) : null;
 }
@@ -85,7 +85,7 @@ export async function getRoommateProfiles(currentUid?: string | null) {
     .eq("onboarding_complete", true)
     .eq("looking_for_apartment", true)
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(150);
 
   if (error) throw error;
   return (data ?? []).map(mapProfileRow).filter((profile: UserProfile) => profile.uid !== currentUid);

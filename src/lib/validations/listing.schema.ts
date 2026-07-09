@@ -17,6 +17,7 @@ export const listingSchema = z
     city: z.string().min(1, "City is required"),
     district: z.string().optional(),
     address: z.string().min(5, "Address is required"),
+    university: z.string().min(1, "Select the nearest university"),
     bedrooms: z.number().int().min(0).max(20),
     bathrooms: z.number().min(0).max(20),
     availableFrom: z.string().min(1, "Available date is required"),

@@ -83,7 +83,7 @@ export default function AdminUsersPage() {
       return;
     }
 
-    setUsers((current) => current.map((user) => (user.uid === userId ? { ...user } : user)));
+    setUsers((current) => current.map((user) => (user.uid === userId ? { ...user, banned: ban } : user)));
     setActionLoadingId(null);
   }
 
@@ -151,16 +151,20 @@ export default function AdminUsersPage() {
                 <span className="text-xs text-foreground/50">{user.email || user.uid}</span>
               </div>
               <div className="text-sm text-foreground/60">
-                Role: {user.role || "user"} • Verified: {user.verified ? "yes" : "no"}
+                Role: {user.role || "user"} • Verified: {user.verified ? "yes" : "no"} • Banned: {user.banned ? "yes" : "no"}
               </div>
             </div>
             <div className="flex gap-2">
               <button
-                className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white"
-                onClick={() => void toggleBan(user.uid, true)}
+                className={
+                  user.banned
+                    ? "rounded-full bg-foreground/20 px-4 py-2 text-sm font-semibold"
+                    : "rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white"
+                }
+                onClick={() => void toggleBan(user.uid, !user.banned)}
                 disabled={actionLoadingId === user.uid}
               >
-                {actionLoadingId === user.uid ? <Loader2 className="h-4 w-4 animate-spin" /> : "Flag"}
+                {actionLoadingId === user.uid ? <Loader2 className="h-4 w-4 animate-spin" /> : user.banned ? "Unban" : "Flag"}
               </button>
               <button
                 className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"

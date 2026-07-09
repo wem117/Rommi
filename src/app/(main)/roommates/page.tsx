@@ -1,11 +1,13 @@
 "use client";
 
 import { RefreshCcw } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useMemo, useState } from "react";
 
 import { RoommateCard } from "@/components/roommates/roommate-card";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
+import { getUniversityCity } from "@/lib/constants/universities";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
 import { useRoommates } from "@/hooks/use-roommates";
 import type { Gender, UserProfile } from "@/types/user";
@@ -14,11 +16,13 @@ type BudgetFilter = "any" | "100000" | "150000" | "200000" | "250000";
 
 const cityOptions = ["All Cities", "Almaty", "Astana", "Shymkent", "Karaganda", "Aktobe", "Taraz"];
 
-export default function RoommatesPage() {
+function RoommatesPageContent() {
+  const searchParams = useSearchParams();
+  const universityParam = searchParams.get("university");
   const { profile } = useAuth();
   const { t } = useLocale();
   const { roommates, loading, error } = useRoommates();
-  const [city, setCity] = useState("All Cities");
+  const [city, setCity] = useState(() => (universityParam ? getUniversityCity(universityParam) : "All Cities"));
   const [gender, setGender] = useState<Gender | "all">("all");
   const [minAge, setMinAge] = useState("18");
   const [maxAge, setMaxAge] = useState("30");
@@ -45,7 +49,7 @@ export default function RoommatesPage() {
 
     return roommates
       .filter((roommate) => {
-        const roommateCity = getUniversityCity(roommate);
+        const roommateCity = getUniversityCity(roommate.university);
         const matchesCity = city === "All Cities" || roommateCity === city;
         const matchesGender = gender === "all" || roommate.gender === gender;
         const matchesMinAge = roommate.age >= parsedMinAge;
@@ -178,6 +182,14 @@ export default function RoommatesPage() {
   );
 }
 
+export default function RoommatesPage() {
+  return (
+    <Suspense fallback={null}>
+      <RoommatesPageContent />
+    </Suspense>
+  );
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label>
@@ -187,16 +199,4 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {children}
     </label>
   );
-}
-
-function getUniversityCity(profile: UserProfile) {
-  const value = profile.university.toLowerCase();
-
-  if (value.includes("nazarbayev") || value.includes("astana")) return "Astana";
-  if (value.includes("sdu")) return "Almaty";
-  if (value.includes("kimep")) return "Almaty";
-  if (value.includes("kaznu")) return "Almaty";
-  if (value.includes("kbtu")) return "Almaty";
-
-  return "Almaty";
 }

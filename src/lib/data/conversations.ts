@@ -141,8 +141,12 @@ export async function sendConversationMessage({
 
   if (error) throw error;
 
-  const conversation = await supabase.from("conversations").select("*").eq("id", conversationId).single();
-  const unreadCounts = ((conversation.data as Conversation | null)?.unreadCounts ?? {}) as Record<string, number>;
+  const { data: conversationRow } = await supabase
+    .from("conversations")
+    .select("*")
+    .eq("id", conversationId)
+    .maybeSingle();
+  const unreadCounts = (conversationRow ? mapConversationRow(conversationRow).unreadCounts : null) ?? {};
   const nextUnreadCounts = Object.fromEntries(
     Object.entries(unreadCounts).map(([id, count]) => [id, id === senderId ? 0 : count + 1])
   );

@@ -15,7 +15,7 @@ export function validateImageFile(file: File) {
   return null;
 }
 
-export function storagePathForImage(kind: "avatars" | "listings", ownerId: string, file: File) {
+export function storagePathForImage(kind: "avatars" | "listings" | "messages", ownerId: string, file: File) {
   const fallback = file.type.split("/")[1] || "jpg";
   const extension = file.name.split(".").pop()?.toLowerCase() || fallback;
   return `${kind}/${ownerId}/${crypto.randomUUID()}.${extension}`;
@@ -27,7 +27,7 @@ export async function uploadImageFile({
   onProgress
 }: {
   file: File;
-  kind: "avatars" | "listings";
+  kind: "avatars" | "listings" | "messages";
   onProgress?: (progress: number) => void;
 }) {
   const error = validateImageFile(file);

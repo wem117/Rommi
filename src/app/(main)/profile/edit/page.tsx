@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { AvatarUpload } from "@/components/profile/avatar-upload";
 import { useAuth } from "@/context/auth-context";
-import { UNIVERSITIES } from "@/lib/constants/universities";
+import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { updateProfile } from "@/lib/data/profiles";
 import { sendCurrentUserVerificationEmail } from "@/lib/supabase/auth";
 import { profileCompletion } from "@/lib/utils/compatibility";
@@ -128,13 +128,14 @@ export default function EditProfilePage() {
             <option value="other">Other</option>
             <option value="prefer_not_to_say">Prefer not to say</option>
           </Select>
-          <Select label="University" value={draft.university} onChange={(value) => updateField("university", value)}>
-            {UNIVERSITIES.map((university) => (
-              <option key={university} value={university}>
-                {university}
-              </option>
-            ))}
-          </Select>
+          <div>
+            <label htmlFor="university">University</label>
+            <UniversityCombobox
+              id="university"
+              value={draft.university}
+              onChange={(value) => updateField("university", value)}
+            />
+          </div>
           <Field label="Occupation" value={draft.occupation} onChange={(value) => updateField("occupation", value)} />
           <Field
             label="Preferred move-in date"

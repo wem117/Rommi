@@ -65,6 +65,7 @@ create policy select_images_owner_or_public
 
 drop policy if exists select_conversations_participant on public.conversations;
 drop policy if exists insert_conversations_participant on public.conversations;
+drop policy if exists update_conversations_participant on public.conversations;
 
 create policy select_conversations_participant
   on public.conversations
@@ -74,6 +75,12 @@ create policy select_conversations_participant
 create policy insert_conversations_participant
   on public.conversations
   for insert
+  with check (auth.uid()::text = any(participant_ids));
+
+create policy update_conversations_participant
+  on public.conversations
+  for update
+  using (auth.uid()::text = any(participant_ids))
   with check (auth.uid()::text = any(participant_ids));
 
 drop policy if exists select_messages_participant on public.messages;

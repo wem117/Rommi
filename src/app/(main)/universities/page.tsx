@@ -7,7 +7,7 @@ export default function UniversitiesPage() {
     <main className="mx-auto min-h-[70vh] max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       <h1 className="text-4xl font-bold">Universities</h1>
       <p className="mt-2 max-w-2xl text-foreground/65">
-        Find roommates and rooms around Kazakhstan's major student communities.
+        Find roommates and rooms around Kazakhstan&apos;s major student communities.
       </p>
 
       <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

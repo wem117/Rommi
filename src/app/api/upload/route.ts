@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Select an image to upload." }, { status: 400 });
     }
 
-    if (kind !== "avatars" && kind !== "listings") {
+    if (kind !== "avatars" && kind !== "listings" && kind !== "messages") {
       return NextResponse.json({ error: "Upload kind is invalid." }, { status: 400 });
     }
 
@@ -105,7 +105,12 @@ export async function DELETE(request: Request) {
     const user = await requireSessionUser();
     const { path } = deleteSchema.parse(await request.json());
 
-    if (!path.includes(`/${user.id}/`) && !path.startsWith(`avatars/${user.id}/`) && !path.startsWith(`listings/${user.id}/`)) {
+    if (
+      !path.includes(`/${user.id}/`) &&
+      !path.startsWith(`avatars/${user.id}/`) &&
+      !path.startsWith(`listings/${user.id}/`) &&
+      !path.startsWith(`messages/${user.id}/`)
+    ) {
       return NextResponse.json({ error: "You can only delete your own uploads." }, { status: 403 });
     }
 

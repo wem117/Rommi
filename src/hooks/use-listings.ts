@@ -12,9 +12,14 @@ const PAGE_SIZE = 9;
 
 export interface ListingFilters {
   city?: string;
+  university?: string;
   listingType?: Listing["listingType"] | "";
+  propertyType?: Listing["propertyType"] | "";
   minRent?: number | "";
   maxRent?: number | "";
+  genderPreference?: Listing["preferences"]["genderPreference"] | "";
+  smoking?: Listing["preferences"]["smoking"] | "";
+  pets?: Listing["preferences"]["pets"] | "";
   search?: string;
   sort?: "newest" | "rent_asc" | "rent_desc";
 }

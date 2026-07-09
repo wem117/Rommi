@@ -23,6 +23,7 @@ export interface Listing {
   city: string;
   district?: string;
   address: string;
+  university: string;
   bedrooms: number;
   bathrooms: number;
   availableFrom: Date;

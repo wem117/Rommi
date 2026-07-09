@@ -18,9 +18,12 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { LanguageMenu } from "@/components/layout/language-menu";
 import { useLocale } from "@/context/locale-context";
+import { CITIES } from "@/lib/constants/cities";
 import { demoListings, demoProfiles, demoUniversities } from "@/lib/data/demo";
 import { formatCurrency, formatDate, formatMonthlyRent } from "@/lib/utils/format";
 
@@ -42,6 +45,18 @@ const listingTypeLabels: Record<(typeof demoListings)[number]["listingType"], st
 
 export default function HomePage() {
   const { locale, t } = useLocale();
+  const router = useRouter();
+  const [searchCity, setSearchCity] = useState("");
+  const [searchBudget, setSearchBudget] = useState("");
+  const [searchType, setSearchType] = useState("");
+
+  function handleSearch() {
+    const params = new URLSearchParams();
+    if (searchCity) params.set("city", searchCity);
+    if (searchBudget) params.set("maxRent", searchBudget);
+    if (searchType) params.set("listingType", searchType);
+    router.push(`/rooms${params.toString() ? `?${params.toString()}` : ""}`);
+  }
 
   const stats = [
     { value: "3,500+", label: t("home.verifiedListings") },
@@ -55,17 +70,26 @@ export default function HomePage() {
   const roommateHighlights = getRoommateHighlights(locale);
   const statusLabel = locale === "en" ? "Today" : locale === "ru" ? "Сегодня" : "Бүгін";
   const delayedStatusLabel = locale === "en" ? "2 days" : locale === "ru" ? "2 дня" : "2 күн";
-  const mockSearchFields = [
+  const searchFields = [
     {
       icon: MapPin,
       label: t("home.searchCity"),
-      element: <input aria-label={t("home.searchCity")} placeholder={t("home.searchCity")} />
+      element: (
+        <select aria-label={t("home.searchCity")} value={searchCity} onChange={(e) => setSearchCity(e.target.value)}>
+          <option value="">{t("home.searchCity")}</option>
+          {CITIES.map((city) => (
+            <option key={city} value={city}>
+              {city}
+            </option>
+          ))}
+        </select>
+      )
     },
     {
       icon: CalendarDays,
       label: t("home.searchBudget"),
       element: (
-        <select aria-label={t("home.searchBudget")} defaultValue="">
+        <select aria-label={t("home.searchBudget")} value={searchBudget} onChange={(e) => setSearchBudget(e.target.value)}>
           <option value="">{t("home.searchBudget")}</option>
           <option value="100000">Under 100K ₸</option>
           <option value="150000">Under 150K ₸</option>
@@ -78,7 +102,7 @@ export default function HomePage() {
       icon: Home,
       label: t("home.searchType"),
       element: (
-        <select aria-label={t("home.searchType")} defaultValue="">
+        <select aria-label={t("home.searchType")} value={searchType} onChange={(e) => setSearchType(e.target.value)}>
           <option value="">{t("home.searchType")}</option>
           <option value="private_room">Private Room</option>
           <option value="shared_room">Shared Room</option>
@@ -149,7 +173,7 @@ export default function HomePage() {
 
               <div className="mt-10 rounded-[2rem] border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur-xl sm:p-3">
                 <div className="grid gap-2 md:grid-cols-[1.2fr_1fr_0.8fr_auto]">
-                  {mockSearchFields.map((field) => (
+                  {searchFields.map((field) => (
                     <div key={field.label} className="relative">
                       <field.icon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/45" />
                       <div className="[&_input]:pl-11 [&_select]:pl-11 [&_select]:appearance-none [&_input]:bg-white [&_select]:bg-white">
@@ -158,13 +182,14 @@ export default function HomePage() {
                     </div>
                   ))}
 
-                  <Link
-                    href="/rooms"
+                  <button
+                    type="button"
+                    onClick={handleSearch}
                     className="inline-flex items-center justify-center gap-2 rounded-[1.25rem] bg-primary px-6 py-4 text-sm font-semibold text-white transition hover:bg-primary/90"
                   >
                     <Search className="h-4 w-4" />
                     {t("home.searchButton")}
-                  </Link>
+                  </button>
                 </div>
               </div>
 
@@ -350,7 +375,7 @@ export default function HomePage() {
             {demoUniversities.map((university, index) => (
               <Link
                 key={university.name}
-                href="/universities"
+                href={`/roommates?university=${encodeURIComponent(university.name)}`}
                 className={`group overflow-hidden rounded-[1.75rem] border border-[#efe5d9] bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl ${index === 0 ? "md:col-span-2 xl:col-span-1" : ""}`}
               >
                 <div className="relative aspect-[1.6/1] overflow-hidden">

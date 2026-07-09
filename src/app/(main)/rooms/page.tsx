@@ -2,15 +2,31 @@
 
 import { ArrowRight, Loader2, RefreshCcw } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
 import { ListingFiltersBar } from "@/components/listings/listing-filters";
 import { ListingGrid } from "@/components/listings/listing-grid";
 import { useLocale } from "@/context/locale-context";
 import { type ListingFilters, useListings } from "@/hooks/use-listings";
 
-export default function RoomsPage() {
-  const [filters, setFilters] = useState<ListingFilters>({ sort: "newest" });
+function buildInitialFilters(searchParams: URLSearchParams): ListingFilters {
+  const university = searchParams.get("university");
+  const city = searchParams.get("city");
+
+  return {
+    sort: "newest",
+    city: !university && city ? city : undefined,
+    university: university || undefined,
+    listingType: (searchParams.get("listingType") as ListingFilters["listingType"]) || "",
+    maxRent: searchParams.get("maxRent") ? Number(searchParams.get("maxRent")) : "",
+    search: searchParams.get("search") ?? ""
+  };
+}
+
+function RoomsPageContent() {
+  const searchParams = useSearchParams();
+  const [filters, setFilters] = useState<ListingFilters>(() => buildInitialFilters(searchParams));
   const { t } = useLocale();
   const { listings, loading, loadingMore, error, hasMore, reload, loadMore } = useListings(filters);
 
@@ -98,5 +114,13 @@ export default function RoomsPage() {
         ) : null}
       </section>
     </main>
+  );
+}
+
+export default function RoomsPage() {
+  return (
+    <Suspense fallback={null}>
+      <RoomsPageContent />
+    </Suspense>
   );
 }

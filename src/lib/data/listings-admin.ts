@@ -16,6 +16,7 @@ function toListingPayload(ownerId: string, input: Partial<Listing>) {
     city: input.city,
     district: input.district ?? "",
     address: input.address,
+    university: input.university ?? "",
     bedrooms: input.bedrooms,
     bathrooms: input.bathrooms,
     available_from: input.availableFrom?.toISOString(),

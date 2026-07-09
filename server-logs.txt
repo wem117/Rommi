@@ -1,0 +1,126 @@
+
+> roommate-kz@0.1.0 dev
+> next dev
+
+   Γû▓ Next.js 15.5.19
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.100.1:3000
+   - Environments: .env.local
+
+ Γ£ô Starting...
+ Γ£ô Ready in 2.9s
+ Γùï Compiling / ...
+ Γ£ô Compiled / in 2.7s (913 modules)
+ POST /api/auth/session 200 in 3374ms
+ GET / 200 in 3220ms
+ Γ£ô Compiled in 899ms (354 modules)
+ GET / 200 in 188ms
+ POST /api/auth/session 200 in 653ms
+ POST /api/auth/session 200 in 975ms
+ POST /api/auth/session 200 in 493ms
+ Γùï Compiling /rooms ...
+ Γ£ô Compiled /rooms in 621ms (970 modules)
+ GET /rooms 200 in 728ms
+ Γ£ô Compiled /rooms/[listingId] in 258ms (995 modules)
+ GET /rooms/8ce84c7a-1525-4f2e-af64-2a80a7c954ee 200 in 1433ms
+ GET /rooms/bc65f919-bcfb-44c2-9611-c7f5a7cdc191 200 in 87ms
+ GET /rooms 200 in 59ms
+ Γùï Compiling /roommates ...
+ Γ£ô Compiled /roommates in 535ms (923 modules)
+ GET /roommates 200 in 793ms
+ Γùï Compiling /roommates/[userId] ...
+ Γ£ô Compiled /roommates/[userId] in 802ms (941 modules)
+ GET /roommates/test-user-kaznu 200 in 1706ms
+ Γ£ô Compiled / in 199ms (551 modules)
+ GET / 200 in 334ms
+ Γ¿» upstream image response failed for https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80 404
+ GET /rooms/listing-almaty-1 200 in 128ms
+ Γ¿» upstream image response failed for https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80 404
+ Γ£ô Compiled /universities in 362ms (958 modules)
+ GET /universities 200 in 652ms
+ GET /rooms?university=Al-Farabi+Kazakh+National+University 200 in 60ms
+ GET /roommates?university=Al-Farabi+Kazakh+National+University 200 in 51ms
+ GET /roommates?university=Al-Farabi+Kazakh+National+University 200 in 48ms
+ GET /roommates?university=KBTU 200 in 54ms
+ GET /roommates?university=Al-Farabi+Kazakh+National+University 200 in 53ms
+ Γ£ô Compiled /api/auth/session in 491ms (626 modules)
+ POST /api/auth/session 200 in 2079ms
+ POST /api/auth/session 200 in 771ms
+ GET /roommates 200 in 112ms
+ GET /roommates/test-user-kaznu 200 in 75ms
+ Γùï Compiling /middleware ...
+ Γ£ô Compiled /middleware in 1020ms (170 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (102kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (250kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ Γùï Compiling /inbox/[chatId] ...
+ Γ£ô Compiled /inbox/[chatId] in 986ms (1052 modules)
+ GET /inbox/b2c360ae-98b2-4189-b30e-a69f9adccbbd 200 in 1882ms
+ GET / 200 in 55ms
+ Γ¿» upstream image response failed for https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80 404
+ GET /universities 200 in 85ms
+ Γ¿» upstream image response failed for https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80 404
+ POST /api/auth/session 200 in 811ms
+ GET /universities 200 in 90ms
+ POST /api/auth/session 200 in 650ms
+ GET /roommates?university=Al-Farabi+Kazakh+National+University 200 in 62ms
+ POST /api/auth/session 200 in 653ms
+ POST /api/auth/session 200 in 895ms
+ GET / 200 in 49ms
+ Γ¿» upstream image response failed for https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80 404
+ GET /rooms 200 in 66ms
+ Γùï Compiling /list-a-room/step-1 ...
+ Γ£ô Compiled /list-a-room/step-1 in 1881ms (1229 modules)
+ GET /list-a-room/step-1 200 in 2075ms
+ GET /rooms 200 in 63ms
+ GET /roommates 200 in 72ms
+ Γ£ô Compiled /roommates/[userId] in 340ms (735 modules)
+ GET /roommates/test-user-iitu 200 in 507ms
+ GET /inbox/852374ec-baf8-44a6-aad0-52d724b42dd9 200 in 74ms
+ Γùï Compiling /profile ...
+ Γ£ô Compiled /profile in 637ms (1244 modules)
+ GET /profile 200 in 840ms
+ POST /api/auth/session 200 in 799ms
+ POST /api/auth/session 200 in 615ms
+ POST /api/auth/session 200 in 694ms
+ POST /api/auth/session 200 in 666ms
+ POST /api/auth/session 200 in 643ms
+ POST /api/auth/session 200 in 621ms
+ POST /api/auth/session 200 in 655ms
+ POST /api/auth/session 200 in 670ms
+ GET / 200 in 67ms
+ POST /api/auth/session 200 in 621ms
+ GET /rooms 200 in 58ms
+ Γùï Compiling /rooms/[listingId] ...
+ Γ£ô Compiled /rooms/[listingId] in 589ms (735 modules)
+ GET /rooms/8ce84c7a-1525-4f2e-af64-2a80a7c954ee 200 in 764ms
+ GET /rooms/bc65f919-bcfb-44c2-9611-c7f5a7cdc191 200 in 95ms
+ GET /list-a-room/step-1 200 in 49ms
+ POST /api/auth/session 200 in 707ms
+ GET /list-a-room/step-1 200 in 41ms
+ GET /roommates 200 in 63ms
+ GET /rooms 200 in 61ms
+ GET / 200 in 53ms
+ Γ¿» upstream image response failed for https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80 404
+ GET /roommates 200 in 52ms
+ GET /profile 200 in 53ms
+ POST /api/auth/session 200 in 640ms
+ POST /api/auth/session 200 in 627ms
+ GET /list-a-room/step-1 200 in 51ms
+ GET /profile 200 in 45ms
+ Γ£ô Compiled /inbox/[chatId] in 346ms (739 modules)
+ GET /inbox/852374ec-baf8-44a6-aad0-52d724b42dd9 200 in 500ms
+ POST /api/auth/session 200 in 800ms
+ POST /api/auth/session 200 in 665ms
+ GET /roommates 200 in 68ms
+ GET /roommates/test-user-kaznu 200 in 79ms
+ GET /inbox/b2c360ae-98b2-4189-b30e-a69f9adccbbd 200 in 52ms
+ GET /roommates 200 in 41ms
+ GET /profile 200 in 66ms
+ GET /roommates 200 in 56ms
+ GET /roommates/test-user-iitu 200 in 59ms
+ GET /inbox/852374ec-baf8-44a6-aad0-52d724b42dd9 200 in 107ms
+ GET /profile 200 in 42ms
+ POST /api/auth/session 200 in 761ms
+ POST /api/auth/session 200 in 611ms
+ POST /api/auth/session 200 in 664ms
+ GET / 200 in 46ms

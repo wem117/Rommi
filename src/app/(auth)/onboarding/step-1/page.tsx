@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
-import { UNIVERSITIES } from "@/lib/constants/universities";
+import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { basicInfoSchema, type BasicInfoInput } from "@/lib/validations/profile.schema";
 import { useAuth } from "@/context/auth-context";
 
@@ -17,6 +17,8 @@ export default function OnboardingStepOnePage() {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors }
   } = useForm<BasicInfoInput>({
     resolver: zodResolver(basicInfoSchema),
@@ -84,14 +86,11 @@ export default function OnboardingStepOnePage() {
 
       <div>
         <label htmlFor="university">University</label>
-        <select id="university" {...register("university")}>
-          <option value="">Select university</option>
-          {UNIVERSITIES.map((university) => (
-            <option key={university} value={university}>
-              {university}
-            </option>
-          ))}
-        </select>
+        <UniversityCombobox
+          id="university"
+          value={watch("university") ?? ""}
+          onChange={(value) => setValue("university", value, { shouldValidate: true })}
+        />
         {errors.university ? <p className="mt-1 text-xs text-red-600">{errors.university.message}</p> : null}
       </div>
 

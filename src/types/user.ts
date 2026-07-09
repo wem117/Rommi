@@ -31,6 +31,8 @@ export interface UserProfile {
   bio?: string;
   role?: "user" | "admin";
   verified?: boolean;
+  banned?: boolean;
+  bannedAt?: Date | null;
   profileCompletion?: number;
   favoriteListingIds?: string[];
   favoriteRoommateIds?: string[];

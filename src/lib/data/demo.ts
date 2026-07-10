@@ -218,51 +218,45 @@ export const demoMessages: Message[] = [
 
 export const demoUniversities = [
   {
-    name: "KazNU",
-    city: "Almaty",
-    listings: 124,
-    students: "18.0K",
-    image:
-      "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1200&q=80"
-  },
+  name: "KazNU",
+  city: "Almaty",
+  listings: 114,
+  students: "18.0K",
+  image: "/universities/kaznu.jpeg"
+},
   {
     name: "KBTU",
     city: "Almaty",
     listings: 89,
     students: "8.5K",
-    image:
-      "https://images.unsplash.com/photo-1564981797816-1043664bf78d?auto=format&fit=crop&w=1200&q=80"
+    image: "/universities/kbtu.jpeg"
   },
   {
     name: "SDU",
     city: "Almaty",
     listings: 67,
     students: "6.2K",
-    image:
-      "https://images.unsplash.com/photo-1498243691581-b145c3f54a5a?auto=format&fit=crop&w=1200&q=80"
+    image: "/universities/sdu.jpeg"
   },
   {
     name: "AITU",
     city: "Astana",
     listings: 58,
     students: "7.4K",
-    image:
-      "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1200&q=80"
+    image: "/universities/aitu.jpg"
   },
   {
     name: "ENU",
     city: "Astana",
     listings: 76,
     students: "15.1K",
-    image:
-      "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=1200&q=80"
+    image: "/universities/enu.JPG"
   },
   {
     name: "KIMEP University",
     city: "Almaty",
     listings: 63,
     students: "4.8K",
-    image:
-      "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80"
+    image: "/universities/kimep.jpeg"
   }
 ];

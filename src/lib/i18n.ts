@@ -17,12 +17,10 @@ const translations = {
       rooms: "Rooms",
       roommates: "Roommates",
       listRoom: "List a Room",
-      myAccount: "My Account",
+      myAccount: "Profile",
       signIn: "Sign In",
       signOut: "Sign Out",
       loading: "Loading",
-      chooseLanguage: "Choose language",
-      languageDescription: "Switch the interface language for browsing, profiles, and listings."
     },
     home: {
       heroBadge: "#1 Roommate Finder in Kazakhstan",
@@ -211,12 +209,10 @@ const translations = {
       rooms: "Комнаты",
       roommates: "Соседи",
       listRoom: "Сдать жилье",
-      myAccount: "Мой аккаунт",
+      myAccount: "Профиль",
       signIn: "Войти",
       signOut: "Выйти",
       loading: "Загрузка",
-      chooseLanguage: "Выберите язык",
-      languageDescription: "Переключайте язык интерфейса для поиска, профиля и объявлений."
     },
     home: {
       heroBadge: "Платформа №1 для поиска соседей в Казахстане",
@@ -403,12 +399,10 @@ const translations = {
       rooms: "Бөлмелер",
       roommates: "Көршілер",
       listRoom: "Бөлме жариялау",
-      myAccount: "Менің аккаунтым",
+      myAccount: "Профиль",
       signIn: "Кіру",
       signOut: "Шығу",
       loading: "Жүктелуде",
-      chooseLanguage: "Тілді таңдаңыз",
-      languageDescription: "Іздеу, профиль және хабарландырулар интерфейсінің тілін ауыстырыңыз."
     },
     home: {
       heroBadge: "Қазақстандағы №1 roommate платформасы",

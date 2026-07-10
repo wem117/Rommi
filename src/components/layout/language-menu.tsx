@@ -34,7 +34,7 @@ export function LanguageMenu({ inverted = false }: { inverted?: boolean }) {
             : "border-[#e6d8c6] bg-white text-[#2e2622] hover:bg-[#f8f2e8]"
         }`}
         aria-expanded={open}
-        aria-label={t("nav.chooseLanguage")}
+
       >
         <Languages className="h-4 w-4" />
         <span>{current.code}</span>
@@ -49,12 +49,6 @@ export function LanguageMenu({ inverted = false }: { inverted?: boolean }) {
               : "border-[#eadfce] bg-[#fffdf9] text-[#16110f]"
           }`}
         >
-          <div className="px-2 pb-3">
-            <div className="text-sm font-bold">{t("nav.chooseLanguage")}</div>
-            <p className={`mt-1 text-xs leading-5 ${inverted ? "text-white/70" : "text-[#6f6257]"}`}>
-              {t("nav.languageDescription")}
-            </p>
-          </div>
 
           <div className="grid gap-2">
             {localeOptions.map((option) => {

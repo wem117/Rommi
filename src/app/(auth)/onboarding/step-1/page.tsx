@@ -32,7 +32,7 @@ export default function OnboardingStepOnePage() {
   });
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("roommate-kz:onboarding:step-1");
+    const saved = window.localStorage.getItem("roomi:onboarding:step-1");
     if (saved) {
       reset(JSON.parse(saved) as BasicInfoInput);
       return;
@@ -49,7 +49,7 @@ export default function OnboardingStepOnePage() {
   }, [profile, reset]);
 
   function onSubmit(values: BasicInfoInput) {
-    window.localStorage.setItem("roommate-kz:onboarding:step-1", JSON.stringify(values));
+    window.localStorage.setItem("roomi:onboarding:step-1", JSON.stringify(values));
     router.push("/onboarding/step-2");
   }
 

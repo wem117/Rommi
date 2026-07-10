@@ -1,4 +1,4 @@
-# Roommate KZ
+# Roomi
 
 Find trusted student roommates and rooms across Kazakhstan. Match by budget,
 university, and lifestyle compatibility — then chat before you move in.
@@ -126,6 +126,25 @@ src/
 - **`src/lib/supabase/session.ts`** — `requireSessionUser()` guard.
 
 Never import a service-role client into browser code.
+
+## Run with Docker
+
+A production-style stack (Next.js standalone server behind Nginx, with a local
+Postgres) is provided:
+
+```bash
+cp .env.example .env      # compose reads root .env
+docker compose up --build
+# app via Nginx → http://localhost
+# Postgres      → localhost:5432
+```
+
+- **`Dockerfile`** — multi-stage build producing Next.js `standalone` output, run
+  as an unprivileged user with a container healthcheck.
+- **`docker-compose.yml`** — `app`, `db` (Postgres 16, seeded from `db/init/`),
+  and `nginx` (reverse proxy, gzip, asset caching, security headers).
+- **`nginx/nginx.conf`** — production reverse-proxy config.
+- **`db/`** — SQL migrations and workflow (see [`db/README.md`](./db/README.md)).
 
 ## Deployment
 

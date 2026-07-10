@@ -1,0 +1,37 @@
+# Database & migrations
+
+Roomi uses **Supabase** (hosted Postgres + Auth + Storage) in production. This
+directory supports running Postgres locally via Docker Compose and documents the
+migration workflow.
+
+## Local Postgres (Docker Compose)
+
+`docker compose up` starts a `db` service (Postgres 16). Every `.sql` file in
+[`db/init/`](./init) runs once, in filename order, the first time the database
+volume is created:
+
+- `01_schema.sql` — tables, indexes, and constraints (portable, vanilla Postgres).
+
+To re-run migrations from scratch, drop the volume:
+
+```bash
+docker compose down -v && docker compose up --build
+```
+
+## Adding a migration
+
+Add a new numbered file to `db/init/`, e.g. `02_add_x.sql`. Keep them ordered and
+idempotent (`create table if not exists`, `add column if not exists`, …) so they
+are safe to re-apply.
+
+## Supabase (production)
+
+The hosted database additionally needs the Supabase-specific pieces, which are
+**not** portable to vanilla Postgres because they reference `auth.uid()` and
+Supabase Storage. Run these in the Supabase SQL editor:
+
+1. `../supabase-schema.sql` — same schema as `01_schema.sql`.
+2. `../supabase-policies.sql` — Row Level Security policies (Supabase only).
+3. `../supabase-migration-university-search-map.sql` — university search support.
+
+Keep `db/init/01_schema.sql` in sync with `../supabase-schema.sql`.

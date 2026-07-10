@@ -84,7 +84,7 @@ export function ListingFiltersBar({
           <UniversityCombobox
             value={filters.university ?? ""}
             onChange={(value) => onChange({ ...filters, university: value, city: value ? "" : filters.city })}
-            placeholder="Filter by university"
+            placeholder={t("listingFilters.universityPlaceholder")}
           />
           <select
             value={filters.listingType ?? ""}
@@ -103,16 +103,16 @@ export function ListingFiltersBar({
               onChange({ ...filters, propertyType: event.target.value as ListingFilters["propertyType"] })
             }
           >
-            <option value="">All property types</option>
-            <option value="apartment">Apartment</option>
-            <option value="house">House</option>
-            <option value="dorm">Dorm</option>
-            <option value="studio">Studio</option>
+            <option value="">{t("listingFilters.allPropertyTypes")}</option>
+            <option value="apartment">{t("listingFilters.apartment")}</option>
+            <option value="house">{t("listingFilters.house")}</option>
+            <option value="dorm">{t("listingFilters.dorm")}</option>
+            <option value="studio">{t("listingFilters.studio")}</option>
           </select>
           <input
             type="number"
             min={0}
-            placeholder="Min rent"
+            placeholder={t("listingFilters.minRent")}
             value={filters.minRent ?? ""}
             onChange={(event) =>
               onChange({ ...filters, minRent: event.target.value ? Number(event.target.value) : "" })
@@ -133,26 +133,26 @@ export function ListingFiltersBar({
               onChange({ ...filters, genderPreference: event.target.value as ListingFilters["genderPreference"] })
             }
           >
-            <option value="">Any gender preference</option>
-            <option value="any">No preference</option>
-            <option value="male">Male only</option>
-            <option value="female">Female only</option>
+            <option value="">{t("listingFilters.anyGenderPreference")}</option>
+            <option value="any">{t("listingFilters.noPreference")}</option>
+            <option value="male">{t("listingFilters.maleOnly")}</option>
+            <option value="female">{t("listingFilters.femaleOnly")}</option>
           </select>
           <select
             value={filters.smoking ?? ""}
             onChange={(event) => onChange({ ...filters, smoking: event.target.value as ListingFilters["smoking"] })}
           >
-            <option value="">Smoking: any</option>
-            <option value="no">No smoking</option>
-            <option value="yes">Smoking allowed</option>
+            <option value="">{t("listingFilters.smokingAny")}</option>
+            <option value="no">{t("listingFilters.noSmoking")}</option>
+            <option value="yes">{t("listingFilters.smokingAllowed")}</option>
           </select>
           <select
             value={filters.pets ?? ""}
             onChange={(event) => onChange({ ...filters, pets: event.target.value as ListingFilters["pets"] })}
           >
-            <option value="">Pets: any</option>
-            <option value="no_pets">No pets</option>
-            <option value="allowed">Pets allowed</option>
+            <option value="">{t("listingFilters.petsAny")}</option>
+            <option value="no_pets">{t("listingFilters.noPets")}</option>
+            <option value="allowed">{t("listingFilters.petsAllowed")}</option>
           </select>
           <select
             value={filters.sort ?? "newest"}

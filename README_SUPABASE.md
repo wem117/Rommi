@@ -1,4 +1,4 @@
-# Roommate KZ Supabase Setup
+# Roomi Supabase Setup
 
 ## Environment
 

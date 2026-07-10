@@ -19,7 +19,7 @@ export function Navbar() {
             <Home className="h-5 w-5" />
           </span>
           <span className="text-[2rem] font-bold leading-none">
-            Roommate <span className="text-[#0c8f7a]">KZ</span>
+            Room<span className="text-primary">i</span>
           </span>
         </Link>
 

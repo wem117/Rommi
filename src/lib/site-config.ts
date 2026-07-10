@@ -7,8 +7,8 @@ const rawSiteUrl =
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
 export const siteConfig = {
-  name: "Roommate KZ",
-  shortName: "RoommateKZ",
+  name: "Roomi",
+  shortName: "Roomi",
   description:
     "Find trusted student roommates and rooms across Kazakhstan. Match by budget, university, and lifestyle — then chat before you move in.",
   // Normalized: no trailing slash.

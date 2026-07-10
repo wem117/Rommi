@@ -45,8 +45,8 @@ export default function OnboardingStepThreePage() {
 
     try {
       // 1. Извлекаем сохраненные данные из предыдущих шагов в localStorage
-      const step1Raw = window.localStorage.getItem("roommate-kz:onboarding:step-1");
-      const step2Raw = window.localStorage.getItem("roommate-kz:onboarding:step-2");
+      const step1Raw = window.localStorage.getItem("roomi:onboarding:step-1");
+      const step2Raw = window.localStorage.getItem("roomi:onboarding:step-2");
 
       if (!step1Raw || !step2Raw) {
         throw new Error("Missing previous onboarding data. Go back and re-fill steps 1 and 2.");
@@ -122,8 +122,8 @@ export default function OnboardingStepThreePage() {
       }
 
       // 6. Очищаем локальное хранилище после успешного сохранения в базу
-      window.localStorage.removeItem("roommate-kz:onboarding:step-1");
-      window.localStorage.removeItem("roommate-kz:onboarding:step-2");
+      window.localStorage.removeItem("roomi:onboarding:step-1");
+      window.localStorage.removeItem("roomi:onboarding:step-2");
 
       // 7. Перенаправляем в основную часть приложения
       router.replace("/rooms");

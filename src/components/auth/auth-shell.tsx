@@ -52,7 +52,7 @@ export function AuthShell({
               <Home className="h-5 w-5" />
             </span>
             <span className="text-[2rem] font-bold leading-none">
-              Roommate <span className="text-[#12b000]">KZ</span>
+              Room<span className="text-primary">i</span>
             </span>
           </Link>
 
@@ -87,7 +87,7 @@ export function AuthShell({
               <Home className="h-7 w-7" />
             </span>
             <span className="text-5xl font-bold leading-none tracking-tight">
-              Roommate <span className="text-[#12b000]">KZ</span>
+              Room<span className="text-primary">i</span>
             </span>
           </Link>
 

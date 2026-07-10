@@ -39,7 +39,7 @@ export function Footer() {
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr] lg:px-8">
         <div>
           <Link href="/" className="font-heading text-2xl font-bold text-primary">
-            Roommate KZ
+            Roomi
           </Link>
           <p className="mt-3 max-w-sm text-sm leading-6 text-foreground/60">
             Student rooms and roommate matching for Kazakhstan.
@@ -84,7 +84,7 @@ export function Footer() {
         </div>
       </div>
       <div className="border-t border-border px-4 py-5 text-center text-xs text-foreground/50">
-        © 2026 Roommate KZ. All rights reserved.
+        © 2026 Roomi. All rights reserved.
       </div>
     </footer>
   );

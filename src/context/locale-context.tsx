@@ -16,7 +16,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("en");
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("roommate-kz:locale");
+    const saved = window.localStorage.getItem("roomi:locale");
     if (saved === "en" || saved === "ru" || saved === "kz") {
       setLocaleState(saved);
     }
@@ -28,7 +28,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   function setLocale(locale: Locale) {
     setLocaleState(locale);
-    window.localStorage.setItem("roommate-kz:locale", locale);
+    window.localStorage.setItem("roomi:locale", locale);
   }
 
   const value = useMemo(

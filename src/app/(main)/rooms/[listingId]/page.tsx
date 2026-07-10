@@ -230,7 +230,7 @@ export default function ListingDetailPage() {
                   <h3 className="text-2xl font-bold">{owner?.fullName ?? "Listing owner"}</h3>
                   <VerifiedBadge verified={owner?.verified} />
                 </div>
-                <p className="text-lg text-foreground/60">{owner?.age ? `${owner.age} years old` : "Roommate KZ member"}</p>
+                <p className="text-lg text-foreground/60">{owner?.age ? `${owner.age} years old` : "Roomi member"}</p>
               </div>
             </div>
 

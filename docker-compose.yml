@@ -1,0 +1,66 @@
+# Production-style local stack: Next.js app behind Nginx, with a Postgres
+# database seeded from the SQL migrations in ./db/init.
+#
+#   docker compose up --build
+#
+# The app talks to Supabase (hosted) for auth/storage via the NEXT_PUBLIC_*
+# variables in your .env. The `db` service provides a local Postgres for running
+# the schema/policies and any raw-SQL work; point DATABASE_URL at it if needed.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET: ${NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET:-roommate-assets}
+      NEXT_PUBLIC_SUPABASE_GOOGLE_REDIRECT_TO: ${NEXT_PUBLIC_SUPABASE_GOOGLE_REDIRECT_TO}
+      NEXT_PUBLIC_SUPPORT_EMAIL: ${NEXT_PUBLIC_SUPPORT_EMAIL}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      DATABASE_URL: postgres://${POSTGRES_USER:-roomi}:${POSTGRES_PASSWORD:-roomi}@db:5432/${POSTGRES_DB:-roomi}
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "3000"
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-roomi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-roomi}
+      POSTGRES_DB: ${POSTGRES_DB:-roomi}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # SQL files here run once, in filename order, on first init (migrations).
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-roomi} -d ${POSTGRES_DB:-roomi}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+
+volumes:
+  db-data:

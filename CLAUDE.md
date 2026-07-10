@@ -4,7 +4,7 @@ Guidance for AI agents and contributors working in this repository.
 
 ## What this is
 
-Roommate KZ — a Next.js 15 (App Router) + React 19 + Supabase app for finding
+Roomi — a Next.js 15 (App Router) + React 19 + Supabase app for finding
 student roommates/rooms in Kazakhstan. TypeScript strict, Tailwind CSS.
 
 ## Commands

@@ -19,7 +19,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <header className="border-b border-border bg-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <Link href="/admin" className="font-heading text-2xl font-bold text-primary">
-            Roommate KZ Admin
+            Roomi Admin
           </Link>
           <nav className="flex gap-4 text-sm font-semibold text-foreground/65">
             <Link href="/admin/users">Users</Link>

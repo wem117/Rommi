@@ -116,7 +116,7 @@ export default function HomePage() {
     <main className="min-h-screen bg-[#faf6ef] text-foreground">
       <section className="relative overflow-hidden">
         <Image
-          src="https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1800&q=85"
+          src="/universities/main1.png"
           alt="Modern shared apartment"
           fill
           priority
@@ -133,7 +133,7 @@ export default function HomePage() {
                   <Home className="h-5 w-5" />
                 </span>
                 <span className="font-heading text-lg font-bold sm:text-xl">
-                  Room<span className="text-primary">i</span>
+                  Roommate <span className="text-primary">KZ</span>
                 </span>
               </Link>
 
@@ -482,7 +482,7 @@ export default function HomePage() {
             <div className="relative mx-auto h-56 w-56 overflow-hidden rounded-[1.75rem] bg-[#f5efe6]">
               <Image
                 src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=700&q=80"
-                alt="Happy Roomi user"
+                alt="Happy Roommate KZ user"
                 fill
                 className="object-cover"
                 sizes="224px"
@@ -588,7 +588,7 @@ export default function HomePage() {
                 <Home className="h-5 w-5" />
               </span>
               <span className="font-heading text-xl font-bold">
-                Room<span className="text-primary">i</span>
+                Roommate <span className="text-primary">KZ</span>
               </span>
             </Link>
             <p className="mt-4 max-w-sm text-sm leading-7 text-foreground/60">
@@ -623,7 +623,7 @@ export default function HomePage() {
         </div>
 
         <div className="border-t border-[#ecdfce] px-4 py-5 text-center text-xs text-foreground/50">
-          © 2026 Roomi. All rights reserved.
+          © 2026 Roommate KZ. All rights reserved.
         </div>
       </footer>
     </main>
@@ -852,7 +852,7 @@ function getFaqs(locale: "en" | "ru" | "kz") {
           "Система сравнивает бюджет, дату заезда, чистоту, режим сна, гостей и другие привычки, чтобы сильные совпадения поднимались выше."
       },
       {
-        question: "Насколько безопасен Roomi?",
+        question: "Насколько безопасен Roommate KZ?",
         answer:
           "Платформа строится вокруг проверенных профилей, деталей жилья и прозрачной активности, чтобы студентам было спокойнее принимать решения."
       },
@@ -882,7 +882,7 @@ function getFaqs(locale: "en" | "ru" | "kz") {
           "Жүйе бюджет, көшу уақыты, тазалық, ұйқы тәртібі, қонақтар және басқа әдеттерді салыстырып, мықты сәйкестіктерді жоғары қояды."
       },
       {
-        question: "Roomi қолдану қауіпсіз бе?",
+        question: "Roommate KZ қолдану қауіпсіз бе?",
         answer:
           "Платформа тексерілген профильдерге, тұрғын үй ақпаратына және ашық белсенділікке сүйеніп, студенттерге сенімдірек шешім қабылдауға көмектеседі."
       },
@@ -911,7 +911,7 @@ function getFaqs(locale: "en" | "ru" | "kz") {
         "Our match score compares budget, move-in timing, cleanliness, sleep schedule, guests, and other lifestyle preferences so you can shortlist better fits faster."
     },
     {
-      question: "Is it safe to use Roomi?",
+      question: "Is it safe to use Roommate KZ?",
       answer:
         "The platform is designed around verified profiles, room details, and reportable activity so students can make more confident decisions before meeting."
     },

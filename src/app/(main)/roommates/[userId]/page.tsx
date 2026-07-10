@@ -19,8 +19,8 @@ import { useAuth } from "@/context/auth-context";
 import { createConversation } from "@/hooks/use-conversations";
 import { getProfileById } from "@/lib/data/profiles";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
-import { formatCurrency, formatDate } from "@/lib/utils/format";
-import type { LifestylePreferences, UserProfile } from "@/types/user";
+import { formatCurrency } from "@/lib/utils/format";
+import type { UserProfile } from "@/types/user";
 
 export default function RoommateDetailPage() {
   const { userId } = useParams<{ userId: string }>();

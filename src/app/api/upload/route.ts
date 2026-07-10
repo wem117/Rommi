@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Images must be 5 MB or smaller." }, { status: 400 });
     }
 
-    const supabase = createSupabaseAdminClient() as any;
+    const supabase = createSupabaseAdminClient();
     const path = `${kind}/${user.id}/${randomUUID()}.${fileExtension(file)}`;
     const bytes = Buffer.from(await file.arrayBuffer());
 
@@ -114,7 +114,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "You can only delete your own uploads." }, { status: 403 });
     }
 
-    const supabase = createSupabaseAdminClient() as any;
+    const supabase = createSupabaseAdminClient();
     const { error } = await supabase.storage.from(supabaseConfig.storageBucket).remove([path]);
     if (error) throw error;
 

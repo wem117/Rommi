@@ -107,7 +107,6 @@ export default function EditProfilePage() {
 
         <div className="mt-6">
           <AvatarUpload
-            userId={user.uid}
             value={draft.photoURL}
             name={draft.fullName}
             onChange={(url) => updateField("photoURL", url)}

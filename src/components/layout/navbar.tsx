@@ -8,7 +8,7 @@ import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
 
 export function Navbar() {
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const { t } = useLocale();
 
   return (

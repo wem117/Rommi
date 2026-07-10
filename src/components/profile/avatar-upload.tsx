@@ -9,12 +9,10 @@ import { deleteImageByUrl, uploadImageFile, validateImageFile } from "@/lib/supa
 import { friendlySupabaseError } from "@/lib/utils/errors";
 
 export function AvatarUpload({
-  userId,
   value,
   name,
   onChange
 }: {
-  userId: string;
   value?: string | null;
   name: string;
   onChange: (url: string | null) => void;

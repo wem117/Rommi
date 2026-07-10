@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { apiErrorResponse } from "@/lib/api/error-response";
 import { requireAdminUser } from "@/lib/supabase/admin";
 import { listingActionSchema } from "@/lib/validations/admin.schema";
 
@@ -18,9 +19,8 @@ export async function POST(request: Request) {
 
     if (error) throw error;
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Listing action failed", error);
-    const status = error?.message === "Forbidden" ? 403 : 400;
-    return NextResponse.json({ error: error?.message ?? String(error) }, { status });
+    return apiErrorResponse(error);
   }
 }

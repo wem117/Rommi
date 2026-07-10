@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function safeNextPath(nextPath: string | null) {
   if (nextPath?.startsWith("/") && !nextPath.startsWith("//")) {

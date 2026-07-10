@@ -1,5 +1,4 @@
-import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { isSupabaseAdminConfigured } from "@/lib/supabase-server";
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { mapReportRow } from "@/lib/supabase/mappers";
 import type { Report, ReportTargetType } from "@/types/report";
 

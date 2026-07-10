@@ -290,7 +290,7 @@ export function ListingForm({
 
       <div>
         {user ? (
-          <PhotoUploader ownerId={user.uid} value={photoUrls} onChange={(urls) => setValue("photoUrls", urls)} />
+          <PhotoUploader value={photoUrls} onChange={(urls) => setValue("photoUrls", urls)} />
         ) : null}
         {errors.photoUrls ? <p className="mt-1 text-xs text-red-600">{errors.photoUrls.message}</p> : null}
       </div>

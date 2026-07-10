@@ -62,7 +62,7 @@ export async function getProfileById(uid: string) {
     return demoProfiles.find((profile) => profile.uid === uid) ?? null;
   }
 
-  const supabase = getSupabaseBrowserClient() as any;
+  const supabase = getSupabaseBrowserClient();
   const { data, error } = await supabase.from("profiles").select("*").eq("uid", uid).maybeSingle();
   if (error) throw error;
   return data ? mapProfileRow(data) : null;
@@ -78,7 +78,7 @@ export async function getRoommateProfiles(currentUid?: string | null) {
     );
   }
 
-  const supabase = getSupabaseBrowserClient() as any;
+  const supabase = getSupabaseBrowserClient();
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
@@ -94,7 +94,7 @@ export async function getRoommateProfiles(currentUid?: string | null) {
 export async function upsertProfile(profile: Partial<UserProfile> & Pick<UserProfile, "uid">) {
   if (!isSupabaseConfigured) return;
 
-  const supabase = getSupabaseBrowserClient() as any;
+  const supabase = getSupabaseBrowserClient();
   const payload = {
     ...toProfilePayload(profile),
     created_at: profile.createdAt?.toISOString() ?? new Date().toISOString()
@@ -107,7 +107,7 @@ export async function upsertProfile(profile: Partial<UserProfile> & Pick<UserPro
 export async function updateProfile(profile: Partial<UserProfile> & Pick<UserProfile, "uid">) {
   if (!isSupabaseConfigured) return;
 
-  const supabase = getSupabaseBrowserClient() as any;
+  const supabase = getSupabaseBrowserClient();
   const { error } = await supabase.from("profiles").update(toProfilePayload(profile)).eq("uid", profile.uid);
   if (error) throw error;
 }

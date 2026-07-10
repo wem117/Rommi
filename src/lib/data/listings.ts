@@ -77,7 +77,7 @@ export async function getListings(filters: ListingFiltersInput = {}, page = 1, p
     return { listings: paged, hasMore: start + pageSize < filtered.length };
   }
 
-  const supabase = getSupabaseBrowserClient() as any;
+  const supabase = getSupabaseBrowserClient();
   function buildQuery(includeRemovedFilter: boolean) {
     let query = supabase.from("listings").select("*", { count: "exact" });
 
@@ -145,7 +145,7 @@ export async function getListingById(listingId: string) {
     return demoListings.find((listing) => listing.id === listingId) ?? null;
   }
 
-  const supabase = getSupabaseBrowserClient() as any;
+  const supabase = getSupabaseBrowserClient();
   const { data, error } = await supabase.from("listings").select("*").eq("id", listingId).maybeSingle();
 
   if (error && isMissingSupabaseTable(error, "listings")) {

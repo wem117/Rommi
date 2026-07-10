@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { isSupabaseAdminConfigured } from "@/lib/supabase-server";
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { friendlySupabaseError } from "@/lib/utils/errors";
 
 const schema = z.object({
@@ -19,7 +18,7 @@ export async function POST(request: Request) {
     }
 
     const { email } = schema.parse(await request.json());
-    const supabase = createSupabaseAdminClient() as any;
+    const supabase = createSupabaseAdminClient();
     const normalizedEmail = email.trim().toLowerCase();
 
     const { data, error } = await supabase

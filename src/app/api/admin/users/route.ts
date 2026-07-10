@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { apiErrorResponse } from "@/lib/api/error-response";
 import { requireAdminUser } from "@/lib/supabase/admin";
 import { mapProfileRow } from "@/lib/supabase/mappers";
 
@@ -10,9 +11,8 @@ export async function GET() {
 
     if (error) throw error;
     return NextResponse.json({ users: (data ?? []).map(mapProfileRow) });
-  } catch (error: any) {
-    const status = error?.message === "Forbidden" ? 403 : 400;
-    return NextResponse.json({ error: error?.message ?? String(error) }, { status });
+  } catch (error) {
+    return apiErrorResponse(error);
   }
 }
 

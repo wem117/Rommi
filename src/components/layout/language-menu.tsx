@@ -7,7 +7,7 @@ import { useLocale } from "@/context/locale-context";
 import { localeOptions } from "@/lib/i18n";
 
 export function LanguageMenu({ inverted = false }: { inverted?: boolean }) {
-  const { locale, setLocale, t } = useLocale();
+  const { locale, setLocale } = useLocale();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const current = localeOptions.find((option) => option.value === locale) ?? localeOptions[0];

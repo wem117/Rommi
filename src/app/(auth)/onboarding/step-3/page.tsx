@@ -19,8 +19,7 @@ export default function OnboardingStepThreePage() {
   const {
     handleSubmit,
     setValue,
-    watch,
-    formState: { errors }
+    watch
   } = useForm<LifestyleInput>({
     resolver: zodResolver(lifestyleSchema),
     defaultValues: {
@@ -149,7 +148,7 @@ export default function OnboardingStepThreePage() {
             <button
               key={opt.value}
               type="button"
-              onClick={() => setValue(fieldName, opt.value as any)}
+              onClick={() => setValue(fieldName, opt.value as LifestyleInput[keyof LifestyleInput])}
               className={`rounded-full px-4 py-2 text-sm font-medium transition-colors border ${
                 isActive
                   ? "bg-primary border-primary text-white"

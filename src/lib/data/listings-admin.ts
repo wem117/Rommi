@@ -28,7 +28,7 @@ function toListingPayload(ownerId: string, input: Partial<Listing>) {
 }
 
 export async function createListing(ownerId: string, input: Partial<Listing>) {
-  const supabase = createSupabaseAdminClient() as any;
+  const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("listings")
     .insert({ ...toListingPayload(ownerId, input) })
@@ -40,7 +40,7 @@ export async function createListing(ownerId: string, input: Partial<Listing>) {
 }
 
 export async function updateListing(listingId: string, ownerId: string, input: Partial<Listing>) {
-  const supabase = createSupabaseAdminClient() as any;
+  const supabase = createSupabaseAdminClient();
   const { error } = await supabase
     .from("listings")
     .update(toListingPayload(ownerId, input))
@@ -51,7 +51,7 @@ export async function updateListing(listingId: string, ownerId: string, input: P
 }
 
 export async function deleteListing(listingId: string, ownerId: string) {
-  const supabase = createSupabaseAdminClient() as any;
+  const supabase = createSupabaseAdminClient();
   const { error } = await supabase.from("listings").delete().eq("id", listingId).eq("owner_id", ownerId);
   if (error) throw error;
 }

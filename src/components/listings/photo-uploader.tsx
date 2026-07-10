@@ -12,11 +12,9 @@ import { friendlySupabaseError } from "@/lib/utils/errors";
 const MAX_LISTING_IMAGES = 10;
 
 export function PhotoUploader({
-  ownerId,
   value,
   onChange
 }: {
-  ownerId: string;
   value: string[];
   onChange: (urls: string[]) => void;
 }) {

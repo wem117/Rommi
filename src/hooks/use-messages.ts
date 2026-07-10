@@ -35,7 +35,7 @@ export function useMessages(conversationId?: string) {
         if (!cancelled) {
           setMessages(nextMessages);
           if (user) {
-            await markConversationAsRead(currentConversationId, user.uid, nextMessages);
+            await markConversationAsRead(currentConversationId, user.uid);
           }
         }
       } catch (loadError) {

@@ -10,7 +10,7 @@ import { useLocale } from "@/context/locale-context";
 import { getUniversityCity } from "@/lib/constants/universities";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
 import { useRoommates } from "@/hooks/use-roommates";
-import type { Gender, UserProfile } from "@/types/user";
+import type { Gender } from "@/types/user";
 
 type BudgetFilter = "any" | "100000" | "150000" | "200000" | "250000";
 

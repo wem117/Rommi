@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { apiErrorResponse } from "@/lib/api/error-response";
 import { createReport } from "@/lib/data/reports";
 import { requireAdminUser } from "@/lib/supabase/admin";
 import { requireSessionUser } from "@/lib/supabase/session";
@@ -13,9 +14,8 @@ export async function GET() {
 
     if (error) throw error;
     return NextResponse.json({ reports: (data ?? []).map(mapReportRow) });
-  } catch (error: any) {
-    const status = error?.message === "Forbidden" ? 403 : 400;
-    return NextResponse.json({ error: error?.message ?? String(error) }, { status });
+  } catch (error) {
+    return apiErrorResponse(error);
   }
 }
 
@@ -33,9 +33,9 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Create report failed", error);
-    return NextResponse.json({ error: error?.message ?? String(error) }, { status: 400 });
+    return apiErrorResponse(error);
   }
 }
 
@@ -51,9 +51,8 @@ export async function PATCH(request: Request) {
 
     if (error) throw error;
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Update report failed", error);
-    const status = error?.message === "Forbidden" ? 403 : 400;
-    return NextResponse.json({ error: error?.message ?? String(error) }, { status });
+    return apiErrorResponse(error);
   }
 }

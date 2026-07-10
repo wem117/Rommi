@@ -2,14 +2,73 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design tokens
+ * -------------
+ * All colors are stored as raw HSL channels ("H S% L%") so Tailwind can apply
+ * opacity modifiers (e.g. `bg-primary/20`). Reference them through the semantic
+ * Tailwind color names defined in tailwind.config.ts — avoid hardcoding hex
+ * literals in components so the palette stays consistent and themeable.
+ */
 :root {
-  --background: 30 29% 95%;
-  --foreground: 26 27% 6%;
+  color-scheme: light;
+
+  /* Surfaces & text */
+  --background: 30 29% 95%; /* warm cream app background */
+  --foreground: 26 27% 6%; /* near-black warm ink */
+  --card: 40 44% 98%; /* elevated surface (cards, inputs) */
+  --card-foreground: 26 27% 6%;
+  --surface-muted: 34 40% 94%; /* subtly recessed panels */
+
   --border: 28 18% 86%;
   --input: 28 18% 86%;
   --ring: 166 87% 30%;
   --muted: 30 22% 91%;
   --muted-foreground: 26 12% 38%;
+
+  /* Brand */
+  --primary: 166 86% 29%; /* teal #0a8d6e */
+  --primary-foreground: 0 0% 100%;
+  --accent: 34 66% 39%; /* gold-brown #a37021 */
+  --accent-foreground: 0 0% 100%;
+
+  /* Feedback */
+  --highlight: 36 87% 57%; /* amber #f1a531 (badges, "new") */
+  --highlight-foreground: 0 0% 100%;
+  --success: 108 100% 35%; /* green (compatibility, confirmations) */
+  --success-foreground: 0 0% 100%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+
+  --radius: 1rem;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: 26 24% 8%;
+  --foreground: 34 40% 96%;
+  --card: 26 20% 12%;
+  --card-foreground: 34 40% 96%;
+  --surface-muted: 26 18% 15%;
+
+  --border: 28 12% 24%;
+  --input: 28 12% 24%;
+  --ring: 166 70% 45%;
+  --muted: 26 14% 18%;
+  --muted-foreground: 30 12% 66%;
+
+  --primary: 166 70% 42%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 34 60% 55%;
+  --accent-foreground: 26 24% 8%;
+
+  --highlight: 36 87% 60%;
+  --highlight-foreground: 26 24% 8%;
+  --success: 108 55% 48%;
+  --success-foreground: 0 0% 100%;
+  --destructive: 0 65% 55%;
+  --destructive-foreground: 0 0% 100%;
 }
 
 * {
@@ -32,9 +91,15 @@ h6 {
 input,
 select,
 textarea {
-  @apply w-full rounded-2xl border border-border bg-white px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20;
+  @apply w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20;
 }
 
 label {
   @apply text-sm font-medium text-foreground;
+}
+
+/* Accessible keyboard focus for interactive elements */
+:where(a, button, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
 }

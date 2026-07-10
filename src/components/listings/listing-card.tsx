@@ -30,18 +30,20 @@ export function ListingCard({ listing }: { listing: Listing }) {
     entire_place: t("listing.types.entirePlace")
   };
   const statusBadge =
-    listing.monthlyRent >= 220000 ? "2 days" : listing.monthlyRent <= 120000 ? "Flexible" : "Today";
+    listing.monthlyRent >= 220000
+      ? t("listing.availableSoon")
+      : listing.monthlyRent <= 120000
+        ? t("listing.availableFlexible")
+        : t("listing.availableToday");
   const propertyBadge =
-    listing.propertyType === "studio"
-      ? "Studio"
-      : listing.propertyType === "apartment"
-        ? "Apartment"
-        : listingTypeLabels[listing.listingType];
+    listing.propertyType === "apartment" || listing.propertyType === "studio"
+      ? propertyLabels[listing.propertyType]
+      : listingTypeLabels[listing.listingType];
 
   return (
     <Link
       href={`/rooms/${listing.id}`}
-      className="group overflow-hidden rounded-[1.75rem] border border-[#ece1d3] bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+      className="group overflow-hidden rounded-[1.75rem] border border-border bg-card shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl"
     >
       <div className="relative h-[220px] overflow-hidden bg-background">
         {cover ? (
@@ -63,7 +65,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
             {propertyBadge}
           </div>
           {listing.monthlyRent >= 150000 ? (
-            <div className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-white shadow-sm">
+            <div className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-sm">
               <ShieldCheck className="h-3 w-3" />
               {t("listing.verified")}
             </div>
@@ -98,7 +100,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
         </div>
 
         {owner ? (
-          <div className="mt-3 flex items-center gap-3 rounded-xl bg-[#f5efe6] p-2">
+          <div className="mt-3 flex items-center gap-3 rounded-xl bg-surface-muted p-2">
             <div className="relative h-8 w-8 overflow-hidden rounded-full bg-background">
               {owner.photoURL ? (
                 <Image src={owner.photoURL} alt={owner.fullName} fill className="object-cover" sizes="32px" />
@@ -153,7 +155,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
                 console.error(err);
               }
             }}
-            className="rounded-xl bg-primary px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-primary/90"
+            className="rounded-xl bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
           >
             {t("listing.message")}
           </button>

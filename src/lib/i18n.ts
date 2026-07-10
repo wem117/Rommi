@@ -147,6 +147,9 @@ const translations = {
       noPhoto: "No photo",
       verified: "Verified",
       currentRoommate: "Current roommate",
+      availableToday: "Today",
+      availableSoon: "2 days",
+      availableFlexible: "Flexible",
       message: "Message",
       types: {
         apartment: "Apartment",
@@ -355,6 +358,9 @@ const translations = {
       noPhoto: "Нет фото",
       verified: "Проверено",
       currentRoommate: "Текущий сосед",
+      availableToday: "Сегодня",
+      availableSoon: "2 дня",
+      availableFlexible: "Гибко",
       message: "Написать",
       types: {
         apartment: "Квартира",
@@ -562,6 +568,9 @@ const translations = {
       noPhoto: "Фото жоқ",
       verified: "Тексерілген",
       currentRoommate: "Қазіргі roommate",
+      availableToday: "Бүгін",
+      availableSoon: "2 күн",
+      availableFlexible: "Икемді",
       message: "Жазу",
       types: {
         apartment: "Пәтер",

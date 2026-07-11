@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { formatDate } from "@/lib/utils/format";
 import { useAuth } from "@/context/auth-context";
+import { useLocale } from "@/context/locale-context";
 import type { Conversation } from "@/types/chat";
 import type { UserProfile } from "@/types/user";
 
@@ -18,8 +19,9 @@ export function ConversationItem({
   onClick?: () => void;
 }) {
   const { user } = useAuth();
+  const { t } = useLocale();
   const unread = user ? (conversation.unreadCounts?.[user.uid] ?? 0) : 0;
-  const heading = otherParticipant?.fullName || conversation.listingTitle || "Conversation";
+  const heading = otherParticipant?.fullName || conversation.listingTitle || t("chat.conversationFallback");
   const tag = otherParticipant?.fullName && conversation.listingTitle ? conversation.listingTitle : null;
 
   const body = (
@@ -31,7 +33,7 @@ export function ConversationItem({
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">{tag}</span>
           ) : null}
         </div>
-        <p className="mt-1 text-xs text-foreground/60 line-clamp-2">{conversation.lastMessage || "No messages yet"}</p>
+        <p className="mt-1 text-xs text-foreground/60 line-clamp-2">{conversation.lastMessage || t("chat.noMessagesYet")}</p>
       </div>
       <div className="text-right">
         <div className="text-xs text-foreground/50">{formatDate(conversation.updatedAt)}</div>

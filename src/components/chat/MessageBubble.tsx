@@ -3,11 +3,13 @@
 import Image from "next/image";
 import { formatDate } from "@/lib/utils/format";
 import { useAuth } from "@/context/auth-context";
+import { useLocale } from "@/context/locale-context";
 import type { Message } from "@/types/chat";
 import { Check } from "lucide-react";
 
 export function MessageBubble({ message }: { message: Message }) {
   const { user } = useAuth();
+  const { t } = useLocale();
   const mine = user?.uid === message.senderId;
 
   return (
@@ -15,7 +17,7 @@ export function MessageBubble({ message }: { message: Message }) {
       <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${mine ? "bg-primary text-white" : "bg-background"}`}>
         {message.imageUrl ? (
           <div className="mb-2 w-full">
-            <Image src={message.imageUrl} alt="Image message" width={400} height={300} className="rounded-md object-cover" />
+            <Image src={message.imageUrl} alt={t("shared.imageMessageAlt")} width={400} height={300} className="rounded-md object-cover" />
           </div>
         ) : null}
         {message.text ? <p className="text-sm">{message.text}</p> : null}

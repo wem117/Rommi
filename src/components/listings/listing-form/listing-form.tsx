@@ -241,12 +241,12 @@ export function ListingForm({
         </div>
 
         <div>
-          <label htmlFor="university">Nearest university</label>
+          <label htmlFor="university">{t("shared.nearestUniversity")}</label>
           <UniversityCombobox
             id="university"
             value={watch("university") ?? ""}
             onChange={(value) => setValue("university", value, { shouldValidate: true })}
-            placeholder="Type to search universities..."
+            placeholder={t("shared.universitySearchPlaceholder")}
           />
           {errors.university ? <p className="mt-1 text-xs text-red-600">{errors.university.message}</p> : null}
         </div>
@@ -276,7 +276,7 @@ export function ListingForm({
           {amenities.map((amenity) => (
             <label key={amenity} className="flex items-center gap-2 rounded-2xl border border-border bg-white px-3 py-2">
               <input type="checkbox" value={amenity} {...register("amenities")} className="h-4 w-4 rounded" />
-              <span>{amenity}</span>
+              <span>{t(`amenities.${amenity}`)}</span>
             </label>
           ))}
         </div>

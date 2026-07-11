@@ -4,6 +4,7 @@ import { Heart } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { useLocale } from "@/context/locale-context";
 import { useFavorites } from "@/hooks/use-favorites";
 import { friendlySupabaseError } from "@/lib/utils/errors";
 
@@ -15,6 +16,7 @@ export function FavoriteRoommateButton({
   showLabel?: boolean;
 }) {
   const { isRoommateFavorite, toggleFavoriteRoommate } = useFavorites();
+  const { t } = useLocale();
   const [saving, setSaving] = useState(false);
   const active = isRoommateFavorite(roommateId);
 
@@ -26,7 +28,7 @@ export function FavoriteRoommateButton({
       await toggleFavoriteRoommate(roommateId);
     } catch (error) {
       console.error(error);
-      toast.error(friendlySupabaseError(error, "Could not update saved roommates"));
+      toast.error(friendlySupabaseError(error, t("shared.savedRoommatesUpdateFailed")));
     } finally {
       setSaving(false);
     }
@@ -42,10 +44,10 @@ export function FavoriteRoommateButton({
       } ${
         active ? "bg-primary text-white" : "bg-white text-foreground/70"
       } disabled:opacity-60`}
-      aria-label={active ? "Remove saved roommate" : "Save roommate"}
+      aria-label={active ? t("shared.removeSavedRoommate") : t("shared.saveRoommate")}
     >
       <Heart className={`h-4 w-4 ${active ? "fill-current" : ""}`} />
-      {showLabel ? <span>{active ? "Saved Profile" : "Save Profile"}</span> : null}
+      {showLabel ? <span>{active ? t("shared.savedProfileLabel") : t("shared.saveProfileLabel")}</span> : null}
     </button>
   );
 }

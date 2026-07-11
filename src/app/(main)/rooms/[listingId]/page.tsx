@@ -33,6 +33,19 @@ import {
 import { formatCurrency, formatDate, formatListingPrice } from "@/lib/utils/format";
 import type { UserProfile } from "@/types/user";
 
+const KNOWN_AMENITIES = new Set([
+  "WiFi",
+  "Parking",
+  "AC",
+  "Kitchen",
+  "Washing Machine",
+  "Gym",
+  "Security",
+  "Furnished",
+  "Balcony",
+  "Hot Water"
+]);
+
 export default function ListingDetailPage() {
   const params = useParams<{ listingId: string }>();
   const router = useRouter();
@@ -170,7 +183,7 @@ export default function ListingDetailPage() {
                     <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#d2d0c6] text-primary">
                       <ShieldCheck className="h-4 w-4" />
                     </span>
-                    {amenity}
+                    {KNOWN_AMENITIES.has(amenity) ? t(`amenities.${amenity}`) : amenity}
                   </div>
                 ))}
               </div>

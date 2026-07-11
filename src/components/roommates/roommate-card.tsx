@@ -17,9 +17,9 @@ export function RoommateCard({
   profile: UserProfile;
   currentUser?: UserProfile | null;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const score = calculateCompatibilityScore(currentUser, profile);
-  const lifestyleTags = getLifestyleTags(profile.lifestyle);
+  const lifestyleTags = getLifestyleTags(profile.lifestyle, t);
   const city = getUniversityCity(profile.university);
 
   return (
@@ -64,7 +64,7 @@ export function RoommateCard({
         </span>
         <span className="inline-flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-[#a87458]" />
-          {formatMoveInDate(profile.preferredMoveInDate)}
+          {formatMoveInDate(profile.preferredMoveInDate, t("roommateDetail.flexible"), locale)}
         </span>
       </div>
 
@@ -94,37 +94,37 @@ export function RoommateCard({
   );
 }
 
-function formatMoveInDate(date: Date | null) {
-  if (!date) return "Flexible";
+function formatMoveInDate(date: Date | null, flexibleLabel: string, locale: string) {
+  if (!date) return flexibleLabel;
 
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat(locale === "kz" ? "kk" : locale, {
     month: "short",
     day: "numeric"
   }).format(date);
 }
 
-function getLifestyleTags(lifestyle: LifestylePreferences) {
+function getLifestyleTags(lifestyle: LifestylePreferences, t: (key: string) => string) {
   return [
-    getCleanlinessLabel(lifestyle.cleanliness),
-    getSleepScheduleLabel(lifestyle.sleepSchedule),
-    getGuestsLabel(lifestyle.guests)
+    t(getCleanlinessLabelKey(lifestyle.cleanliness)),
+    t(getSleepScheduleLabelKey(lifestyle.sleepSchedule)),
+    t(getGuestsLabelKey(lifestyle.guests))
   ];
 }
 
-function getCleanlinessLabel(value: LifestylePreferences["cleanliness"]) {
-  if (value === "very_clean") return "Very clean";
-  if (value === "moderate") return "Moderate";
-  return "Relaxed";
+function getCleanlinessLabelKey(value: LifestylePreferences["cleanliness"]) {
+  if (value === "very_clean") return "onboarding.cleanlinessVeryClean";
+  if (value === "moderate") return "onboarding.cleanlinessModerate";
+  return "onboarding.cleanlinessRelaxed";
 }
 
-function getSleepScheduleLabel(value: LifestylePreferences["sleepSchedule"]) {
-  if (value === "early_bird") return "Early bird";
-  if (value === "night_owl") return "Night owl";
-  return "Balanced";
+function getSleepScheduleLabelKey(value: LifestylePreferences["sleepSchedule"]) {
+  if (value === "early_bird") return "onboarding.sleepEarlyBird";
+  if (value === "night_owl") return "onboarding.sleepNightOwl";
+  return "onboarding.sleepBalanced";
 }
 
-function getGuestsLabel(value: LifestylePreferences["guests"]) {
-  if (value === "rarely") return "Rarely";
-  if (value === "often") return "Often";
-  return "Occasional";
+function getGuestsLabelKey(value: LifestylePreferences["guests"]) {
+  if (value === "rarely") return "onboarding.guestsRarely";
+  if (value === "often") return "onboarding.guestsOften";
+  return "onboarding.guestsSometimes";
 }

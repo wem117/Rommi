@@ -1,10 +1,16 @@
+"use client";
+
 import Image from "next/image";
 
+import { useLocale } from "@/context/locale-context";
+
 export function ListingGallery({ photos, title }: { photos: string[]; title: string }) {
+  const { t } = useLocale();
+
   if (!photos.length) {
     return (
       <div className="grid aspect-[16/10] place-items-center rounded-2xl bg-white text-sm font-medium text-foreground/50 shadow-soft">
-        No photos added
+        {t("shared.noPhotosAdded")}
       </div>
     );
   }

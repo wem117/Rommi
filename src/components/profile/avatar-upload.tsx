@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { useLocale } from "@/context/locale-context";
 import { deleteImageByUrl, uploadImageFile, validateImageFile } from "@/lib/supabase/storage";
 import { friendlySupabaseError } from "@/lib/utils/errors";
 
@@ -17,6 +18,7 @@ export function AvatarUpload({
   name: string;
   onChange: (url: string | null) => void;
 }) {
+  const { t } = useLocale();
   const inputRef = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -42,7 +44,7 @@ export function AvatarUpload({
       onChange(result.url);
     } catch (error) {
       console.error(error);
-      toast.error(friendlySupabaseError(error, "Could not upload avatar"));
+      toast.error(friendlySupabaseError(error, t("shared.avatarUploadFailed")));
     } finally {
       setUploading(false);
     }
@@ -79,7 +81,7 @@ export function AvatarUpload({
           className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
           {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-          {uploading ? `${progress}%` : "Upload"}
+          {uploading ? `${progress}%` : t("shared.uploadButton")}
         </button>
         {value ? (
           <button
@@ -88,7 +90,7 @@ export function AvatarUpload({
             className="inline-flex items-center gap-2 rounded-full border border-red-200 px-4 py-2 text-sm font-semibold text-red-700"
           >
             <Trash2 className="h-4 w-4" />
-            Remove
+            {t("shared.removeButton")}
           </button>
         ) : null}
       </div>

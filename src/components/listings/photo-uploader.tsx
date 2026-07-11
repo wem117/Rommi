@@ -53,7 +53,7 @@ export function PhotoUploader({
       onChange([...value, ...urls]);
     } catch (error) {
       console.error(error);
-      toast.error(friendlySupabaseError(error, "Could not upload image"));
+      toast.error(friendlySupabaseError(error, t("shared.uploadImageFailed")));
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -95,7 +95,7 @@ export function PhotoUploader({
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
           {value.map((url) => (
             <div key={url} className="group relative aspect-square overflow-hidden rounded-2xl bg-background">
-              <Image src={url} alt="Listing photo" fill className="object-cover" sizes="160px" />
+              <Image src={url} alt={t("shared.listingPhotoAlt")} fill className="object-cover" sizes="160px" />
               <button
                 type="button"
                 onClick={() => void removePhoto(url)}

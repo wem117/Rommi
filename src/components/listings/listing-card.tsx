@@ -122,11 +122,11 @@ export function ListingCard({ listing }: { listing: Listing }) {
         <div className="mt-3 flex items-center gap-4 text-xs text-foreground/55">
           <span className="inline-flex items-center gap-1">
             <BedDouble className="h-3.5 w-3.5" />
-            {listing.bedrooms} bd
+            {listing.bedrooms} {t("shared.bedroomsAbbrev")}
           </span>
           <span className="inline-flex items-center gap-1">
             <ShowerHead className="h-3.5 w-3.5" />
-            {listing.bathrooms} ba
+            {listing.bathrooms} {t("shared.bathroomsAbbrev")}
           </span>
           <span className="ml-auto inline-flex items-center gap-1">
             <CalendarDays className="h-3.5 w-3.5" />

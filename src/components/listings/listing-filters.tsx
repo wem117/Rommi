@@ -1,12 +1,20 @@
 "use client";
 
 import { Search, SlidersHorizontal } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useLocale } from "@/context/locale-context";
 import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { CITIES } from "@/lib/constants/cities";
+import { FALLBACK_PROPERTY_CATEGORIES, getActivePropertyCategories, type PropertyCategory } from "@/lib/data/categories";
 import type { ListingFilters } from "@/hooks/use-listings";
+
+const PROPERTY_TYPE_LABEL_KEYS: Record<string, string> = {
+  apartment: "listingFilters.apartment",
+  house: "listingFilters.house",
+  dorm: "listingFilters.dorm",
+  studio: "listingFilters.studio"
+};
 
 export function ListingFiltersBar({
   filters,
@@ -19,6 +27,15 @@ export function ListingFiltersBar({
 }) {
   const { t } = useLocale();
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [propertyCategories, setPropertyCategories] = useState<PropertyCategory[]>(
+    FALLBACK_PROPERTY_CATEGORIES.filter((c) => c.slug in PROPERTY_TYPE_LABEL_KEYS)
+  );
+
+  useEffect(() => {
+    void getActivePropertyCategories().then((categories) =>
+      setPropertyCategories(categories.filter((c) => c.slug in PROPERTY_TYPE_LABEL_KEYS))
+    );
+  }, []);
 
   return (
     <section className="rounded-[1.75rem] border border-[#ebe0d2] bg-[#f7f1e7] p-4 shadow-soft sm:p-5">
@@ -104,10 +121,11 @@ export function ListingFiltersBar({
             }
           >
             <option value="">{t("listingFilters.allPropertyTypes")}</option>
-            <option value="apartment">{t("listingFilters.apartment")}</option>
-            <option value="house">{t("listingFilters.house")}</option>
-            <option value="dorm">{t("listingFilters.dorm")}</option>
-            <option value="studio">{t("listingFilters.studio")}</option>
+            {propertyCategories.map((category) => (
+              <option key={category.id} value={category.slug}>
+                {t(PROPERTY_TYPE_LABEL_KEYS[category.slug]) || category.name}
+              </option>
+            ))}
           </select>
           <input
             type="number"

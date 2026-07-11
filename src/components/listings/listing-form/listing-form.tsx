@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
@@ -11,10 +11,18 @@ import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
 import { CITIES } from "@/lib/constants/cities";
+import { FALLBACK_PROPERTY_CATEGORIES, getActivePropertyCategories, type PropertyCategory } from "@/lib/data/categories";
 import { listingSchema, type ListingInput } from "@/lib/validations/listing.schema";
 import type { Listing } from "@/types/listing";
 
 type ListingFormValues = z.input<typeof listingSchema>;
+
+const PROPERTY_TYPE_LABEL_KEYS: Record<string, string> = {
+  apartment: "listing.types.apartment",
+  house: "listing.types.house",
+  dorm: "listing.types.dorm",
+  studio: "listing.types.studio"
+};
 
 const amenities = [
   "WiFi",
@@ -70,6 +78,16 @@ export function ListingForm({
 }) {
   const { user } = useAuth();
   const { t } = useLocale();
+  const [propertyCategories, setPropertyCategories] = useState<PropertyCategory[]>(
+    FALLBACK_PROPERTY_CATEGORIES.filter((c) => c.slug in PROPERTY_TYPE_LABEL_KEYS)
+  );
+
+  useEffect(() => {
+    void getActivePropertyCategories().then((categories) =>
+      setPropertyCategories(categories.filter((c) => c.slug in PROPERTY_TYPE_LABEL_KEYS))
+    );
+  }, []);
+
   const defaultValues = useMemo<ListingFormValues>(
     () =>
       initialListing
@@ -129,10 +147,11 @@ export function ListingForm({
         <div>
           <label htmlFor="propertyType">{t("listingForm.propertyType")}</label>
           <select id="propertyType" {...register("propertyType")}>
-            <option value="apartment">{t("listing.types.apartment")}</option>
-            <option value="house">{t("listing.types.house")}</option>
-            <option value="dorm">{t("listing.types.dorm")}</option>
-            <option value="studio">{t("listing.types.studio")}</option>
+            {propertyCategories.map((category) => (
+              <option key={category.id} value={category.slug}>
+                {t(PROPERTY_TYPE_LABEL_KEYS[category.slug]) || category.name}
+              </option>
+            ))}
           </select>
         </div>
 

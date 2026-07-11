@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isAdminEmail } from "@/lib/auth/admin-access";
+
 const protectedPrefixes = [
   "/profile",
   "/list-a-room",
@@ -63,14 +65,16 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("uid", user.id)
-      .maybeSingle();
+    if (!isAdminEmail(user.email)) {
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("uid", user.id)
+        .maybeSingle();
 
-    if (profileError || profile?.role !== "admin") {
-      return NextResponse.redirect(new URL("/rooms", request.url));
+      if (profileError || profile?.role !== "admin") {
+        return NextResponse.redirect(new URL("/rooms", request.url));
+      }
     }
   }
 

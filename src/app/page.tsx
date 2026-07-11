@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { CountUp } from "@/components/count-up";
 import { Footer } from "@/components/layout/footer";
 import { LanguageMenu } from "@/components/layout/language-menu";
 import { ListingCard } from "@/components/listings/listing-card";
@@ -27,11 +28,11 @@ import { useLocale } from "@/context/locale-context";
 import { CITIES } from "@/lib/constants/cities";
 import { demoListings, demoProfiles } from "@/lib/data/demo";
 import { getFeaturedListings } from "@/lib/data/listings";
-import { getPlatformStats as getLivePlatformStats, type PlatformStats } from "@/lib/data/platform-stats";
 import { DEFAULT_HOMEPAGE_SECTIONS, getPublicSettings, type PublicSettings } from "@/lib/data/public-settings";
 import { getFeaturedRoommates } from "@/lib/data/profiles";
 import { DEMO_TESTIMONIALS, getActiveTestimonials, type Testimonial } from "@/lib/data/testimonials";
 import { getFeaturedUniversities, type UniversityWithStats } from "@/lib/data/universities";
+import { computeHomepageStats, DEFAULT_HOMEPAGE_STATS_CONFIG } from "@/lib/utils/homepage-stats";
 import type { Listing } from "@/types/listing";
 import type { UserProfile } from "@/types/user";
 
@@ -46,12 +47,10 @@ export default function HomePage() {
   const [featuredListings, setFeaturedListings] = useState<Listing[]>(() => demoListings.slice(0, 6));
   const [featuredRoommates, setFeaturedRoommates] = useState<UserProfile[]>(() => demoProfiles.slice(0, 6));
   const [featuredUniversities, setFeaturedUniversities] = useState<UniversityWithStats[]>([]);
-  const [liveStats, setLiveStats] = useState<PlatformStats | null>(null);
 
   useEffect(() => {
     void getActiveTestimonials().then(setTestimonials);
     void getFeaturedUniversities(6).then(setFeaturedUniversities);
-    void getLivePlatformStats().then(setLiveStats);
     void getPublicSettings().then((next) => {
       setSettings(next);
       void getFeaturedListings(next.featuredListingsLimit).then(setFeaturedListings);
@@ -75,17 +74,14 @@ export default function HomePage() {
   const heroDescription = heroLocaleContent?.subtitle?.trim() || t("home.heroDescription");
   const heroImage = settings?.homepageHero?.imageUrl?.trim() || "/universities/main1.png";
 
-  const stats = liveStats
-    ? [
-        { value: `${liveStats.listings.toLocaleString()}+`, label: t("home.verifiedListings") },
-        { value: `${liveStats.students.toLocaleString()}+`, label: t("home.activeStudents") },
-        { value: `${liveStats.connections.toLocaleString()}+`, label: t("home.successfulMatches") }
-      ]
-    : [
-        { value: "3,500+", label: t("home.verifiedListings") },
-        { value: "10,000+", label: t("home.activeStudents") },
-        { value: "2,400+", label: t("home.successfulMatches") }
-      ];
+  // Admin-configurable, deterministic trust numbers (base + daily growth from a
+  // start date). Same for every visitor, stable across refreshes, animated in.
+  const heroStats = computeHomepageStats(settings?.homepageStats ?? DEFAULT_HOMEPAGE_STATS_CONFIG);
+  const stats = [
+    { value: heroStats.listings, label: t("home.verifiedListings") },
+    { value: heroStats.students, label: t("home.activeStudents") },
+    { value: heroStats.matches, label: t("home.successfulMatches") }
+  ];
 
   const steps = getSteps(locale);
   const platformStats = getPlatformStats(locale);
@@ -417,7 +413,9 @@ export default function HomePage() {
                 {stats.map((stat, index) => (
                   <div key={stat.label} className="flex items-center gap-6 sm:gap-10">
                     <div className="text-center">
-                      <p className="text-2xl font-bold sm:text-3xl">{stat.value}</p>
+                      <p className="text-2xl font-bold sm:text-3xl">
+                        <CountUp value={stat.value} format={(n) => `${n.toLocaleString()}+`} />
+                      </p>
                       <p className="mt-1 text-xs text-white/70 sm:text-sm">{stat.label}</p>
                     </div>
                     {index < stats.length - 1 ? <div className="hidden h-10 w-px bg-white/15 sm:block" /> : null}

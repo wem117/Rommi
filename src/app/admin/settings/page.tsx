@@ -14,6 +14,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_PLATFORM_SETTINGS, type PlatformSettings } from "@/lib/data/public-settings";
+import {
+  computeHomepageStats,
+  DEFAULT_HOMEPAGE_STATS_CONFIG,
+  type HomepageStatsConfig
+} from "@/lib/utils/homepage-stats";
 
 type Settings = {
   featuredListingsLimit: number;
@@ -21,7 +26,10 @@ type Settings = {
   maintenanceMode: boolean;
   adminEmails: string[];
   platform: PlatformSettings;
+  homepageStats: HomepageStatsConfig;
 };
+
+type StatMetricKey = "listings" | "students" | "matches";
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -29,6 +37,7 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [platformDraft, setPlatformDraft] = useState<PlatformSettings>(DEFAULT_PLATFORM_SETTINGS);
+  const [statsDraft, setStatsDraft] = useState<HomepageStatsConfig>(DEFAULT_HOMEPAGE_STATS_CONFIG);
 
   useEffect(() => {
     void load();
@@ -42,6 +51,7 @@ export default function AdminSettingsPage() {
       if (!res.ok) throw new Error(json.error ?? "Failed to load settings");
       setSettings(json.settings);
       setPlatformDraft({ ...DEFAULT_PLATFORM_SETTINGS, ...json.settings.platform });
+      setStatsDraft({ ...DEFAULT_HOMEPAGE_STATS_CONFIG, ...json.settings.homepageStats });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load settings");
     } finally {
@@ -71,6 +81,14 @@ export default function AdminSettingsPage() {
 
   function savePlatform() {
     void save({ platform: platformDraft });
+  }
+
+  function saveStats() {
+    void save({ homepageStats: statsDraft });
+  }
+
+  function updateStatMetric(metric: StatMetricKey, field: "base" | "growthMin" | "growthMax", value: number) {
+    setStatsDraft((prev) => ({ ...prev, [metric]: { ...prev[metric], [field]: value } }));
   }
 
   function addEmail() {
@@ -296,6 +314,83 @@ export default function AdminSettingsPage() {
               onBlur={() => save({ featuredRoommatesLimit: settings.featuredRoommatesLimit })}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Homepage statistics</CardTitle>
+          <CardDescription>
+            The animated trust numbers in the hero. Each metric has a base value and a daily growth range; the shown
+            number grows deterministically from the start date (stable for all visitors, never random on refresh).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="stats-start-date">Start date</Label>
+              <Input
+                id="stats-start-date"
+                type="date"
+                value={statsDraft.startDate}
+                onChange={(e) => setStatsDraft({ ...statsDraft, startDate: e.target.value })}
+              />
+            </div>
+          </div>
+
+          {(
+            [
+              { key: "listings", label: "Verified listings" },
+              { key: "students", label: "Active students" },
+              { key: "matches", label: "Successful matches" }
+            ] as { key: StatMetricKey; label: string }[]
+          ).map((metric) => (
+            <div key={metric.key} className="rounded-xl border border-border p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold">{metric.label}</span>
+                <span className="text-xs text-foreground/50">
+                  today: {computeHomepageStats(statsDraft)[metric.key].toLocaleString()}
+                </span>
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${metric.key}-base`}>Base value</Label>
+                  <Input
+                    id={`${metric.key}-base`}
+                    type="number"
+                    min={0}
+                    value={statsDraft[metric.key].base}
+                    onChange={(e) => updateStatMetric(metric.key, "base", Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${metric.key}-min`}>Growth/day (min)</Label>
+                  <Input
+                    id={`${metric.key}-min`}
+                    type="number"
+                    min={0}
+                    value={statsDraft[metric.key].growthMin}
+                    onChange={(e) => updateStatMetric(metric.key, "growthMin", Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${metric.key}-max`}>Growth/day (max)</Label>
+                  <Input
+                    id={`${metric.key}-max`}
+                    type="number"
+                    min={0}
+                    value={statsDraft[metric.key].growthMax}
+                    onChange={(e) => updateStatMetric(metric.key, "growthMax", Number(e.target.value))}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <Button onClick={saveStats} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save statistics
+          </Button>
         </CardContent>
       </Card>
 

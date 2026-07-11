@@ -38,6 +38,22 @@ const platformSettingsSchema = z.object({
   defaultLanguage: z.enum(["en", "ru", "kz"]).optional()
 });
 
+const statMetricSchema = z.object({
+  base: z.number().int().min(0).max(100_000_000),
+  growthMin: z.number().int().min(0).max(100_000),
+  growthMax: z.number().int().min(0).max(100_000)
+});
+
+const homepageStatsSchema = z.object({
+  startDate: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD"),
+  listings: statMetricSchema,
+  students: statMetricSchema,
+  matches: statMetricSchema
+});
+
 export const siteSettingsUpdateSchema = z.object({
   featuredListingsLimit: z.number().int().min(1).max(50).optional(),
   featuredRoommatesLimit: z.number().int().min(1).max(50).optional(),
@@ -45,6 +61,7 @@ export const siteSettingsUpdateSchema = z.object({
   adminEmails: z.array(z.string().trim().email()).max(20).optional(),
   homepageHero: homepageHeroSchema.optional(),
   homepageSections: z.array(homepageSectionSchema).optional(),
+  homepageStats: homepageStatsSchema.optional(),
   platform: platformSettingsSchema.optional()
 });
 

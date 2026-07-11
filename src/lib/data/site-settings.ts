@@ -2,6 +2,7 @@ import "server-only";
 
 import { DEFAULT_PLATFORM_SETTINGS, type PlatformSettings } from "@/lib/data/public-settings";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import { DEFAULT_HOMEPAGE_STATS_CONFIG, type HomepageStatsConfig } from "@/lib/utils/homepage-stats";
 import type { HomepageHero, HomepageSection } from "@/lib/validations/site-settings.schema";
 
 export interface SiteSettings {
@@ -11,6 +12,7 @@ export interface SiteSettings {
   adminEmails: string[];
   homepageHero: HomepageHero;
   homepageSections: HomepageSection[];
+  homepageStats: HomepageStatsConfig;
   platform: PlatformSettings;
 }
 
@@ -28,6 +30,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
     { key: "testimonials", visible: true },
     { key: "faq", visible: true }
   ],
+  homepageStats: DEFAULT_HOMEPAGE_STATS_CONFIG,
   platform: DEFAULT_PLATFORM_SETTINGS
 };
 
@@ -38,6 +41,7 @@ const KEY_MAP: Record<keyof SiteSettings, string> = {
   adminEmails: "admin_emails",
   homepageHero: "homepage_hero",
   homepageSections: "homepage_sections",
+  homepageStats: "homepage_stats",
   platform: "platform"
 };
 
@@ -58,6 +62,10 @@ export async function getSiteSettings(): Promise<SiteSettings> {
       homepageHero: (byKey.get("homepage_hero") as HomepageHero) ?? DEFAULT_SITE_SETTINGS.homepageHero,
       homepageSections:
         (byKey.get("homepage_sections") as HomepageSection[]) ?? DEFAULT_SITE_SETTINGS.homepageSections,
+      homepageStats: {
+        ...DEFAULT_HOMEPAGE_STATS_CONFIG,
+        ...((byKey.get("homepage_stats") as Partial<HomepageStatsConfig>) ?? {})
+      },
       platform: { ...DEFAULT_PLATFORM_SETTINGS, ...((byKey.get("platform") as Partial<PlatformSettings>) ?? {}) }
     };
   } catch {
@@ -65,7 +73,10 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   }
 }
 
-type SiteSettingsUpdate = Partial<Omit<SiteSettings, "platform">> & { platform?: Partial<PlatformSettings> };
+type SiteSettingsUpdate = Partial<Omit<SiteSettings, "platform" | "homepageStats">> & {
+  platform?: Partial<PlatformSettings>;
+  homepageStats?: HomepageStatsConfig;
+};
 
 export async function updateSiteSettings(partial: SiteSettingsUpdate) {
   const supabase = createSupabaseAdminClient();

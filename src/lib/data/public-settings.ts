@@ -1,5 +1,6 @@
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { DEFAULT_HOMEPAGE_STATS_CONFIG, type HomepageStatsConfig } from "@/lib/utils/homepage-stats";
 
 export interface LocaleHero {
   title: string;
@@ -35,6 +36,7 @@ export interface PlatformSettings {
 export interface PublicSettings {
   homepageHero: HomepageHero;
   homepageSections: HomepageSection[];
+  homepageStats: HomepageStatsConfig;
   maintenanceMode: boolean;
   platform: PlatformSettings;
   featuredListingsLimit: number;
@@ -67,6 +69,7 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
 const DEFAULT_PUBLIC_SETTINGS: PublicSettings = {
   homepageHero: {},
   homepageSections: DEFAULT_HOMEPAGE_SECTIONS,
+  homepageStats: DEFAULT_HOMEPAGE_STATS_CONFIG,
   maintenanceMode: false,
   platform: DEFAULT_PLATFORM_SETTINGS,
   featuredListingsLimit: 8,
@@ -106,6 +109,7 @@ async function fetchPublicSettings(): Promise<PublicSettings> {
       .in("key", [
         "homepage_hero",
         "homepage_sections",
+        "homepage_stats",
         "maintenance_mode",
         "platform",
         "featured_listings_limit",
@@ -119,6 +123,10 @@ async function fetchPublicSettings(): Promise<PublicSettings> {
     return {
       homepageHero: (byKey.get("homepage_hero") as HomepageHero) ?? DEFAULT_PUBLIC_SETTINGS.homepageHero,
       homepageSections: (byKey.get("homepage_sections") as HomepageSection[]) ?? DEFAULT_HOMEPAGE_SECTIONS,
+      homepageStats: {
+        ...DEFAULT_HOMEPAGE_STATS_CONFIG,
+        ...((byKey.get("homepage_stats") as Partial<HomepageStatsConfig>) ?? {})
+      },
       maintenanceMode: (byKey.get("maintenance_mode") as boolean) ?? false,
       platform: { ...DEFAULT_PLATFORM_SETTINGS, ...((byKey.get("platform") as Partial<PlatformSettings>) ?? {}) },
       featuredListingsLimit: (byKey.get("featured_listings_limit") as number) ?? DEFAULT_PUBLIC_SETTINGS.featuredListingsLimit,

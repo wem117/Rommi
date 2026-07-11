@@ -18,6 +18,7 @@ volume is created:
   archive/category columns, profile suspend columns, platform settings.
 - `05_universities.sql` — comprehensive ~58-university directory seed.
 - `06_contacts.sql` — telegram/phone/contacts_hidden columns on profiles.
+- `07_homepage_stats.sql` — homepage statistics config in site_settings.
 
 To re-run migrations from scratch, drop the volume:
 
@@ -45,5 +46,6 @@ Supabase Storage. Run these in the Supabase SQL editor:
    columns, platform settings.
 6. `../supabase-migration-universities.sql` — comprehensive university seed.
 7. `../supabase-migration-contacts.sql` — profile contact fields.
+8. `../supabase-migration-homepage-stats.sql` — homepage statistics config + RLS.
 
 Keep `db/init/01_schema.sql` in sync with `../supabase-schema.sql`.

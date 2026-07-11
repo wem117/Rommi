@@ -16,7 +16,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { Footer } from "@/components/layout/footer";
 import { LanguageMenu } from "@/components/layout/language-menu";
@@ -25,8 +25,15 @@ import { RoommateCard } from "@/components/roommates/roommate-card";
 import { Carousel } from "@/components/ui/carousel";
 import { useLocale } from "@/context/locale-context";
 import { CITIES } from "@/lib/constants/cities";
-import { demoListings, demoProfiles, demoUniversities } from "@/lib/data/demo";
+import { demoListings, demoProfiles } from "@/lib/data/demo";
+import { getFeaturedListings } from "@/lib/data/listings";
+import { getPlatformStats as getLivePlatformStats, type PlatformStats } from "@/lib/data/platform-stats";
+import { DEFAULT_HOMEPAGE_SECTIONS, getPublicSettings, type PublicSettings } from "@/lib/data/public-settings";
+import { getFeaturedRoommates } from "@/lib/data/profiles";
 import { DEMO_TESTIMONIALS, getActiveTestimonials, type Testimonial } from "@/lib/data/testimonials";
+import { getFeaturedUniversities, type UniversityWithStats } from "@/lib/data/universities";
+import type { Listing } from "@/types/listing";
+import type { UserProfile } from "@/types/user";
 
 export default function HomePage() {
   const { locale, t } = useLocale();
@@ -35,9 +42,21 @@ export default function HomePage() {
   const [searchBudget, setSearchBudget] = useState("");
   const [searchType, setSearchType] = useState("");
   const [testimonials, setTestimonials] = useState<Testimonial[]>(DEMO_TESTIMONIALS);
+  const [settings, setSettings] = useState<PublicSettings | null>(null);
+  const [featuredListings, setFeaturedListings] = useState<Listing[]>(() => demoListings.slice(0, 6));
+  const [featuredRoommates, setFeaturedRoommates] = useState<UserProfile[]>(() => demoProfiles.slice(0, 6));
+  const [featuredUniversities, setFeaturedUniversities] = useState<UniversityWithStats[]>([]);
+  const [liveStats, setLiveStats] = useState<PlatformStats | null>(null);
 
   useEffect(() => {
     void getActiveTestimonials().then(setTestimonials);
+    void getFeaturedUniversities(6).then(setFeaturedUniversities);
+    void getLivePlatformStats().then(setLiveStats);
+    void getPublicSettings().then((next) => {
+      setSettings(next);
+      void getFeaturedListings(next.featuredListingsLimit).then(setFeaturedListings);
+      void getFeaturedRoommates(next.featuredRoommatesLimit).then(setFeaturedRoommates);
+    });
   }, []);
 
   function handleSearch() {
@@ -48,11 +67,25 @@ export default function HomePage() {
     router.push(`/rooms${params.toString() ? `?${params.toString()}` : ""}`);
   }
 
-  const stats = [
-    { value: "3,500+", label: t("home.verifiedListings") },
-    { value: "10,000+", label: t("home.activeStudents") },
-    { value: "2,400+", label: t("home.successfulMatches") }
-  ];
+  const sections = settings?.homepageSections ?? DEFAULT_HOMEPAGE_SECTIONS;
+  const sectionOrder = sections.filter((s) => s.visible).map((s) => s.key);
+
+  const heroLocaleContent = settings?.homepageHero?.[locale];
+  const heroTitle = heroLocaleContent?.title?.trim() || null;
+  const heroDescription = heroLocaleContent?.subtitle?.trim() || t("home.heroDescription");
+  const heroImage = settings?.homepageHero?.imageUrl?.trim() || "/universities/main1.png";
+
+  const stats = liveStats
+    ? [
+        { value: `${liveStats.listings.toLocaleString()}+`, label: t("home.verifiedListings") },
+        { value: `${liveStats.students.toLocaleString()}+`, label: t("home.activeStudents") },
+        { value: `${liveStats.connections.toLocaleString()}+`, label: t("home.successfulMatches") }
+      ]
+    : [
+        { value: "3,500+", label: t("home.verifiedListings") },
+        { value: "10,000+", label: t("home.activeStudents") },
+        { value: "2,400+", label: t("home.successfulMatches") }
+      ];
 
   const steps = getSteps(locale);
   const platformStats = getPlatformStats(locale);
@@ -100,11 +133,208 @@ export default function HomePage() {
     }
   ];
 
+  // The 5 admin-reorderable/toggleable sections (Admin > Homepage). Hero and
+  // the "How it works" / final CTA bands stay structurally fixed since they
+  // carry primary navigation and the closing conversion CTA.
+  const sectionRenderers: Record<string, ReactNode> = {
+    featured_listings: (
+      <section key="featured_listings" className="bg-[#fbf7f0] px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
+            <SectionHeader
+              badge={t("home.featuredBadge")}
+              title={t("home.featuredTitle")}
+              description={t("home.featuredDescription")}
+            />
+            <Link
+              href="/rooms"
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary/90"
+            >
+              {t("home.viewAllListings")}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <Carousel
+            className="mt-8"
+            ariaLabel={t("home.featuredTitle")}
+            itemClassName="basis-[86%] sm:basis-[47%] lg:basis-[31.5%]"
+          >
+            {featuredListings.map((listing) => (
+              <ListingCard key={listing.id} listing={listing} />
+            ))}
+          </Carousel>
+        </div>
+      </section>
+    ),
+    universities: (
+      <section key="universities" className="bg-[#fffdf9] px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <SectionHeader title={t("home.universityTitle")} description={t("home.universityDescription")} />
+            <Link href="/universities" className="text-sm font-semibold text-primary transition hover:text-primary/80">
+              {t("home.exploreUniversityAreas")}
+            </Link>
+          </div>
+
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-3">
+            {featuredUniversities.map((university) => (
+              <Link
+                key={university.id}
+                href={`/rooms?university=${encodeURIComponent(university.name)}`}
+                className="group overflow-hidden rounded-2xl border border-[#efe5d9] bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl sm:rounded-[1.75rem]"
+              >
+                <div className="relative aspect-[1.6/1] overflow-hidden bg-surface-muted">
+                  {university.imageUrl ? (
+                    <Image
+                      src={university.imageUrl}
+                      alt={university.name}
+                      fill
+                      className="object-cover transition duration-500 group-hover:scale-105"
+                      sizes="(min-width: 1280px) 33vw, (min-width: 640px) 33vw, 50vw"
+                    />
+                  ) : (
+                    <div className="grid h-full w-full place-items-center bg-gradient-to-br from-primary/15 to-accent/15 text-3xl font-bold text-primary/40">
+                      {university.name.slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 sm:p-4">
+                    <span className="rounded-full bg-white/15 px-2 py-0.5 text-[0.65rem] font-medium text-white backdrop-blur sm:px-3 sm:py-1 sm:text-xs">
+                      {university.city}
+                    </span>
+                  </div>
+                </div>
+                <div className="p-3 sm:p-5">
+                  <h3 className="font-heading text-base font-bold leading-tight sm:text-2xl">{university.name}</h3>
+                  <p className="mt-1 text-xs text-foreground/55 sm:mt-2 sm:text-sm">
+                    {university.listingsCount} {t("home.listingsWord")}
+                    <span className="mx-1.5 text-[#d3c6b7] sm:mx-2">|</span>
+                    {university.roommatesCount} {t("home.studentsWord")}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+    ),
+    featured_roommates: (
+      <section key="featured_roommates" className="bg-primary px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+          <div className="text-white">
+            <SectionHeader
+              badge={t("home.roommateBadge")}
+              title={t("home.roommateTitle")}
+              description={t("home.roommateDescription")}
+              light
+            />
+
+            <div className="mt-8 space-y-4">
+              {roommateHighlights.map((item) => (
+                <div key={item} className="flex items-center gap-3 text-sm text-white/90">
+                  <CheckCircle2 className="h-4 w-4 text-[#f8d79a]" />
+                  {item}
+                </div>
+              ))}
+            </div>
+
+            <Link
+              href="/roommates"
+              className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-primary transition hover:bg-[#f6f1e7]"
+            >
+              {t("home.browseAllRoommates")}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <Carousel ariaLabel={t("home.roommateTitle")} itemClassName="basis-[86%] sm:basis-[47%]">
+            {featuredRoommates.map((profile) => (
+              <RoommateCard key={profile.uid} profile={profile} />
+            ))}
+          </Carousel>
+        </div>
+      </section>
+    ),
+    testimonials: (
+      <section key="testimonials" className="bg-[#fffdf9] px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-5xl">
+          <SectionHeader badge={t("home.testimonialBadge")} title={t("home.testimonialTitle")} centered />
+
+          <Carousel className="mt-10" ariaLabel={t("home.testimonialTitle")}>
+            {testimonials.map((testimonial) => (
+              <div
+                key={testimonial.name}
+                className="grid items-center gap-6 rounded-[2rem] border border-[#efe5d9] bg-white p-6 shadow-soft sm:gap-8 sm:p-8 md:grid-cols-[0.9fr_1.1fr] md:p-10"
+              >
+                <div className="relative mx-auto h-44 w-44 overflow-hidden rounded-[1.75rem] bg-[#f5efe6] sm:h-56 sm:w-56">
+                  <Image src={testimonial.image} alt={testimonial.name} fill className="object-cover" sizes="224px" />
+                  <div className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-full bg-[#f1a531] text-white shadow-lg">
+                    <Sparkles className="h-4 w-4" />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-1 text-[#f1a531]">
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <Star key={index} className="h-4 w-4 fill-current" />
+                    ))}
+                  </div>
+                  <blockquote className="mt-5 font-heading text-lg leading-8 text-foreground/80 sm:text-2xl sm:leading-9">
+                    &quot;{testimonial.quote}&quot;
+                  </blockquote>
+                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                    <div>
+                      <p className="font-semibold">{testimonial.name}</p>
+                      <p className="text-sm text-foreground/55">{testimonial.role}</p>
+                    </div>
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                      {testimonial.badge}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </Carousel>
+        </div>
+      </section>
+    ),
+    faq: (
+      <section key="faq" className="bg-[#fbf7f0] px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-4xl">
+          <SectionHeader
+            badge={t("home.faqBadge")}
+            title={t("home.faqTitle")}
+            description={t("home.faqDescription")}
+            centered
+          />
+
+          <div className="mt-10 space-y-3">
+            {faqs.map((faq, index) => (
+              <details
+                key={faq.question}
+                open={index === 0}
+                className="group overflow-hidden rounded-[1.5rem] border border-[#ede2d4] bg-white shadow-soft"
+              >
+                <summary className="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 text-left font-semibold marker:content-none">
+                  <span>{faq.question}</span>
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#f4ecdf] text-foreground/60 transition group-open:rotate-180">
+                    <ChevronRight className="h-4 w-4 rotate-90" />
+                  </span>
+                </summary>
+                <div className="px-6 pb-6 text-sm leading-7 text-foreground/60">{faq.answer}</div>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  };
+
   return (
     <main className="min-h-screen bg-[#faf6ef] text-foreground">
       <section className="relative overflow-hidden">
         <Image
-          src="/universities/main1.png"
+          src={heroImage}
           alt="Modern shared apartment"
           fill
           priority
@@ -153,11 +383,13 @@ export default function HomePage() {
               </div>
 
               <h1 className="mt-6 text-4xl font-bold leading-tight text-white sm:text-5xl lg:text-7xl">
-                {t("home.heroTitleLead")} <span className="text-primary">{t("home.heroTitleAccent")}</span>
+                {heroTitle ?? (
+                  <>
+                    {t("home.heroTitleLead")} <span className="text-primary">{t("home.heroTitleAccent")}</span>
+                  </>
+                )}
               </h1>
-              <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-white/80 sm:text-lg">
-                {t("home.heroDescription")}
-              </p>
+              <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-white/80 sm:text-lg">{heroDescription}</p>
 
               <div className="mt-10 rounded-[2rem] border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur-xl sm:p-3">
                 <div className="grid gap-2 md:grid-cols-[1.2fr_1fr_0.8fr_auto]">
@@ -241,188 +473,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="bg-[#fbf7f0] px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-6xl">
-          <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
-            <SectionHeader
-              badge={t("home.featuredBadge")}
-              title={t("home.featuredTitle")}
-              description={t("home.featuredDescription")}
-            />
-            <Link
-              href="/rooms"
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary/90"
-            >
-              {t("home.viewAllListings")}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-
-          <Carousel
-            className="mt-8"
-            ariaLabel={t("home.featuredTitle")}
-            itemClassName="basis-[86%] sm:basis-[47%] lg:basis-[31.5%]"
-          >
-            {demoListings.slice(0, 6).map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))}
-          </Carousel>
-        </div>
-      </section>
-
-      <section className="bg-[#fffdf9] px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-6xl">
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <SectionHeader
-              title={t("home.universityTitle")}
-              description={t("home.universityDescription")}
-            />
-            <Link href="/universities" className="text-sm font-semibold text-primary transition hover:text-primary/80">
-              {t("home.exploreUniversityAreas")}
-            </Link>
-          </div>
-
-          <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-3">
-            {demoUniversities.slice(0, 6).map((university) => (
-              <Link
-                key={university.name}
-                href={`/rooms?university=${encodeURIComponent(university.name)}`}
-                className="group overflow-hidden rounded-2xl border border-[#efe5d9] bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl sm:rounded-[1.75rem]"
-              >
-                <div className="relative aspect-[1.6/1] overflow-hidden">
-                  <Image
-                    src={university.image}
-                    alt={university.name}
-                    fill
-                    className="object-cover transition duration-500 group-hover:scale-105"
-                    sizes="(min-width: 1280px) 33vw, (min-width: 640px) 33vw, 50vw"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 sm:p-4">
-                    <span className="rounded-full bg-white/15 px-2 py-0.5 text-[0.65rem] font-medium text-white backdrop-blur sm:px-3 sm:py-1 sm:text-xs">
-                      {university.city}
-                    </span>
-                  </div>
-                </div>
-                <div className="p-3 sm:p-5">
-                  <h3 className="font-heading text-base font-bold leading-tight sm:text-2xl">{university.name}</h3>
-                  <p className="mt-1 text-xs text-foreground/55 sm:mt-2 sm:text-sm">
-                    {university.listings} {t("home.listingsWord")}
-                    <span className="mx-1.5 text-[#d3c6b7] sm:mx-2">|</span>
-                    {university.students} {t("home.studentsWord")}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-primary px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-          <div className="text-white">
-            <SectionHeader
-              badge={t("home.roommateBadge")}
-              title={t("home.roommateTitle")}
-              description={t("home.roommateDescription")}
-              light
-            />
-
-            <div className="mt-8 space-y-4">
-              {roommateHighlights.map((item) => (
-                <div key={item} className="flex items-center gap-3 text-sm text-white/90">
-                  <CheckCircle2 className="h-4 w-4 text-[#f8d79a]" />
-                  {item}
-                </div>
-              ))}
-            </div>
-
-            <Link
-              href="/roommates"
-              className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-primary transition hover:bg-[#f6f1e7]"
-            >
-              {t("home.browseAllRoommates")}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-
-          <Carousel ariaLabel={t("home.roommateTitle")} itemClassName="basis-[86%] sm:basis-[47%]">
-            {demoProfiles.slice(0, 6).map((profile) => (
-              <RoommateCard key={profile.uid} profile={profile} />
-            ))}
-          </Carousel>
-        </div>
-      </section>
-
-      <section className="bg-[#fffdf9] px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-5xl">
-          <SectionHeader badge={t("home.testimonialBadge")} title={t("home.testimonialTitle")} centered />
-
-          <Carousel className="mt-10" ariaLabel={t("home.testimonialTitle")}>
-            {testimonials.map((testimonial) => (
-              <div
-                key={testimonial.name}
-                className="grid items-center gap-6 rounded-[2rem] border border-[#efe5d9] bg-white p-6 shadow-soft sm:gap-8 sm:p-8 md:grid-cols-[0.9fr_1.1fr] md:p-10"
-              >
-                <div className="relative mx-auto h-44 w-44 overflow-hidden rounded-[1.75rem] bg-[#f5efe6] sm:h-56 sm:w-56">
-                  <Image src={testimonial.image} alt={testimonial.name} fill className="object-cover" sizes="224px" />
-                  <div className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-full bg-[#f1a531] text-white shadow-lg">
-                    <Sparkles className="h-4 w-4" />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-1 text-[#f1a531]">
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <Star key={index} className="h-4 w-4 fill-current" />
-                    ))}
-                  </div>
-                  <blockquote className="mt-5 font-heading text-lg leading-8 text-foreground/80 sm:text-2xl sm:leading-9">
-                    &quot;{testimonial.quote}&quot;
-                  </blockquote>
-                  <div className="mt-6 flex flex-wrap items-center gap-3">
-                    <div>
-                      <p className="font-semibold">{testimonial.name}</p>
-                      <p className="text-sm text-foreground/55">{testimonial.role}</p>
-                    </div>
-                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                      {testimonial.badge}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </Carousel>
-        </div>
-      </section>
-
-      <section className="bg-[#fbf7f0] px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-4xl">
-          <SectionHeader
-            badge={t("home.faqBadge")}
-            title={t("home.faqTitle")}
-            description={t("home.faqDescription")}
-            centered
-          />
-
-          <div className="mt-10 space-y-3">
-            {faqs.map((faq, index) => (
-              <details
-                key={faq.question}
-                open={index === 0}
-                className="group overflow-hidden rounded-[1.5rem] border border-[#ede2d4] bg-white shadow-soft"
-              >
-                <summary className="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 text-left font-semibold marker:content-none">
-                  <span>{faq.question}</span>
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#f4ecdf] text-foreground/60 transition group-open:rotate-180">
-                    <ChevronRight className="h-4 w-4 rotate-90" />
-                  </span>
-                </summary>
-                <div className="px-6 pb-6 text-sm leading-7 text-foreground/60">{faq.answer}</div>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
+      {sectionOrder.map((key) => sectionRenderers[key] ?? null)}
 
       <section className="relative overflow-hidden px-4 py-16 sm:px-6 lg:px-8">
         <div className="absolute inset-0">

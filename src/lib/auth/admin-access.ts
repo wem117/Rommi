@@ -1,8 +1,9 @@
 /**
- * Admin allowlist. Administrator access is granted to any email in
- * ADMIN_EMAILS (comma-separated). Defaults to the project owner so the panel is
- * locked down out of the box. A `profiles.role === "admin"` flag is still
- * honored as a secondary path by callers.
+ * Admin allowlist bootstrap check. Administrator access is granted to any
+ * email in ADMIN_EMAILS (comma-separated). Defaults to the project owner so
+ * the panel is locked down out of the box. Callers (`requireAdminUser`,
+ * `middleware`) also honor a `profiles.role === "admin"` flag and the
+ * admin-managed `site_settings.admin_emails` list as secondary paths.
  */
 const DEFAULT_ADMIN_EMAILS = ["yeraly28.10@gmail.com"];
 

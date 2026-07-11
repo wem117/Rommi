@@ -38,6 +38,9 @@ export interface UserProfile {
   favoriteRoommateIds?: string[];
   viewedListingIds?: string[];
   contactedListingIds?: string[];
+  roommateStatus?: "pending" | "approved" | "rejected";
+  featured?: boolean;
+  featuredPosition?: number | null;
   createdAt: Date;
   updatedAt: Date;
 }

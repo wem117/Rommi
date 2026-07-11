@@ -56,3 +56,18 @@ export async function PATCH(request: Request) {
     return apiErrorResponse(error);
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const { supabase } = await requireAdminUser();
+    const { searchParams } = new URL(request.url);
+    const reportId = searchParams.get("id");
+    if (!reportId) throw new Error("Missing report id");
+
+    const { error } = await supabase.from("reports").delete().eq("id", reportId);
+    if (error) throw error;
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return apiErrorResponse(error);
+  }
+}

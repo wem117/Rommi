@@ -126,6 +126,11 @@ export const demoListings: Listing[] = [
     photoUrls: [
       "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80"
     ],
+    status: "approved",
+    removed: false,
+    removedAt: null,
+    featured: true,
+    featuredPosition: 0,
     createdAt: now,
     updatedAt: now
   },
@@ -151,6 +156,11 @@ export const demoListings: Listing[] = [
     photoUrls: [
       "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1200&q=80"
     ],
+    status: "approved",
+    removed: false,
+    removedAt: null,
+    featured: true,
+    featuredPosition: 1,
     createdAt: now,
     updatedAt: now
   },
@@ -176,6 +186,11 @@ export const demoListings: Listing[] = [
     photoUrls: [
       "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80"
     ],
+    status: "approved",
+    removed: false,
+    removedAt: null,
+    featured: false,
+    featuredPosition: null,
     createdAt: now,
     updatedAt: now
   }

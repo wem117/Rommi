@@ -10,6 +10,8 @@ export interface ListingPreferences {
   pets: PetsRule;
 }
 
+export type ModerationStatus = "pending" | "approved" | "rejected";
+
 export interface Listing {
   id: string;
   ownerId: string;
@@ -30,6 +32,11 @@ export interface Listing {
   amenities: string[];
   preferences: ListingPreferences;
   photoUrls: string[];
+  status: ModerationStatus;
+  removed: boolean;
+  removedAt: Date | null;
+  featured: boolean;
+  featuredPosition: number | null;
   createdAt: Date;
   updatedAt: Date;
 }

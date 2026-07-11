@@ -66,14 +66,20 @@ export async function middleware(request: NextRequest) {
 
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
     if (!isAdminEmail(user.email)) {
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("uid", user.id)
-        .maybeSingle();
+      const { data: profile } = await supabase.from("profiles").select("role").eq("uid", user.id).maybeSingle();
 
-      if (profileError || profile?.role !== "admin") {
-        return NextResponse.redirect(new URL("/rooms", request.url));
+      if (profile?.role !== "admin") {
+        // RLS only lets a signed-in user read this row when their own email
+        // is inside admin_emails, so a non-empty result confirms access.
+        const { data: setting } = await supabase
+          .from("site_settings")
+          .select("key")
+          .eq("key", "admin_emails")
+          .maybeSingle();
+
+        if (!setting) {
+          return NextResponse.redirect(new URL("/rooms", request.url));
+        }
       }
     }
   }

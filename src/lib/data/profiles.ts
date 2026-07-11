@@ -91,6 +91,30 @@ export async function getRoommateProfiles(currentUid?: string | null) {
   return (data ?? []).map(mapProfileRow).filter((profile: UserProfile) => profile.uid !== currentUid);
 }
 
+/** Admin-curated roommates for the home page. Falls back to demo profiles when none are featured. */
+export async function getFeaturedRoommates(limit = 6) {
+  if (!isSupabaseConfigured) {
+    return demoProfiles.filter((profile) => profile.onboardingComplete && profile.lookingForApartment).slice(0, limit);
+  }
+
+  const supabase = getSupabaseBrowserClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("featured", true)
+    .eq("banned", false)
+    .eq("onboarding_complete", true)
+    .eq("looking_for_apartment", true)
+    .order("featured_position", { ascending: true })
+    .limit(limit);
+
+  if (error || !data || data.length === 0) {
+    return demoProfiles.filter((profile) => profile.onboardingComplete && profile.lookingForApartment).slice(0, limit);
+  }
+
+  return data.map(mapProfileRow);
+}
+
 export async function upsertProfile(profile: Partial<UserProfile> & Pick<UserProfile, "uid">) {
   if (!isSupabaseConfigured) return;
 

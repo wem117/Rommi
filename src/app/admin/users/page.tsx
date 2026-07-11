@@ -1,188 +1,284 @@
 "use client";
 
-import { Loader2, RefreshCcw, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ExternalLink, Loader2, Pencil, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
-import { StatusBanner } from "@/components/StatusBanner";
-import { useAuth } from "@/context/auth-context";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { UserProfile } from "@/types/user";
 
+const EDIT_EMPTY = { fullName: "", email: "", university: "" };
+
 export default function AdminUsersPage() {
-  const { profile } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
-  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<UserProfile | null>(null);
+  const [editForm, setEditForm] = useState(EDIT_EMPTY);
+  const [saving, setSaving] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
-    setMessage(null);
-
-    const response = await fetch("/api/admin/users");
-    const payload = (await response.json()) as { users?: UserProfile[]; error?: string };
-
-    if (!response.ok) {
-      setMessage(payload.error || "Could not load users.");
+    try {
+      const res = await fetch("/api/admin/users");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Could not load users.");
+      setUsers(json.users ?? []);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not load users.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setUsers(payload.users ?? []);
-    setLoading(false);
-  }
+  }, []);
 
   useEffect(() => {
-    if (!profile || profile.role !== "admin") {
-      setLoading(false);
-      return;
-    }
-
     void load();
-  }, [profile]);
+  }, [load]);
 
   const filtered = useMemo(() => {
-    return users.filter((user) => {
-      if (!search) return true;
-      return [user.fullName, user.email, user.uid].some(
-        (value) => value && String(value).toLowerCase().includes(search.toLowerCase())
-      );
-    });
+    if (!search.trim()) return users;
+    const q = search.toLowerCase();
+    return users.filter((user) => [user.fullName, user.email, user.uid].some((v) => v && String(v).toLowerCase().includes(q)));
   }, [search, users]);
 
-  if (!profile) {
-    return (
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold">Users</h1>
-        <p className="mt-2 text-foreground/65">Sign in to view users.</p>
-      </main>
-    );
-  }
-
-  if (profile.role !== "admin") {
-    return (
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold">Users</h1>
-        <p className="mt-2 text-foreground/65">You are not authorized to view this page.</p>
-      </main>
-    );
+  async function patch(uid: string, body: Record<string, unknown>) {
+    const res = await fetch(`/api/admin/users/${uid}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error(json.error ?? "Update failed");
+    }
   }
 
   async function toggleBan(userId: string, ban: boolean) {
-    setActionLoadingId(userId);
-    const response = await fetch("/api/admin/users/ban", {
-      method: "POST",
-      body: JSON.stringify({ userId, ban }),
-      headers: { "Content-Type": "application/json" }
-    });
-    const payload = (await response.json()) as { error?: string };
-
-    if (!response.ok) {
-      setMessage(payload.error || "Could not update user status.");
-      setActionLoadingId(null);
-      return;
+    setBusyId(userId);
+    try {
+      const res = await fetch("/api/admin/users/ban", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, ban })
+      });
+      if (!res.ok) throw new Error("Could not update user status.");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Update failed");
+    } finally {
+      setBusyId(null);
     }
-
-    setUsers((current) => current.map((user) => (user.uid === userId ? { ...user, banned: ban } : user)));
-    setActionLoadingId(null);
   }
 
   async function toggleVerify(userId: string, verify: boolean) {
-    setActionLoadingId(userId);
-    const response = await fetch("/api/admin/users/verify", {
-      method: "POST",
-      body: JSON.stringify({ userId, verify }),
-      headers: { "Content-Type": "application/json" }
-    });
-    const payload = (await response.json()) as { error?: string };
-
-    if (!response.ok) {
-      setMessage(payload.error || "Could not update verification.");
-      setActionLoadingId(null);
-      return;
+    setBusyId(userId);
+    try {
+      const res = await fetch("/api/admin/users/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, verify })
+      });
+      if (!res.ok) throw new Error("Could not update verification.");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Update failed");
+    } finally {
+      setBusyId(null);
     }
+  }
 
-    setUsers((current) =>
-      current.map((user) => (user.uid === userId ? { ...user, verified: verify } : user))
-    );
-    setActionLoadingId(null);
+  function startEdit(user: UserProfile) {
+    setEditing(user);
+    setEditForm({ fullName: user.fullName, email: user.email ?? "", university: user.university });
+  }
+
+  async function saveEdit() {
+    if (!editing) return;
+    setSaving(true);
+    try {
+      await patch(editing.uid, editForm);
+      toast.success("User updated");
+      setEditing(null);
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove(uid: string) {
+    try {
+      const res = await fetch(`/api/admin/users/${uid}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      toast.success("User deleted");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Delete failed");
+    } finally {
+      setPendingDeleteId(null);
+    }
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-4xl font-bold">Users</h1>
-          <p className="mt-2 text-foreground/65">Search profiles, verify accounts, and flag suspicious users.</p>
-        </div>
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+      <h1 className="text-2xl font-bold sm:text-3xl">Users</h1>
+      <p className="mt-1 text-sm text-foreground/60">Search profiles, verify accounts, and manage membership.</p>
 
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="inline-flex items-center gap-2 rounded-full border border-[#e7dccf] bg-white px-5 py-3 text-sm font-semibold"
-        >
-          <RefreshCcw className="h-4 w-4" />
-          Refresh
-        </button>
+      <div className="mt-6">
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, email, or ID" />
       </div>
 
       <div className="mt-6">
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search users"
-          className="w-full rounded-2xl border border-border bg-white px-4 py-3"
-        />
+        {loading ? (
+          <div className="grid place-items-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <p className="rounded-2xl border border-border bg-card p-6 text-center text-sm text-foreground/60">No users found.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Flags</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((user) => (
+                <TableRow key={user.uid}>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5 font-semibold">
+                      {user.fullName || "—"}
+                      {user.verified ? <ShieldCheck className="h-4 w-4 text-primary" /> : null}
+                    </div>
+                    <p className="text-xs text-foreground/50">{user.email || user.uid}</p>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={user.role === "admin" ? "default" : "secondary"}>{user.role || "user"}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {user.verified ? <Badge variant="secondary">Verified</Badge> : null}
+                      {user.banned ? <Badge variant="destructive">Banned</Badge> : null}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" aria-label="View profile" asChild>
+                        <a href={`/roommates/${user.uid}`} target="_blank" rel="noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={user.verified ? "Revoke verification" : "Verify"}
+                        onClick={() => toggleVerify(user.uid, !user.verified)}
+                        disabled={busyId === user.uid}
+                      >
+                        {busyId === user.uid ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className={`h-4 w-4 ${user.verified ? "text-primary" : ""}`} />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={user.banned ? "Unban" : "Ban"}
+                        onClick={() => toggleBan(user.uid, !user.banned)}
+                        disabled={busyId === user.uid}
+                        className={user.banned ? "" : "hover:bg-destructive/10 hover:text-destructive"}
+                      >
+                        <ShieldAlert className={`h-4 w-4 ${user.banned ? "text-destructive" : ""}`} />
+                      </Button>
+                      <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => startEdit(user)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Delete"
+                        className="hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => setPendingDeleteId(user.uid)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </div>
 
-      <div className="mt-6">
-        <StatusBanner tone="error" message={message} actionLabel="Retry" onAction={() => void load()} />
-      </div>
-
-      <div className="mt-6 overflow-hidden rounded-2xl bg-white shadow-soft">
-        {loading ? <div className="p-4">Loading...</div> : null}
-        {!loading && filtered.length === 0 ? <div className="p-4">No users found.</div> : null}
-        {filtered.map((user) => (
-          <div key={user.uid} className="flex flex-col gap-4 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="flex flex-wrap items-center gap-2 font-semibold">
-                {user.fullName || "—"}
-                {user.verified ? <ShieldCheck className="h-4 w-4 text-primary" /> : null}
-                <span className="text-xs text-foreground/50">{user.email || user.uid}</span>
-              </div>
-              <div className="text-sm text-foreground/60">
-                Role: {user.role || "user"} • Verified: {user.verified ? "yes" : "no"} • Banned: {user.banned ? "yes" : "no"}
-              </div>
+      <Dialog open={Boolean(editing)} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit user</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-user-name">Full name</Label>
+              <Input id="edit-user-name" value={editForm.fullName} onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })} />
             </div>
-            <div className="flex gap-2">
-              <button
-                className={
-                  user.banned
-                    ? "rounded-full bg-foreground/20 px-4 py-2 text-sm font-semibold"
-                    : "rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white"
-                }
-                onClick={() => void toggleBan(user.uid, !user.banned)}
-                disabled={actionLoadingId === user.uid}
-              >
-                {actionLoadingId === user.uid ? <Loader2 className="h-4 w-4 animate-spin" /> : user.banned ? "Unban" : "Flag"}
-              </button>
-              <button
-                className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
-                onClick={() => void toggleVerify(user.uid, !user.verified)}
-                disabled={actionLoadingId === user.uid}
-              >
-                {actionLoadingId === user.uid ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : user.verified ? (
-                  "Revoke"
-                ) : (
-                  "Verify"
-                )}
-              </button>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-user-email">Email</Label>
+              <Input id="edit-user-email" type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-user-university">University</Label>
+              <Input id="edit-user-university" value={editForm.university} onChange={(e) => setEditForm({ ...editForm, university: e.target.value })} />
             </div>
           </div>
-        ))}
-      </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button onClick={saveEdit} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={Boolean(pendingDeleteId)} onOpenChange={(open) => !open && setPendingDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the user&apos;s profile and account. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => pendingDeleteId && remove(pendingDeleteId)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

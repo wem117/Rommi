@@ -10,8 +10,7 @@ export async function GET() {
     const { data, error } = await supabase.from("listings").select("*").order("created_at", { ascending: false });
 
     if (error) throw error;
-    const listings = (data ?? []).map((row) => ({ ...mapListingRow(row), removed: Boolean(row.removed) }));
-    return NextResponse.json({ listings });
+    return NextResponse.json({ listings: (data ?? []).map(mapListingRow) });
   } catch (error) {
     return apiErrorResponse(error);
   }

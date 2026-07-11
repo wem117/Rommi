@@ -140,6 +140,30 @@ export async function getListings(filters: ListingFiltersInput = {}, page = 1, p
   return { listings, hasMore: (count ?? 0) > page * pageSize };
 }
 
+/** Admin-curated listings for the home page. Falls back to demo listings when none are featured. */
+export async function getFeaturedListings(limit = 6): Promise<Listing[]> {
+  if (!isSupabaseConfigured) {
+    return demoListings.filter((listing) => !listing.removed).slice(0, limit);
+  }
+
+  try {
+    const supabase = getSupabaseBrowserClient();
+    const { data, error } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("featured", true)
+      .eq("removed", false)
+      .order("featured_position", { ascending: true })
+      .limit(limit);
+
+    if (error) throw error;
+    if (!data || data.length === 0) return demoListings.filter((listing) => !listing.removed).slice(0, limit);
+    return data.map(mapListingRow);
+  } catch {
+    return demoListings.filter((listing) => !listing.removed).slice(0, limit);
+  }
+}
+
 export async function getListingById(listingId: string) {
   if (!isSupabaseConfigured) {
     return demoListings.find((listing) => listing.id === listingId) ?? null;

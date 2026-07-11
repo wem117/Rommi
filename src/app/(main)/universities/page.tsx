@@ -1,31 +1,53 @@
-import Link from "next/link";
+"use client";
 
-import { UNIVERSITIES } from "@/lib/constants/universities";
+import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+import { useLocale } from "@/context/locale-context";
+import { getActiveUniversities, type PublicUniversity } from "@/lib/data/universities";
 
 export default function UniversitiesPage() {
+  const { t } = useLocale();
+  const [universities, setUniversities] = useState<PublicUniversity[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    void getActiveUniversities().then((data) => {
+      setUniversities(data);
+      setLoading(false);
+    });
+  }, []);
+
   return (
     <main className="mx-auto min-h-[70vh] max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="text-4xl font-bold">Universities</h1>
-      <p className="mt-2 max-w-2xl text-foreground/65">
-        Find roommates and rooms around Kazakhstan&apos;s major student communities.
-      </p>
+      <h1 className="text-4xl font-bold">{t("universities.title")}</h1>
+      <p className="mt-2 max-w-2xl text-foreground/65">{t("universities.description")}</p>
 
-      <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {UNIVERSITIES.map((university) => (
-          <article key={university} className="rounded-2xl bg-white p-6 shadow-soft">
-            <h2 className="font-heading text-xl font-bold">{university}</h2>
-            <p className="mt-2 text-sm text-foreground/60">Browse listings and students connected to this campus.</p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <Link href={`/rooms?university=${encodeURIComponent(university)}`} className="font-semibold text-primary">
-                Rooms
-              </Link>
-              <Link href={`/roommates?university=${encodeURIComponent(university)}`} className="font-semibold text-primary">
-                Roommates
-              </Link>
-            </div>
-          </article>
-        ))}
-      </div>
+      {loading ? (
+        <div className="mt-10 grid place-items-center py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      ) : (
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {universities.map((university) => (
+            <article key={university.id} className="rounded-2xl bg-white p-6 shadow-soft">
+              <h2 className="font-heading text-xl font-bold">{university.name}</h2>
+              <p className="mt-2 text-sm text-foreground/60">
+                {university.description || t("universities.cardDescription")}
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <Link href={`/rooms?university=${encodeURIComponent(university.name)}`} className="font-semibold text-primary">
+                  {t("universities.rooms")}
+                </Link>
+                <Link href={`/roommates?university=${encodeURIComponent(university.name)}`} className="font-semibold text-primary">
+                  {t("universities.roommates")}
+                </Link>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </main>
   );
 }

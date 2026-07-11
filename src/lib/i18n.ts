@@ -117,6 +117,13 @@ const translations = {
       openChat: "Open chat",
       noMessages: "No messages yet"
     },
+    universities: {
+      title: "Universities",
+      description: "Find roommates and rooms around Kazakhstan's major student communities.",
+      cardDescription: "Browse listings and students connected to this campus.",
+      rooms: "Rooms",
+      roommates: "Roommates"
+    },
     rooms: {
       badge: "Browse Rooms",
       title: "Verified rooms across Kazakhstan",
@@ -344,6 +351,13 @@ const translations = {
       openChat: "Открыть чат",
       noMessages: "Сообщений пока нет"
     },
+    universities: {
+      title: "Университеты",
+      description: "Найдите соседей и комнаты рядом с крупнейшими студенческими сообществами Казахстана.",
+      cardDescription: "Смотрите объявления и студентов, связанных с этим кампусом.",
+      rooms: "Комнаты",
+      roommates: "Соседи"
+    },
     rooms: {
       badge: "Поиск комнат",
       title: "Проверенные комнаты по всему Казахстану",
@@ -569,6 +583,13 @@ const translations = {
       viewed: "Қаралды",
       openChat: "Чатты ашу",
       noMessages: "Хабарлама әлі жоқ"
+    },
+    universities: {
+      title: "Университеттер",
+      description: "Қазақстанның ірі студенттік қауымдастықтары маңынан roommate және бөлме табыңыз.",
+      cardDescription: "Осы кампуспен байланысты хабарландырулар мен студенттерді қараңыз.",
+      rooms: "Бөлмелер",
+      roommates: "Roommate"
     },
     rooms: {
       badge: "Бөлмелерді қарау",

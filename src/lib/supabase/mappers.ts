@@ -56,6 +56,9 @@ export function mapProfileRow(row: GenericRecord): UserProfile {
     favoriteRoommateIds: asStringArray(row.favorite_roommate_ids ?? row.favoriteRoommateIds),
     viewedListingIds: asStringArray(row.viewed_listing_ids ?? row.viewedListingIds),
     contactedListingIds: asStringArray(row.contacted_listing_ids ?? row.contactedListingIds),
+    roommateStatus: (row.roommate_status as UserProfile["roommateStatus"]) ?? "approved",
+    featured: Boolean(row.featured),
+    featuredPosition: typeof row.featured_position === "number" ? row.featured_position : null,
     createdAt: asDate(row.created_at ?? row.createdAt),
     updatedAt: asDate(row.updated_at ?? row.updatedAt)
   };
@@ -86,6 +89,11 @@ export function mapListingRow(row: GenericRecord): Listing {
       pets: "no_pets"
     }) as ListingPreferences,
     photoUrls: asStringArray(row.photo_urls ?? row.photoUrls),
+    status: (row.status as Listing["status"]) ?? "approved",
+    removed: Boolean(row.removed),
+    removedAt: row.removed_at ? asDate(row.removed_at) : null,
+    featured: Boolean(row.featured),
+    featuredPosition: typeof row.featured_position === "number" ? row.featured_position : null,
     createdAt: asDate(row.created_at ?? row.createdAt),
     updatedAt: asDate(row.updated_at ?? row.updatedAt)
   };
@@ -126,6 +134,7 @@ export function mapReportRow(row: GenericRecord): Report {
     reason: String(row.reason ?? ""),
     details: typeof row.details === "string" ? row.details : "",
     status: (row.status ?? "open") as Report["status"],
+    adminNote: typeof row.admin_note === "string" ? row.admin_note : "",
     createdAt: asDate(row.created_at ?? row.createdAt),
     updatedAt: asDate(row.updated_at ?? row.updatedAt)
   };

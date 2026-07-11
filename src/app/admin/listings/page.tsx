@@ -1,146 +1,369 @@
 "use client";
 
-import { Eye, EyeOff, Loader2, RefreshCcw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowDown, ArrowUp, Eye, EyeOff, Loader2, Pencil, Star, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
-import { StatusBanner } from "@/components/StatusBanner";
-import { useAuth } from "@/context/auth-context";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import type { Listing } from "@/types/listing";
 
-type AdminListing = Listing & {
-  removed?: boolean;
-};
+const EDIT_EMPTY = { title: "", description: "", monthlyRent: 0, city: "", district: "", address: "" };
 
 export default function AdminListingsPage() {
-  const { profile } = useAuth();
-  const [listings, setListings] = useState<AdminListing[]>([]);
+  const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState<string | null>(null);
-  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Listing | null>(null);
+  const [editForm, setEditForm] = useState(EDIT_EMPTY);
+  const [saving, setSaving] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
-    setMessage(null);
-
-    const response = await fetch("/api/admin/listings");
-    const payload = (await response.json()) as { listings?: AdminListing[]; error?: string };
-
-    if (!response.ok) {
-      setMessage(payload.error || "Could not load listings.");
+    try {
+      const res = await fetch("/api/admin/listings");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Could not load listings.");
+      setListings(json.listings ?? []);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not load listings.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setListings(payload.listings ?? []);
-    setLoading(false);
-  }
+  }, []);
 
   useEffect(() => {
-    if (!profile || profile.role !== "admin") {
-      setLoading(false);
-      return;
-    }
-
     void load();
-  }, [profile]);
+  }, [load]);
 
-  if (!profile) {
-    return (
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold">Listings</h1>
-        <p className="mt-2 text-foreground/65">Sign in to view listings.</p>
-      </main>
-    );
-  }
+  const featured = useMemo(
+    () => listings.filter((l) => l.featured).sort((a, b) => (a.featuredPosition ?? 0) - (b.featuredPosition ?? 0)),
+    [listings]
+  );
 
-  if (profile.role !== "admin") {
-    return (
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold">Listings</h1>
-        <p className="mt-2 text-foreground/65">You are not authorized to view this page.</p>
-      </main>
-    );
-  }
-
-  async function takeAction(listingId: string, action: "remove" | "restore") {
-    setActionLoadingId(listingId);
-
-    const response = await fetch("/api/admin/listings/action", {
-      method: "POST",
-      body: JSON.stringify({ listingId, action }),
-      headers: { "Content-Type": "application/json" }
+  async function patch(id: string, body: Record<string, unknown>) {
+    const res = await fetch(`/api/admin/listings/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
     });
-
-    const payload = (await response.json()) as { error?: string };
-
-    if (!response.ok) {
-      setMessage(payload.error || "Could not update listing visibility.");
-      setActionLoadingId(null);
-      return;
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error(json.error ?? "Update failed");
     }
+  }
 
-    setListings((current) =>
-      current.map((listing) => (listing.id === listingId ? { ...listing, removed: action === "remove" } : listing))
-    );
-    setActionLoadingId(null);
+  async function toggleVisibility(listing: Listing) {
+    setBusyId(listing.id);
+    try {
+      const res = await fetch("/api/admin/listings/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingId: listing.id, action: listing.removed ? "restore" : "remove" })
+      });
+      if (!res.ok) throw new Error("Could not update listing visibility.");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Update failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function setStatus(id: string, status: "approved" | "rejected") {
+    setBusyId(id);
+    try {
+      await patch(id, { status });
+      toast.success(status === "approved" ? "Listing approved" : "Listing rejected");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Update failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function toggleFeatured(listing: Listing) {
+    setBusyId(listing.id);
+    try {
+      await patch(listing.id, {
+        featured: !listing.featured,
+        featuredPosition: !listing.featured ? listings.filter((l) => l.featured).length : null
+      });
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Update failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function moveFeatured(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= featured.length) return;
+    const a = featured[index];
+    const b = featured[target];
+    try {
+      await Promise.all([
+        patch(a.id, { featuredPosition: b.featuredPosition ?? target }),
+        patch(b.id, { featuredPosition: a.featuredPosition ?? index })
+      ]);
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Reorder failed");
+    }
+  }
+
+  function startEdit(listing: Listing) {
+    setEditing(listing);
+    setEditForm({
+      title: listing.title,
+      description: listing.description,
+      monthlyRent: listing.monthlyRent,
+      city: listing.city,
+      district: listing.district ?? "",
+      address: listing.address
+    });
+  }
+
+  async function saveEdit() {
+    if (!editing) return;
+    setSaving(true);
+    try {
+      await patch(editing.id, editForm);
+      toast.success("Listing updated");
+      setEditing(null);
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove(id: string) {
+    try {
+      const res = await fetch(`/api/admin/listings/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      toast.success("Listing deleted");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Delete failed");
+    } finally {
+      setPendingDeleteId(null);
+    }
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-4xl font-bold">Listings</h1>
-          <p className="mt-2 text-foreground/65">Review room listings and toggle their visibility.</p>
-        </div>
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+      <h1 className="text-2xl font-bold sm:text-3xl">Listings</h1>
+      <p className="mt-1 text-sm text-foreground/60">Moderate room listings and curate which ones are featured.</p>
 
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="inline-flex items-center gap-2 rounded-full border border-[#e7dccf] bg-white px-5 py-3 text-sm font-semibold"
-        >
-          <RefreshCcw className="h-4 w-4" />
-          Refresh
-        </button>
-      </div>
+      {featured.length > 0 ? (
+        <section className="mt-6 rounded-2xl border border-border bg-card p-4 shadow-soft">
+          <h2 className="font-heading text-sm font-bold uppercase tracking-wide text-foreground/50">Featured order</h2>
+          <ul className="mt-3 space-y-2">
+            {featured.map((item, index) => (
+              <li key={item.id} className="flex items-center justify-between gap-3 rounded-xl bg-surface-muted px-3 py-2">
+                <span className="truncate text-sm font-semibold">{item.title || "Untitled"}</span>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button variant="ghost" size="icon" onClick={() => moveFeatured(index, -1)} disabled={index === 0}>
+                    <ArrowUp className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => moveFeatured(index, 1)} disabled={index === featured.length - 1}>
+                    <ArrowDown className="h-4 w-4" />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <div className="mt-6">
-        <StatusBanner tone="error" message={message} actionLabel="Retry" onAction={() => void load()} />
+        {loading ? (
+          <div className="grid place-items-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : listings.length === 0 ? (
+          <p className="rounded-2xl border border-border bg-card p-6 text-center text-sm text-foreground/60">No listings found.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Listing</TableHead>
+                <TableHead>Rent</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Flags</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {listings.map((listing) => (
+                <TableRow key={listing.id}>
+                  <TableCell>
+                    <p className="font-semibold">{listing.title || "Untitled"}</p>
+                    <p className="text-xs text-foreground/50">
+                      {listing.city} · Owner: {listing.ownerId}
+                    </p>
+                  </TableCell>
+                  <TableCell className="text-sm text-foreground/70">{listing.monthlyRent.toLocaleString()} ₸</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        listing.status === "approved" ? "success" : listing.status === "rejected" ? "destructive" : "warning"
+                      }
+                    >
+                      {listing.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {listing.removed ? <Badge variant="destructive">Hidden</Badge> : null}
+                      {listing.featured ? <Badge variant="default">Featured</Badge> : null}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-end gap-1">
+                      {listing.status !== "approved" ? (
+                        <Button size="sm" variant="outline" disabled={busyId === listing.id} onClick={() => setStatus(listing.id, "approved")}>
+                          Approve
+                        </Button>
+                      ) : null}
+                      {listing.status !== "rejected" ? (
+                        <Button size="sm" variant="outline" disabled={busyId === listing.id} onClick={() => setStatus(listing.id, "rejected")}>
+                          Reject
+                        </Button>
+                      ) : null}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={listing.removed ? "Restore" : "Hide"}
+                        onClick={() => toggleVisibility(listing)}
+                        disabled={busyId === listing.id}
+                      >
+                        {listing.removed ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Toggle featured"
+                        onClick={() => toggleFeatured(listing)}
+                        disabled={busyId === listing.id}
+                      >
+                        <Star className={`h-4 w-4 ${listing.featured ? "fill-highlight text-highlight" : ""}`} />
+                      </Button>
+                      <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => startEdit(listing)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Delete"
+                        className="hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => setPendingDeleteId(listing.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-2xl bg-white shadow-soft">
-        {loading ? <div className="p-4">Loading...</div> : null}
-        {!loading && listings.length === 0 ? <div className="p-4">No listings found.</div> : null}
-        {listings.map((listing) => (
-          <div key={listing.id} className="flex flex-col gap-4 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="font-semibold">
-                {listing.title || "Untitled"}{" "}
-                <span className="text-xs text-foreground/50">{listing.city}</span>
+      <Dialog open={Boolean(editing)} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit listing</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-title">Title</Label>
+              <Input id="edit-title" value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                rows={4}
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-rent">Monthly rent (₸)</Label>
+                <Input
+                  id="edit-rent"
+                  type="number"
+                  value={editForm.monthlyRent}
+                  onChange={(e) => setEditForm({ ...editForm, monthlyRent: Number(e.target.value) })}
+                />
               </div>
-              <div className="text-sm text-foreground/60">Owner: {listing.ownerId}</div>
-              <div className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#9a6e56]">
-                {listing.removed ? "Hidden" : "Visible"}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-city">City</Label>
+                <Input id="edit-city" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
               </div>
             </div>
-            <div className="flex gap-2">
-              <button
-                className="inline-flex items-center gap-2 rounded-full bg-[#f7f1e7] px-4 py-2 text-sm font-semibold text-foreground"
-                onClick={() => void takeAction(listing.id, listing.removed ? "restore" : "remove")}
-                disabled={actionLoadingId === listing.id}
-              >
-                {actionLoadingId === listing.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : listing.removed ? (
-                  <Eye className="h-4 w-4" />
-                ) : (
-                  <EyeOff className="h-4 w-4" />
-                )}
-                {listing.removed ? "Restore" : "Hide"}
-              </button>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-district">District</Label>
+                <Input id="edit-district" value={editForm.district} onChange={(e) => setEditForm({ ...editForm, district: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-address">Address</Label>
+                <Input id="edit-address" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
+              </div>
             </div>
           </div>
-        ))}
-      </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button onClick={saveEdit} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={Boolean(pendingDeleteId)} onOpenChange={(open) => !open && setPendingDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this listing?</AlertDialogTitle>
+            <AlertDialogDescription>This permanently deletes the listing. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => pendingDeleteId && remove(pendingDeleteId)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { supabaseConfig } from "@/lib/supabase/config";
+import { requireAdminUser } from "@/lib/supabase/admin";
 import { requireSessionUser } from "@/lib/supabase/session";
 import { MAX_IMAGE_SIZE, IMAGE_TYPES } from "@/lib/supabase/storage";
 import { friendlySupabaseError, isMissingSupabaseTable } from "@/lib/utils/errors";
@@ -17,9 +18,10 @@ const deleteSchema = z.object({
   path: z.string().min(1)
 });
 
+const ADMIN_UPLOAD_KIND = "admin";
+
 export async function POST(request: Request) {
   try {
-    const user = await requireSessionUser();
     const formData = await request.formData();
     const file = formData.get("file");
     const kind = formData.get("kind");
@@ -28,9 +30,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Select an image to upload." }, { status: 400 });
     }
 
-    if (kind !== "avatars" && kind !== "listings" && kind !== "messages") {
+    if (kind !== "avatars" && kind !== "listings" && kind !== "messages" && kind !== ADMIN_UPLOAD_KIND) {
       return NextResponse.json({ error: "Upload kind is invalid." }, { status: 400 });
     }
+
+    // Admin-managed content (universities, testimonials, homepage assets) isn't
+    // scoped to a single user's folder, so it requires admin access instead.
+    const user = kind === ADMIN_UPLOAD_KIND ? (await requireAdminUser()).user : await requireSessionUser();
 
     if (!IMAGE_TYPES.includes(file.type as (typeof IMAGE_TYPES)[number])) {
       return NextResponse.json({ error: "Only JPG, JPEG, PNG, and WEBP images are allowed." }, { status: 400 });
@@ -41,7 +47,10 @@ export async function POST(request: Request) {
     }
 
     const supabase = createSupabaseAdminClient();
-    const path = `${kind}/${user.id}/${randomUUID()}.${fileExtension(file)}`;
+    const path =
+      kind === ADMIN_UPLOAD_KIND
+        ? `admin/${randomUUID()}.${fileExtension(file)}`
+        : `${kind}/${user.id}/${randomUUID()}.${fileExtension(file)}`;
     const bytes = Buffer.from(await file.arrayBuffer());
 
     const { error: uploadError } = await supabase.storage

@@ -7,23 +7,65 @@ import { toast } from "sonner";
 
 import { AvatarUpload } from "@/components/profile/avatar-upload";
 import { useAuth } from "@/context/auth-context";
+import { useLocale } from "@/context/locale-context";
 import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { updateProfile } from "@/lib/data/profiles";
 import { sendCurrentUserVerificationEmail } from "@/lib/supabase/auth";
 import { profileCompletion } from "@/lib/utils/compatibility";
 import type { LifestylePreferences, UserProfile } from "@/types/user";
 
-const lifestyleOptions = {
-  smoking: ["no", "outside", "yes", "no_preference"],
-  pets: ["no_pets", "pet_friendly", "has_pets", "no_preference"],
-  cleanliness: ["relaxed", "moderate", "very_clean"],
-  sleepSchedule: ["early_bird", "balanced", "night_owl"],
-  guests: ["rarely", "sometimes", "often"]
-} as const;
+const lifestyleOptions: Record<
+  keyof LifestylePreferences,
+  { labelKey: string; options: { value: string; labelKey: string }[] }
+> = {
+  smoking: {
+    labelKey: "onboarding.smokingLabel",
+    options: [
+      { value: "no", labelKey: "onboarding.smokingNo" },
+      { value: "outside", labelKey: "onboarding.smokingOutside" },
+      { value: "yes", labelKey: "onboarding.smokingYes" },
+      { value: "no_preference", labelKey: "onboarding.noPreference" }
+    ]
+  },
+  pets: {
+    labelKey: "onboarding.petsLabel",
+    options: [
+      { value: "no_pets", labelKey: "onboarding.petsNo" },
+      { value: "pet_friendly", labelKey: "onboarding.petsFriendly" },
+      { value: "has_pets", labelKey: "onboarding.petsHas" },
+      { value: "no_preference", labelKey: "onboarding.noPreference" }
+    ]
+  },
+  cleanliness: {
+    labelKey: "onboarding.cleanlinessLabel",
+    options: [
+      { value: "relaxed", labelKey: "onboarding.cleanlinessRelaxed" },
+      { value: "moderate", labelKey: "onboarding.cleanlinessModerate" },
+      { value: "very_clean", labelKey: "onboarding.cleanlinessVeryClean" }
+    ]
+  },
+  sleepSchedule: {
+    labelKey: "onboarding.sleepScheduleLabel",
+    options: [
+      { value: "early_bird", labelKey: "onboarding.sleepEarlyBird" },
+      { value: "balanced", labelKey: "onboarding.sleepBalanced" },
+      { value: "night_owl", labelKey: "onboarding.sleepNightOwl" }
+    ]
+  },
+  guests: {
+    labelKey: "onboarding.guestsLabel",
+    options: [
+      { value: "rarely", labelKey: "onboarding.guestsRarely" },
+      { value: "sometimes", labelKey: "onboarding.guestsSometimes" },
+      { value: "often", labelKey: "onboarding.guestsOften" }
+    ]
+  }
+};
 
 export default function EditProfilePage() {
   const router = useRouter();
   const { user, profile, refreshProfile } = useAuth();
+  const { t } = useLocale();
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<UserProfile | null>(profile);
 
@@ -66,11 +108,11 @@ export default function EditProfilePage() {
         onboardingComplete: true
       });
       await refreshProfile();
-      toast.success("Profile updated");
+      toast.success(t("profileEdit.profileUpdatedToast"));
       router.push("/profile");
     } catch (error) {
       console.error(error);
-      toast.error("Could not update profile");
+      toast.error(t("profileEdit.updateFailedToast"));
     } finally {
       setSaving(false);
     }
@@ -79,9 +121,9 @@ export default function EditProfilePage() {
   async function verifyEmail() {
     try {
       await sendCurrentUserVerificationEmail();
-      toast.success("Verification email sent");
+      toast.success(t("profileEdit.verificationEmailSentToast"));
     } catch {
-      toast.error("Could not send verification email");
+      toast.error(t("profileEdit.verificationEmailFailedToast"));
     }
   }
 
@@ -90,8 +132,8 @@ export default function EditProfilePage() {
       <section className="rounded-2xl bg-white p-6 shadow-soft">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-3xl font-bold">Edit profile</h1>
-            <p className="mt-2 text-sm text-foreground/60">Keep your roommate profile accurate and current.</p>
+            <h1 className="text-3xl font-bold">{t("profileEdit.title")}</h1>
+            <p className="mt-2 text-sm text-foreground/60">{t("profileEdit.subtitle")}</p>
           </div>
           {!user.emailVerified ? (
             <button
@@ -100,7 +142,7 @@ export default function EditProfilePage() {
               className="inline-flex items-center justify-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-semibold"
             >
               <Send className="h-4 w-4" />
-              Verify email
+              {t("profileEdit.verifyEmailButton")}
             </button>
           ) : null}
         </div>
@@ -114,48 +156,48 @@ export default function EditProfilePage() {
         </div>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          <Field label="Full name" value={draft.fullName} onChange={(value) => updateField("fullName", value)} />
+          <Field label={t("onboarding.fullNameLabel")} value={draft.fullName} onChange={(value) => updateField("fullName", value)} />
           <Field
-            label="Age"
+            label={t("onboarding.ageLabel")}
             type="number"
             value={String(draft.age)}
             onChange={(value) => updateField("age", Number(value))}
           />
-          <Select label="Gender" value={draft.gender} onChange={(value) => updateField("gender", value as UserProfile["gender"])}>
-            <option value="female">Female</option>
-            <option value="male">Male</option>
-            <option value="other">Other</option>
-            <option value="prefer_not_to_say">Prefer not to say</option>
+          <Select label={t("onboarding.genderLabel")} value={draft.gender} onChange={(value) => updateField("gender", value as UserProfile["gender"])}>
+            <option value="female">{t("onboarding.genderFemale")}</option>
+            <option value="male">{t("onboarding.genderMale")}</option>
+            <option value="other">{t("onboarding.genderOther")}</option>
+            <option value="prefer_not_to_say">{t("onboarding.genderPreferNotToSay")}</option>
           </Select>
           <div>
-            <label htmlFor="university">University</label>
+            <label htmlFor="university">{t("onboarding.universityLabel")}</label>
             <UniversityCombobox
               id="university"
               value={draft.university}
               onChange={(value) => updateField("university", value)}
             />
           </div>
-          <Field label="Occupation" value={draft.occupation} onChange={(value) => updateField("occupation", value)} />
+          <Field label={t("onboarding.occupationLabel")} value={draft.occupation} onChange={(value) => updateField("occupation", value)} />
           <Field
-            label="Preferred move-in date"
+            label={t("onboarding.moveInDateLabel")}
             type="date"
             value={draft.preferredMoveInDate?.toISOString().slice(0, 10) ?? ""}
             onChange={(value) => updateField("preferredMoveInDate", value ? new Date(value) : null)}
           />
           <Field
-            label="Min budget"
+            label={t("onboarding.minBudgetLabel")}
             type="number"
             value={String(draft.minBudget)}
             onChange={(value) => updateField("minBudget", Number(value))}
           />
           <Field
-            label="Max budget"
+            label={t("onboarding.maxBudgetLabel")}
             type="number"
             value={String(draft.maxBudget)}
             onChange={(value) => updateField("maxBudget", Number(value))}
           />
           <div className="sm:col-span-2">
-            <label htmlFor="bio">Bio</label>
+            <label htmlFor="bio">{t("profileEdit.bioLabel")}</label>
             <textarea
               id="bio"
               rows={4}
@@ -167,10 +209,8 @@ export default function EditProfilePage() {
           <div className="sm:col-span-2 rounded-[1.5rem] border border-[#e8dccd] bg-[#f8f2e8] p-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div className="text-sm font-semibold text-foreground">Looking for apartment</div>
-                <p className="mt-1 text-sm text-foreground/60">
-                  When enabled, your roommate profile appears in roommate search results.
-                </p>
+                <div className="text-sm font-semibold text-foreground">{t("profileEdit.lookingForApartmentLabel")}</div>
+                <p className="mt-1 text-sm text-foreground/60">{t("profileEdit.lookingForApartmentDescription")}</p>
               </div>
               <button
                 type="button"
@@ -191,25 +231,23 @@ export default function EditProfilePage() {
         </div>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {Object.entries(lifestyleOptions).map(([key, values]) => (
-            <Select
-              key={key}
-              label={key.replace(/([A-Z])/g, " $1")}
-              value={String(draft.lifestyle[key as keyof LifestylePreferences])}
-              onChange={(value) =>
-                updateLifestyle(
-                  key as keyof LifestylePreferences,
-                  value as LifestylePreferences[keyof LifestylePreferences]
-                )
-              }
-            >
-              {values.map((value) => (
-                <option key={value} value={value}>
-                  {value.replaceAll("_", " ")}
-                </option>
-              ))}
-            </Select>
-          ))}
+          {(Object.keys(lifestyleOptions) as (keyof LifestylePreferences)[]).map((key) => {
+            const config = lifestyleOptions[key];
+            return (
+              <Select
+                key={key}
+                label={t(config.labelKey)}
+                value={String(draft.lifestyle[key])}
+                onChange={(value) => updateLifestyle(key, value as LifestylePreferences[keyof LifestylePreferences])}
+              >
+                {config.options.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {t(opt.labelKey)}
+                  </option>
+                ))}
+              </Select>
+            );
+          })}
         </div>
 
         <div className="mt-8 flex justify-end">
@@ -220,7 +258,7 @@ export default function EditProfilePage() {
             className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white disabled:opacity-60"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Save profile
+            {t("profileEdit.saveProfileButton")}
           </button>
         </div>
       </section>

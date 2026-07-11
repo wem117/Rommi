@@ -3,11 +3,13 @@
 import { useMemo, useState } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useAuth } from "@/context/auth-context";
+import { useLocale } from "@/context/locale-context";
 import { useConversations, useConversationParticipants } from "@/hooks/use-conversations";
 import ConversationItem from "./ConversationItem";
 
 export function ConversationList({ onSelect }: { onSelect?: (id: string) => void }) {
   const { user } = useAuth();
+  const { t } = useLocale();
   const { conversations, loading } = useConversations();
   const participants = useConversationParticipants(conversations, user?.uid);
   const [query, setQuery] = useState("");
@@ -29,11 +31,11 @@ export function ConversationList({ onSelect }: { onSelect?: (id: string) => void
   return (
     <aside className="w-full max-w-sm border-r border-border">
       <div className="p-4">
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search conversations" className="w-full rounded-md border border-border px-3 py-2" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("chat.searchConversationsPlaceholder")} className="w-full rounded-md border border-border px-3 py-2" />
       </div>
       <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 120px)' }}>
-        {loading ? <div className="p-4 text-sm text-foreground/60">Loading...</div> : null}
-        {!loading && filtered.length === 0 ? <div className="p-4 text-sm text-foreground/60">No conversations</div> : null}
+        {loading ? <div className="p-4 text-sm text-foreground/60">{t("chat.loadingConversations")}</div> : null}
+        {!loading && filtered.length === 0 ? <div className="p-4 text-sm text-foreground/60">{t("chat.noConversations")}</div> : null}
         {filtered.map((c) => (
           <ConversationItem
             key={c.id}

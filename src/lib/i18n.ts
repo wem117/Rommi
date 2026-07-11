@@ -77,6 +77,39 @@ const translations = {
       startSearching: "Start Searching",
       listYourRoom: "List Your Room"
     },
+    favorites: {
+      title: "Favorites",
+      subtitle: "Rooms you saved for later.",
+      loading: "Loading favorites..."
+    },
+    profileEdit: {
+      title: "Edit profile",
+      subtitle: "Keep your roommate profile accurate and current.",
+      verifyEmailButton: "Verify email",
+      bioLabel: "Bio",
+      lookingForApartmentLabel: "Looking for apartment",
+      lookingForApartmentDescription: "When enabled, your roommate profile appears in roommate search results.",
+      saveProfileButton: "Save profile",
+      profileUpdatedToast: "Profile updated",
+      updateFailedToast: "Could not update profile",
+      verificationEmailSentToast: "Verification email sent",
+      verificationEmailFailedToast: "Could not send verification email"
+    },
+    chat: {
+      inboxTitle: "Inbox",
+      inboxSubtitle: "Your conversations with roommates and listing owners.",
+      selectConversationPrompt: "Select a conversation to start chatting.",
+      searchConversationsPlaceholder: "Search conversations",
+      loadingConversations: "Loading...",
+      noConversations: "No conversations",
+      loadingMessages: "Loading messages...",
+      noMessagesYet: "No messages yet.",
+      aboutPrefix: "About:",
+      conversationFallback: "Conversation",
+      writeMessagePlaceholder: "Write a message",
+      sendLabel: "Send",
+      sendFailed: "Could not send message"
+    },
     profile: {
       overview: "Overview",
       chats: "Chats",
@@ -433,6 +466,39 @@ const translations = {
       startSearching: "Начать поиск",
       listYourRoom: "Разместить жилье"
     },
+    favorites: {
+      title: "Избранное",
+      subtitle: "Комнаты, которые вы сохранили.",
+      loading: "Загружаем избранное..."
+    },
+    profileEdit: {
+      title: "Редактировать профиль",
+      subtitle: "Поддерживайте профиль соседа точным и актуальным.",
+      verifyEmailButton: "Подтвердить email",
+      bioLabel: "О себе",
+      lookingForApartmentLabel: "Ищу квартиру",
+      lookingForApartmentDescription: "Когда включено, ваш профиль отображается в результатах поиска соседей.",
+      saveProfileButton: "Сохранить профиль",
+      profileUpdatedToast: "Профиль обновлён",
+      updateFailedToast: "Не удалось обновить профиль",
+      verificationEmailSentToast: "Письмо для подтверждения отправлено",
+      verificationEmailFailedToast: "Не удалось отправить письмо для подтверждения"
+    },
+    chat: {
+      inboxTitle: "Входящие",
+      inboxSubtitle: "Ваши переписки с соседями и владельцами объявлений.",
+      selectConversationPrompt: "Выберите переписку, чтобы начать общение.",
+      searchConversationsPlaceholder: "Поиск переписок",
+      loadingConversations: "Загрузка...",
+      noConversations: "Нет переписок",
+      loadingMessages: "Загрузка сообщений...",
+      noMessagesYet: "Сообщений пока нет.",
+      aboutPrefix: "По объявлению:",
+      conversationFallback: "Переписка",
+      writeMessagePlaceholder: "Напишите сообщение",
+      sendLabel: "Отправить",
+      sendFailed: "Не удалось отправить сообщение"
+    },
     profile: {
       overview: "Обзор",
       chats: "Чаты",
@@ -786,6 +852,39 @@ const translations = {
       ctaDescription: "Roomi қолданатын мыңдаған студенттер мен жас мамандарға қосылыңыз.",
       startSearching: "Іздеуді бастау",
       listYourRoom: "Бөлмеңізді жариялау"
+    },
+    favorites: {
+      title: "Таңдаулылар",
+      subtitle: "Сіз сақтаған бөлмелер.",
+      loading: "Таңдаулылар жүктелуде..."
+    },
+    profileEdit: {
+      title: "Профильді өңдеу",
+      subtitle: "Roommate профиліңізді дәл және өзекті ұстаңыз.",
+      verifyEmailButton: "Email растау",
+      bioLabel: "Өзім туралы",
+      lookingForApartmentLabel: "Пәтер іздеймін",
+      lookingForApartmentDescription: "Қосылған кезде профиліңіз roommate іздеу нәтижелерінде көрінеді.",
+      saveProfileButton: "Профильді сақтау",
+      profileUpdatedToast: "Профиль жаңартылды",
+      updateFailedToast: "Профильді жаңарту мүмкін болмады",
+      verificationEmailSentToast: "Растау хаты жіберілді",
+      verificationEmailFailedToast: "Растау хатын жіберу мүмкін болмады"
+    },
+    chat: {
+      inboxTitle: "Кіріс хабарлар",
+      inboxSubtitle: "Roommate және хабарландыру иелерімен хат-хабарларыңыз.",
+      selectConversationPrompt: "Сөйлесуді бастау үшін чатты таңдаңыз.",
+      searchConversationsPlaceholder: "Чаттарды іздеу",
+      loadingConversations: "Жүктелуде...",
+      noConversations: "Чаттар жоқ",
+      loadingMessages: "Хабарламалар жүктелуде...",
+      noMessagesYet: "Хабарлама әлі жоқ.",
+      aboutPrefix: "Хабарландыру бойынша:",
+      conversationFallback: "Чат",
+      writeMessagePlaceholder: "Хабарлама жазыңыз",
+      sendLabel: "Жіберу",
+      sendFailed: "Хабарламаны жіберу мүмкін болмады"
     },
     profile: {
       overview: "Шолу",

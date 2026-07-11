@@ -123,3 +123,14 @@ create policy select_reports_admin_or_owner
   on public.reports
   for select
   using (reporter_id::text = auth.uid()::text);
+
+-- Testimonials: anyone (including anonymous visitors) may read active rows.
+-- All writes go through the service-role admin client, which bypasses RLS.
+alter table public.testimonials enable row level security;
+
+drop policy if exists select_testimonials_active on public.testimonials;
+
+create policy select_testimonials_active
+  on public.testimonials
+  for select
+  using (active = true);

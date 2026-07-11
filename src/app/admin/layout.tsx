@@ -21,10 +21,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/admin" className="font-heading text-2xl font-bold text-primary">
             Roomi Admin
           </Link>
-          <nav className="flex gap-4 text-sm font-semibold text-foreground/65">
-            <Link href="/admin/users">Users</Link>
-            <Link href="/admin/listings">Listings</Link>
-            <Link href="/admin/reports">Reports</Link>
+          <nav className="flex flex-wrap gap-4 text-sm font-semibold text-foreground/65">
+            <Link href="/admin/users" className="transition hover:text-primary">Users</Link>
+            <Link href="/admin/listings" className="transition hover:text-primary">Listings</Link>
+            <Link href="/admin/reports" className="transition hover:text-primary">Reports</Link>
+            <Link href="/admin/testimonials" className="transition hover:text-primary">Testimonials</Link>
           </nav>
         </div>
       </header>

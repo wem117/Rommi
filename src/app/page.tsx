@@ -16,7 +16,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Footer } from "@/components/layout/footer";
 import { LanguageMenu } from "@/components/layout/language-menu";
@@ -26,36 +26,7 @@ import { Carousel } from "@/components/ui/carousel";
 import { useLocale } from "@/context/locale-context";
 import { CITIES } from "@/lib/constants/cities";
 import { demoListings, demoProfiles, demoUniversities } from "@/lib/data/demo";
-
-const testimonials = [
-  {
-    name: "Madina",
-    role: "Student at KazNU",
-    badge: "Verified Tenant",
-    image:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=700&q=80",
-    quote:
-      "Я нашла идеальную комнату для себя за 3 дня. Платформа очень удобная, а процент совместимости хорошо подбирает варианты."
-  },
-  {
-    name: "Alikhan",
-    role: "Student at Nazarbayev University",
-    badge: "Verified Tenant",
-    image:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=700&q=80",
-    quote:
-      "Matching by lifestyle actually works. My roommate and I have the same sleep schedule and cleanliness habits — living together has been stress-free."
-  },
-  {
-    name: "Aigerim",
-    role: "Young professional in Almaty",
-    badge: "Verified Host",
-    image:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=700&q=80",
-    quote:
-      "I listed my spare room and found a reliable roommate within a week. Chatting before meeting made it feel safe and simple."
-  }
-];
+import { DEMO_TESTIMONIALS, getActiveTestimonials, type Testimonial } from "@/lib/data/testimonials";
 
 export default function HomePage() {
   const { locale, t } = useLocale();
@@ -63,6 +34,11 @@ export default function HomePage() {
   const [searchCity, setSearchCity] = useState("");
   const [searchBudget, setSearchBudget] = useState("");
   const [searchType, setSearchType] = useState("");
+  const [testimonials, setTestimonials] = useState<Testimonial[]>(DEMO_TESTIMONIALS);
+
+  useEffect(() => {
+    void getActiveTestimonials().then(setTestimonials);
+  }, []);
 
   function handleSearch() {
     const params = new URLSearchParams();

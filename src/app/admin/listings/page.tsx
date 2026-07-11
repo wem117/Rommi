@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Eye, EyeOff, Loader2, Pencil, Star, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowDown, ArrowUp, Eye, EyeOff, Loader2, Pencil, Star, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -16,14 +16,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import type { Listing } from "@/types/listing";
 
 const EDIT_EMPTY = { title: "", description: "", monthlyRent: 0, city: "", district: "", address: "" };
+
+type StatusFilter = "all" | "pending" | "approved" | "rejected" | "archived" | "hidden";
 
 export default function AdminListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
@@ -33,6 +37,10 @@ export default function AdminListingsPage() {
   const [editForm, setEditForm] = useState(EDIT_EMPTY);
   const [saving, setSaving] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,6 +65,25 @@ export default function AdminListingsPage() {
     [listings]
   );
 
+  const filtered = useMemo(() => {
+    let next = listings;
+    if (statusFilter === "archived") next = next.filter((l) => l.archived);
+    else if (statusFilter === "hidden") next = next.filter((l) => l.removed);
+    else if (statusFilter !== "all") next = next.filter((l) => l.status === statusFilter);
+
+    const q = search.trim().toLowerCase();
+    if (q) {
+      next = next.filter((l) =>
+        [l.title, l.description, l.city, l.ownerId].some((v) => v && v.toLowerCase().includes(q))
+      );
+    }
+    return next;
+  }, [listings, statusFilter, search]);
+
+  useEffect(() => {
+    setSelected(new Set());
+  }, [statusFilter, search]);
+
   async function patch(id: string, body: Record<string, unknown>) {
     const res = await fetch(`/api/admin/listings/${id}`, {
       method: "PATCH",
@@ -78,6 +105,18 @@ export default function AdminListingsPage() {
         body: JSON.stringify({ listingId: listing.id, action: listing.removed ? "restore" : "remove" })
       });
       if (!res.ok) throw new Error("Could not update listing visibility.");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Update failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function toggleArchive(listing: Listing) {
+    setBusyId(listing.id);
+    try {
+      await patch(listing.id, { archived: !listing.archived });
       await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Update failed");
@@ -170,6 +209,45 @@ export default function AdminListingsPage() {
     }
   }
 
+  function toggleSelect(id: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelected((current) => (current.size === filtered.length ? new Set() : new Set(filtered.map((l) => l.id))));
+  }
+
+  async function bulk(action: "approve" | "reject" | "archive" | "unarchive" | "delete") {
+    if (selected.size === 0) return;
+    setBulkBusy(true);
+    try {
+      const ids = Array.from(selected);
+      if (action === "delete") {
+        await Promise.all(ids.map((id) => fetch(`/api/admin/listings/${id}`, { method: "DELETE" })));
+      } else if (action === "approve") {
+        await Promise.all(ids.map((id) => patch(id, { status: "approved" })));
+      } else if (action === "reject") {
+        await Promise.all(ids.map((id) => patch(id, { status: "rejected" })));
+      } else if (action === "archive") {
+        await Promise.all(ids.map((id) => patch(id, { archived: true })));
+      } else if (action === "unarchive") {
+        await Promise.all(ids.map((id) => patch(id, { archived: false })));
+      }
+      toast.success(`Updated ${ids.length} listing${ids.length === 1 ? "" : "s"}`);
+      setSelected(new Set());
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bulk update failed");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
       <h1 className="text-2xl font-bold sm:text-3xl">Listings</h1>
@@ -196,17 +274,64 @@ export default function AdminListingsPage() {
         </section>
       ) : null}
 
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by title, city, or owner" className="sm:flex-1" />
+        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+          <SelectTrigger className="sm:w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
+            <SelectItem value="hidden">Hidden</SelectItem>
+            <SelectItem value="archived">Archived</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {selected.size > 0 ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-surface-muted p-3">
+          <span className="text-sm font-semibold">{selected.size} selected</span>
+          <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => bulk("approve")}>
+            Approve
+          </Button>
+          <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => bulk("reject")}>
+            Reject
+          </Button>
+          <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => bulk("archive")}>
+            Archive
+          </Button>
+          <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => bulk("unarchive")}>
+            Unarchive
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={bulkBusy}
+            className="hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => bulk("delete")}
+          >
+            Delete
+          </Button>
+        </div>
+      ) : null}
+
       <div className="mt-6">
         {loading ? (
           <div className="grid place-items-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
-        ) : listings.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <p className="rounded-2xl border border-border bg-card p-6 text-center text-sm text-foreground/60">No listings found.</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox checked={selected.size === filtered.length && filtered.length > 0} onCheckedChange={toggleSelectAll} aria-label="Select all" />
+                </TableHead>
                 <TableHead>Listing</TableHead>
                 <TableHead>Rent</TableHead>
                 <TableHead>Status</TableHead>
@@ -215,8 +340,11 @@ export default function AdminListingsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {listings.map((listing) => (
+              {filtered.map((listing) => (
                 <TableRow key={listing.id}>
+                  <TableCell>
+                    <Checkbox checked={selected.has(listing.id)} onCheckedChange={() => toggleSelect(listing.id)} aria-label="Select row" />
+                  </TableCell>
                   <TableCell>
                     <p className="font-semibold">{listing.title || "Untitled"}</p>
                     <p className="text-xs text-foreground/50">
@@ -236,6 +364,7 @@ export default function AdminListingsPage() {
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {listing.removed ? <Badge variant="destructive">Hidden</Badge> : null}
+                      {listing.archived ? <Badge variant="secondary">Archived</Badge> : null}
                       {listing.featured ? <Badge variant="default">Featured</Badge> : null}
                     </div>
                   </TableCell>
@@ -259,6 +388,15 @@ export default function AdminListingsPage() {
                         disabled={busyId === listing.id}
                       >
                         {listing.removed ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={listing.archived ? "Unarchive" : "Archive"}
+                        onClick={() => toggleArchive(listing)}
+                        disabled={busyId === listing.id}
+                      >
+                        {listing.archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
                       </Button>
                       <Button
                         variant="ghost"

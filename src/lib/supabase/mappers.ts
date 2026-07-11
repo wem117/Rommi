@@ -94,6 +94,7 @@ export function mapListingRow(row: GenericRecord): Listing {
     status: (row.status as Listing["status"]) ?? "approved",
     removed: Boolean(row.removed),
     removedAt: row.removed_at ? asDate(row.removed_at) : null,
+    archived: Boolean(row.archived),
     featured: Boolean(row.featured),
     featuredPosition: typeof row.featured_position === "number" ? row.featured_position : null,
     createdAt: asDate(row.created_at ?? row.createdAt),

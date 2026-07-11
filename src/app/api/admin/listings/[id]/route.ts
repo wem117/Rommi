@@ -8,6 +8,7 @@ import { z } from "zod";
 
 const listingAdminUpdateSchema = listingUpdateSchema.extend({
   status: z.enum(["pending", "approved", "rejected"]).optional(),
+  archived: z.boolean().optional(),
   featured: z.boolean().optional(),
   featuredPosition: z.number().int().min(0).nullable().optional()
 });
@@ -26,6 +27,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (input.district !== undefined) payload.district = input.district;
     if (input.address !== undefined) payload.address = input.address;
     if (input.status !== undefined) payload.status = input.status;
+    if (input.archived !== undefined) payload.archived = input.archived;
     if (input.featured !== undefined) payload.featured = input.featured;
     if (input.featuredPosition !== undefined) payload.featured_position = input.featuredPosition;
 

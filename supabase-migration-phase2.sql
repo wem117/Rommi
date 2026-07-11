@@ -42,6 +42,14 @@ alter table public.listings add column if not exists category_id uuid references
 create index if not exists listings_category_id_idx on public.listings(category_id);
 create index if not exists listings_archived_idx on public.listings(archived);
 
+-- Re-narrow the public read policy now that "archived" exists: archived
+-- listings should disappear from public browsing just like removed ones.
+drop policy if exists select_listings_public on public.listings;
+create policy select_listings_public
+  on public.listings
+  for select
+  using (removed is not true and archived is not true and status = 'approved');
+
 -- 4. Profiles: suspend (soft, reversible) distinct from ban (hard) -----------
 alter table public.profiles add column if not exists suspended boolean not null default false;
 alter table public.profiles add column if not exists suspended_at timestamptz;

@@ -35,6 +35,7 @@ export interface Listing {
   status: ModerationStatus;
   removed: boolean;
   removedAt: Date | null;
+  archived: boolean;
   featured: boolean;
   featuredPosition: number | null;
   createdAt: Date;

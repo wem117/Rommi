@@ -82,6 +82,16 @@ const translations = {
       subtitle: "Rooms you saved for later.",
       loading: "Loading favorites..."
     },
+    listingEdit: {
+      title: "Edit listing",
+      subtitle: "Update room details, photos, and preferences.",
+      saveChanges: "Save changes",
+      updateFailed: "Could not update listing",
+      updated: "Listing updated",
+      confirmDelete: "Delete this listing permanently?",
+      deleteFailed: "Could not delete listing",
+      deleted: "Listing deleted"
+    },
     roommateDetail: {
       loadingProfile: "Loading profile...",
       profileNotFound: "Profile not found.",
@@ -540,6 +550,16 @@ const translations = {
       subtitle: "Комнаты, которые вы сохранили.",
       loading: "Загружаем избранное..."
     },
+    listingEdit: {
+      title: "Редактировать объявление",
+      subtitle: "Обновите детали, фото и предпочтения по жилью.",
+      saveChanges: "Сохранить изменения",
+      updateFailed: "Не удалось обновить объявление",
+      updated: "Объявление обновлено",
+      confirmDelete: "Удалить это объявление навсегда?",
+      deleteFailed: "Не удалось удалить объявление",
+      deleted: "Объявление удалено"
+    },
     roommateDetail: {
       loadingProfile: "Загружаем профиль...",
       profileNotFound: "Профиль не найден.",
@@ -995,6 +1015,16 @@ const translations = {
       title: "Таңдаулылар",
       subtitle: "Сіз сақтаған бөлмелер.",
       loading: "Таңдаулылар жүктелуде..."
+    },
+    listingEdit: {
+      title: "Хабарландыруды өңдеу",
+      subtitle: "Бөлме мәліметтерін, фотоларды және талғамдарды жаңартыңыз.",
+      saveChanges: "Өзгерістерді сақтау",
+      updateFailed: "Хабарландыруды жаңарту мүмкін болмады",
+      updated: "Хабарландыру жаңартылды",
+      confirmDelete: "Бұл хабарландыруды толығымен жоясыз ба?",
+      deleteFailed: "Хабарландыруды жою мүмкін болмады",
+      deleted: "Хабарландыру жойылды"
     },
     roommateDetail: {
       loadingProfile: "Профиль жүктелуде...",

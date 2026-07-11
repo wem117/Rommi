@@ -16,6 +16,7 @@ volume is created:
   moderation/featured columns on listings/profiles.
 - `04_phase2.sql` — university logo/cover/featured columns, listing
   archive/category columns, profile suspend columns, platform settings.
+- `05_universities.sql` — comprehensive ~58-university directory seed.
 
 To re-run migrations from scratch, drop the volume:
 
@@ -41,5 +42,6 @@ Supabase Storage. Run these in the Supabase SQL editor:
 4. `../supabase-migration-admin-cms.sql` — admin CMS tables + RLS.
 5. `../supabase-migration-phase2.sql` — public read RLS fix, featured/category
    columns, platform settings.
+6. `../supabase-migration-universities.sql` — comprehensive university seed.
 
 Keep `db/init/01_schema.sql` in sync with `../supabase-schema.sql`.

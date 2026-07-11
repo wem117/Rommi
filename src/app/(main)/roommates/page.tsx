@@ -5,8 +5,10 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 
 import { RoommateCard } from "@/components/roommates/roommate-card";
+import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
+import { CITIES } from "@/lib/constants/cities";
 import { getUniversityCity } from "@/lib/constants/universities";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
 import { useRoommates } from "@/hooks/use-roommates";
@@ -14,7 +16,8 @@ import type { Gender } from "@/types/user";
 
 type BudgetFilter = "any" | "100000" | "150000" | "200000" | "250000";
 
-const cityOptions = ["All Cities", "Almaty", "Astana", "Shymkent", "Karaganda", "Aktobe", "Taraz"];
+const ALL_CITIES = "All Cities";
+const cityOptions = [ALL_CITIES, ...CITIES];
 
 function RoommatesPageContent() {
   const searchParams = useSearchParams();
@@ -22,7 +25,8 @@ function RoommatesPageContent() {
   const { profile } = useAuth();
   const { t } = useLocale();
   const { roommates, loading, error } = useRoommates();
-  const [city, setCity] = useState(() => (universityParam ? getUniversityCity(universityParam) : "All Cities"));
+  const [city, setCity] = useState(ALL_CITIES);
+  const [university, setUniversity] = useState(universityParam ?? "");
   const [gender, setGender] = useState<Gender | "all">("all");
   const [minAge, setMinAge] = useState("18");
   const [maxAge, setMaxAge] = useState("30");
@@ -47,16 +51,22 @@ function RoommatesPageContent() {
     const parsedMaxAge = Number(maxAge) || 30;
     const parsedBudget = maxBudget === "any" ? null : Number(maxBudget);
 
+    const universityQuery = university.trim().toLowerCase();
+
     return roommates
       .filter((roommate) => {
         const roommateCity = getUniversityCity(roommate.university);
-        const matchesCity = city === "All Cities" || roommateCity === city;
+        const matchesCity = city === ALL_CITIES || roommateCity === city;
+        const matchesUniversity =
+          !universityQuery || (roommate.university ?? "").toLowerCase().includes(universityQuery);
         const matchesGender = gender === "all" || roommate.gender === gender;
         const matchesMinAge = roommate.age >= parsedMinAge;
         const matchesMaxAge = roommate.age <= parsedMaxAge;
         const matchesBudget = parsedBudget === null || roommate.maxBudget <= parsedBudget;
 
-        return matchesCity && matchesGender && matchesMinAge && matchesMaxAge && matchesBudget;
+        return (
+          matchesCity && matchesUniversity && matchesGender && matchesMinAge && matchesMaxAge && matchesBudget
+        );
       })
       .sort((first, second) => {
         if (!profile) return second.createdAt.getTime() - first.createdAt.getTime();
@@ -65,7 +75,7 @@ function RoommatesPageContent() {
           calculateCompatibilityScore(profile, second) - calculateCompatibilityScore(profile, first)
         );
       });
-  }, [city, gender, maxAge, maxBudget, minAge, profile, roommates]);
+  }, [city, university, gender, maxAge, maxBudget, minAge, profile, roommates]);
 
   return (
     <main className="min-h-[70vh] bg-[#fbf8f3]">
@@ -78,15 +88,23 @@ function RoommatesPageContent() {
             {t("roommates.description")}
           </p>
 
-          <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <Field label={t("roommates.city")}>
               <select value={city} onChange={(event) => setCity(event.target.value)}>
                 {cityOptions.map((option) => (
                   <option key={option} value={option}>
-                    {option === "All Cities" ? t("roommates.allCities") : option}
+                    {option === ALL_CITIES ? t("roommates.allCities") : option}
                   </option>
                 ))}
               </select>
+            </Field>
+
+            <Field label={t("roommates.university")}>
+              <UniversityCombobox
+                value={university}
+                onChange={setUniversity}
+                placeholder={t("roommates.universitySearchPlaceholder")}
+              />
             </Field>
 
             <Field label={t("roommates.gender")}>

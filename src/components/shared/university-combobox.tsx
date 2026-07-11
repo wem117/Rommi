@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { UNIVERSITIES } from "@/lib/constants/universities";
+import { getActiveUniversities } from "@/lib/data/universities";
 
 const MAX_RESULTS = 8;
+const FALLBACK_NAMES = UNIVERSITIES as readonly string[];
 
 export function UniversityCombobox({
   value,
@@ -20,8 +22,24 @@ export function UniversityCombobox({
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [names, setNames] = useState<string[]>(() => [...FALLBACK_NAMES]);
   const containerRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
+
+  // Load the admin-managed university list from the database (falls back to the
+  // built-in constant when Supabase is unconfigured or empty). "Other" is kept
+  // as a free-text escape hatch.
+  useEffect(() => {
+    let cancelled = false;
+    void getActiveUniversities().then((universities) => {
+      if (cancelled || universities.length === 0) return;
+      const dbNames = universities.map((u) => u.name);
+      setNames([...dbNames, "Other"]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Keep the visible text in sync when the committed value changes externally.
   useEffect(() => {
@@ -40,9 +58,13 @@ export function UniversityCombobox({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [value]);
 
-  const matches = UNIVERSITIES.filter((university) =>
-    university.toLowerCase().includes(query.trim().toLowerCase())
-  ).slice(0, MAX_RESULTS);
+  const matches = useMemo(
+    () =>
+      names
+        .filter((university) => university.toLowerCase().includes(query.trim().toLowerCase()))
+        .slice(0, MAX_RESULTS),
+    [names, query]
+  );
 
   // Commit a selection. Called from onMouseDown so the choice registers on the
   // first press — before the input can blur or the dropdown can close, which is

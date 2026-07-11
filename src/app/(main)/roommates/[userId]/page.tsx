@@ -16,16 +16,45 @@ import { FavoriteRoommateButton } from "@/components/favorites/favorite-roommate
 import { getUniversityCity } from "@/lib/constants/universities";
 import { StatusBanner } from "@/components/StatusBanner";
 import { useAuth } from "@/context/auth-context";
+import { useLocale } from "@/context/locale-context";
 import { createConversation } from "@/hooks/use-conversations";
 import { getProfileById } from "@/lib/data/profiles";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
 import { formatCurrency } from "@/lib/utils/format";
 import type { UserProfile } from "@/types/user";
 
+const LIFESTYLE_LABEL_KEYS: Record<keyof UserProfile["lifestyle"], string> = {
+  smoking: "onboarding.smokingLabel",
+  pets: "onboarding.petsLabel",
+  cleanliness: "onboarding.cleanlinessLabel",
+  sleepSchedule: "onboarding.sleepScheduleLabel",
+  guests: "onboarding.guestsLabel"
+};
+
+const LIFESTYLE_VALUE_KEYS: Record<string, string> = {
+  no: "onboarding.smokingNo",
+  outside: "onboarding.smokingOutside",
+  yes: "onboarding.smokingYes",
+  no_preference: "onboarding.noPreference",
+  no_pets: "onboarding.petsNo",
+  pet_friendly: "onboarding.petsFriendly",
+  has_pets: "onboarding.petsHas",
+  relaxed: "onboarding.cleanlinessRelaxed",
+  moderate: "onboarding.cleanlinessModerate",
+  very_clean: "onboarding.cleanlinessVeryClean",
+  early_bird: "onboarding.sleepEarlyBird",
+  balanced: "onboarding.sleepBalanced",
+  night_owl: "onboarding.sleepNightOwl",
+  rarely: "onboarding.guestsRarely",
+  sometimes: "onboarding.guestsSometimes",
+  often: "onboarding.guestsOften"
+};
+
 export default function RoommateDetailPage() {
   const { userId } = useParams<{ userId: string }>();
   const router = useRouter();
   const { user, profile: currentProfile } = useAuth();
+  const { t, locale } = useLocale();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,11 +68,11 @@ export default function RoommateDetailPage() {
         const nextProfile = await getProfileById(userId);
         if (!cancelled) {
           setProfile(nextProfile);
-          setError(nextProfile ? null : "Profile not found.");
+          setError(nextProfile ? null : t("roommateDetail.profileNotFound"));
         }
       } catch {
         if (!cancelled) {
-          setError("Could not load this roommate profile.");
+          setError(t("roommateDetail.couldNotLoad"));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -54,11 +83,14 @@ export default function RoommateDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, t]);
 
   const score = useMemo(() => calculateCompatibilityScore(currentProfile, profile), [currentProfile, profile]);
   const city = profile ? getUniversityCity(profile.university) : "";
-  const matchDetails = useMemo(() => getCompatibilityBreakdown(currentProfile, profile), [currentProfile, profile]);
+  const matchDetails = useMemo(
+    () => getCompatibilityBreakdown(currentProfile, profile, t),
+    [currentProfile, profile, t]
+  );
 
   async function handleMessage() {
     if (!profile) return;
@@ -80,13 +112,13 @@ export default function RoommateDetailPage() {
   }
 
   if (loading) {
-    return <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">Loading profile...</main>;
+    return <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">{t("roommateDetail.loadingProfile")}</main>;
   }
 
   if (!profile) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        <StatusBanner tone="error" message={error || "Profile not found."} />
+        <StatusBanner tone="error" message={error || t("roommateDetail.profileNotFound")} />
       </main>
     );
   }
@@ -116,16 +148,16 @@ export default function RoommateDetailPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-4xl font-bold">{profile.fullName}</h1>
                 <span className="rounded-full bg-[#0f957d] px-5 py-2 text-lg font-semibold text-white">
-                  {score}% Match
+                  {score}% {t("roommateDetail.matchSuffix")}
                 </span>
               </div>
 
               <p className="mt-3 text-2xl text-[#9a6e56]">
-                {profile.age} years old · {profile.occupation} · {profile.university}
+                {profile.age} {t("roommateDetail.yearsOld")} · {profile.occupation} · {profile.university}
               </p>
               <p className="mt-4 flex items-center gap-2 text-xl text-[#9a6e56]">
                 <MapPin className="h-5 w-5" />
-                {city}, Kazakhstan
+                {city}, {t("roommateDetail.kazakhstan")}
               </p>
             </div>
           </div>
@@ -138,7 +170,7 @@ export default function RoommateDetailPage() {
               className="inline-flex items-center gap-3 rounded-full bg-[#0f957d] px-8 py-4 text-xl font-semibold text-white transition hover:bg-[#0d856f] disabled:opacity-60"
             >
               <MessageCircle className="h-5 w-5" />
-              {messageLoading ? "Opening..." : "Message"}
+              {messageLoading ? t("roommateDetail.opening") : t("roommateDetail.message")}
             </button>
             <div className="rounded-full border border-[#d9c9b7] bg-white p-2">
               <FavoriteRoommateButton roommateId={profile.uid} />
@@ -150,38 +182,38 @@ export default function RoommateDetailPage() {
       <section className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_33rem] lg:px-8">
         <div className="space-y-8">
           <section>
-            <h2 className="text-4xl font-bold">About {profile.fullName}</h2>
-            <p className="mt-5 text-xl leading-10 text-[#7e5f4b]">
-              {profile.bio || "Quiet and clean. Looking for a roommate who respects personal space and shared routines."}
-            </p>
+            <h2 className="text-4xl font-bold">
+              {t("roommateDetail.aboutPrefix")} {profile.fullName}
+            </h2>
+            <p className="mt-5 text-xl leading-10 text-[#7e5f4b]">{profile.bio || t("roommateDetail.defaultBio")}</p>
           </section>
 
           <section>
-            <h2 className="text-4xl font-bold">Housing Details</h2>
+            <h2 className="text-4xl font-bold">{t("roommateDetail.housingDetailsTitle")}</h2>
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               <MetricCard
-                label="Budget"
+                label={t("roommateDetail.budgetLabel")}
                 value={formatCurrency(profile.maxBudget)}
-                detail="per month"
+                detail={t("roommateDetail.perMonth")}
                 icon={<Coins className="h-5 w-5" />}
               />
               <MetricCard
-                label="Move Date"
-                value={formatMoveDate(profile.preferredMoveInDate)}
-                detail={profile.preferredMoveInDate ? String(profile.preferredMoveInDate.getFullYear()) : "Flexible"}
+                label={t("roommateDetail.moveDateLabel")}
+                value={formatMoveDate(profile.preferredMoveInDate, t("roommateDetail.flexible"), locale)}
+                detail={profile.preferredMoveInDate ? String(profile.preferredMoveInDate.getFullYear()) : t("roommateDetail.flexible")}
                 icon={<CalendarDays className="h-5 w-5" />}
               />
               <MetricCard
-                label="City"
+                label={t("roommateDetail.cityLabel")}
                 value={city}
-                detail="Kazakhstan"
+                detail={t("roommateDetail.kazakhstan")}
                 icon={<MapPin className="h-5 w-5" />}
               />
             </div>
           </section>
 
           <section>
-            <h2 className="text-4xl font-bold">Compatibility Breakdown</h2>
+            <h2 className="text-4xl font-bold">{t("roommateDetail.compatibilityBreakdownTitle")}</h2>
             <div className="mt-6 space-y-6">
               {matchDetails.map((item) => (
                 <div key={item.label}>
@@ -203,13 +235,13 @@ export default function RoommateDetailPage() {
           </section>
 
           <section>
-            <h2 className="text-4xl font-bold">Lifestyle Preferences</h2>
+            <h2 className="text-4xl font-bold">{t("roommateDetail.lifestylePreferencesTitle")}</h2>
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {Object.entries(profile.lifestyle).map(([key, value]) => (
                 <MetricCard
                   key={key}
-                  label={formatLabel(key)}
-                  value={formatPreference(value)}
+                  label={t(LIFESTYLE_LABEL_KEYS[key as keyof UserProfile["lifestyle"]] ?? key)}
+                  value={t(LIFESTYLE_VALUE_KEYS[value] ?? value)}
                   detail=""
                   icon={<Sparkles className="h-5 w-5" />}
                 />
@@ -224,17 +256,23 @@ export default function RoommateDetailPage() {
               <div className="grid h-32 w-32 place-items-center rounded-full bg-white text-center">
                 <div>
                   <div className="text-5xl font-bold">{score}%</div>
-                  <div className="text-2xl text-[#9a6e56]">Match</div>
+                  <div className="text-2xl text-[#9a6e56]">{t("roommateDetail.matchSuffix")}</div>
                 </div>
               </div>
             </div>
 
             <div className="mt-8 text-center">
-              <h3 className="text-4xl font-bold">{score >= 85 ? "Great Match!" : score >= 65 ? "Promising Match" : "Needs a closer look"}</h3>
+              <h3 className="text-4xl font-bold">
+                {score >= 85
+                  ? t("roommateDetail.greatMatch")
+                  : score >= 65
+                    ? t("roommateDetail.promisingMatch")
+                    : t("roommateDetail.needsCloserLook")}
+              </h3>
               <p className="mt-4 text-xl leading-9 text-[#9a6e56]">
                 {currentProfile
-                  ? `You and ${profile.fullName} share similar lifestyle preferences and budget.`
-                  : `${profile.fullName} looks strongest on budget, lifestyle, and move-in timing.`}
+                  ? t("roommateDetail.sharedPreferencesWith").replace("{name}", profile.fullName)
+                  : t("roommateDetail.strongestOn").replace("{name}", profile.fullName)}
               </p>
             </div>
 
@@ -245,7 +283,7 @@ export default function RoommateDetailPage() {
               className="mt-8 inline-flex w-full items-center justify-center gap-3 rounded-full bg-[#0f957d] px-6 py-5 text-2xl font-semibold text-white transition hover:bg-[#0d856f] disabled:opacity-60"
             >
               <MessageCircle className="h-5 w-5" />
-              Send Message
+              {t("roommateDetail.sendMessage")}
             </button>
 
             <div className="mt-4 flex justify-center rounded-full bg-[#f7f1e7] px-5 py-4">
@@ -279,24 +317,20 @@ function MetricCard({
   );
 }
 
-function formatMoveDate(date: Date | null) {
-  if (!date) return "Flexible";
+function formatMoveDate(date: Date | null, flexibleLabel: string, locale: string) {
+  if (!date) return flexibleLabel;
 
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat(locale === "kz" ? "kk" : locale, {
     month: "long",
     day: "numeric"
   }).format(date);
 }
 
-function formatLabel(value: string) {
-  return value.replace(/([A-Z])/g, " $1");
-}
-
-function formatPreference(value: string) {
-  return value.replaceAll("_", " ");
-}
-
-function getCompatibilityBreakdown(currentProfile?: UserProfile | null, profile?: UserProfile | null) {
+function getCompatibilityBreakdown(
+  currentProfile: UserProfile | null | undefined,
+  profile: UserProfile | null | undefined,
+  t: (key: string) => string
+) {
   if (!profile) return [];
 
   const overall = calculateCompatibilityScore(currentProfile, profile);
@@ -316,10 +350,10 @@ function getCompatibilityBreakdown(currentProfile?: UserProfile | null, profile?
       : 78;
 
   return [
-    { label: "Budget Match", score: budgetScore, icon: <Coins className="h-5 w-5" /> },
-    { label: "Lifestyle Fit", score: lifestyleScore, icon: <Sparkles className="h-5 w-5" /> },
-    { label: "Move-in Timing", score: moveInScore, icon: <CalendarDays className="h-5 w-5" /> },
-    { label: "Cleanliness Fit", score: cleanlinessScore, icon: <ShieldCheck className="h-5 w-5" /> }
+    { label: t("roommateDetail.budgetMatch"), score: budgetScore, icon: <Coins className="h-5 w-5" /> },
+    { label: t("roommateDetail.lifestyleFit"), score: lifestyleScore, icon: <Sparkles className="h-5 w-5" /> },
+    { label: t("roommateDetail.moveInTiming"), score: moveInScore, icon: <CalendarDays className="h-5 w-5" /> },
+    { label: t("roommateDetail.cleanlinessFit"), score: cleanlinessScore, icon: <ShieldCheck className="h-5 w-5" /> }
   ];
 }
 

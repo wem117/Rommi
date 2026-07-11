@@ -20,6 +20,7 @@ import { ListingGallery } from "@/components/listings/listing-gallery";
 import { ListingGrid } from "@/components/listings/listing-grid";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { useAuth } from "@/context/auth-context";
+import { useLocale } from "@/context/locale-context";
 import { createConversation } from "@/hooks/use-conversations";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useListing } from "@/hooks/use-listing";
@@ -32,16 +33,16 @@ import {
 import { formatCurrency, formatDate, formatListingPrice } from "@/lib/utils/format";
 import type { UserProfile } from "@/types/user";
 
-const listingTypeLabels = {
-  private_room: "Private Room",
-  shared_room: "Shared Room",
-  entire_place: "Entire Place"
-} as const;
-
 export default function ListingDetailPage() {
   const params = useParams<{ listingId: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const { t } = useLocale();
+  const listingTypeLabels = {
+    private_room: t("listingDetail.privateRoom"),
+    shared_room: t("listingDetail.sharedRoom"),
+    entire_place: t("listingDetail.entirePlace")
+  } as const;
   const { isFavorite, toggleFavorite } = useFavorites();
   const { listing, loading, error } = useListing(params.listingId);
   const [owner, setOwner] = useState<UserProfile | null>(null);
@@ -94,13 +95,13 @@ export default function ListingDetailPage() {
   }, [listing]);
 
   if (loading) {
-    return <main className="mx-auto max-w-6xl px-4 py-10">Loading listing...</main>;
+    return <main className="mx-auto max-w-6xl px-4 py-10">{t("listingDetail.loadingListing")}</main>;
   }
 
   if (error || !listing) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-10">
-        <div className="rounded-2xl bg-white p-8 shadow-soft">Listing not found.</div>
+        <div className="rounded-2xl bg-white p-8 shadow-soft">{t("listingDetail.listingNotFound")}</div>
       </main>
     );
   }
@@ -118,10 +119,10 @@ export default function ListingDetailPage() {
               <span className="rounded-full bg-[#dff8f1] px-4 py-2 text-sm font-semibold text-[#0d8f7a]">
                 {listingTypeLabels[listing.listingType]}
               </span>
-              <span className="rounded-full bg-[#fde8c9] px-4 py-2 text-sm font-semibold text-[#b97716]">Today</span>
+              <span className="rounded-full bg-[#fde8c9] px-4 py-2 text-sm font-semibold text-[#b97716]">{t("listingDetail.today")}</span>
               <span className="inline-flex items-center gap-2 rounded-full bg-[#e7fbeb] px-4 py-2 text-sm font-semibold text-primary">
                 <ShieldCheck className="h-4 w-4" />
-                Verified
+                {t("listingDetail.verified")}
               </span>
             </div>
 
@@ -135,31 +136,31 @@ export default function ListingDetailPage() {
             <div className="mt-8 rounded-[2rem] bg-[#f7f1e7] px-6 py-7">
               <div className="text-3xl font-bold text-foreground sm:text-5xl">
                 {formatCurrency(listing.monthlyRent)}
-                <span className="ml-1 text-xl font-medium text-foreground/70">/month</span>
+                <span className="ml-1 text-xl font-medium text-foreground/70">{t("listingDetail.perMonth")}</span>
               </div>
               {listing.depositRequired ? (
                 <p className="mt-3 text-base font-semibold text-[#8e6f5e]">
-                  + {formatCurrency(listing.depositAmount)} deposit
+                  {t("listingDetail.depositPrefix")} {formatCurrency(listing.depositAmount)} {t("listingDetail.depositSuffix")}
                 </p>
               ) : (
-                <p className="mt-3 text-base font-semibold text-[#8e6f5e]">No deposit required</p>
+                <p className="mt-3 text-base font-semibold text-[#8e6f5e]">{t("listingDetail.noDeposit")}</p>
               )}
             </div>
 
             <div className="mt-8">
-              <h2 className="text-2xl font-bold">About this place</h2>
+              <h2 className="text-2xl font-bold">{t("listingDetail.aboutTitle")}</h2>
               <p className="mt-4 whitespace-pre-line text-lg leading-9 text-foreground/75">{listing.description}</p>
             </div>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <InfoCard icon={<Home className="h-5 w-5" />} label="Bedrooms" value={`${listing.bedrooms}`} />
-              <InfoCard label="Bathrooms" value={`${listing.bathrooms}`} />
-              <InfoCard icon={<CalendarDays className="h-5 w-5" />} label="Available" value={formatDate(listing.availableFrom)} />
-              <InfoCard label="Type" value={listingTypeLabels[listing.listingType]} />
+              <InfoCard icon={<Home className="h-5 w-5" />} label={t("listingDetail.bedrooms")} value={`${listing.bedrooms}`} />
+              <InfoCard label={t("listingDetail.bathrooms")} value={`${listing.bathrooms}`} />
+              <InfoCard icon={<CalendarDays className="h-5 w-5" />} label={t("listingDetail.available")} value={formatDate(listing.availableFrom)} />
+              <InfoCard label={t("listingDetail.type")} value={listingTypeLabels[listing.listingType]} />
             </div>
 
             <div className="mt-10">
-              <h2 className="text-2xl font-bold">Amenities</h2>
+              <h2 className="text-2xl font-bold">{t("listingDetail.amenitiesTitle")}</h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 {listing.amenities.map((amenity) => (
                   <div
@@ -177,14 +178,14 @@ export default function ListingDetailPage() {
 
             <div className="mt-10">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-2xl font-bold">Location</h2>
+                <h2 className="text-2xl font-bold">{t("listingDetail.locationTitle")}</h2>
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-2 rounded-full border border-[#e6d8c6] bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
                 >
-                  Open in Google Maps
+                  {t("listingDetail.openInMaps")}
                   <ExternalLink className="h-4 w-4" />
                 </a>
               </div>
@@ -203,7 +204,7 @@ export default function ListingDetailPage() {
 
           {relatedListings.length ? (
             <section>
-              <h2 className="text-3xl font-bold">Similar Listings</h2>
+              <h2 className="text-3xl font-bold">{t("listingDetail.similarListings")}</h2>
               <div className="mt-5">
                 <ListingGrid listings={relatedListings} />
               </div>
@@ -214,7 +215,7 @@ export default function ListingDetailPage() {
         <aside className="space-y-4 lg:sticky lg:top-28 lg:self-start">
           <section className="rounded-[2rem] border border-[#eadfce] bg-white p-6 shadow-soft">
             <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-[#9c7364]">
-              Current roommate
+              {t("listingDetail.currentRoommate")}
             </h2>
 
             <div className="mt-5 flex items-center gap-4">
@@ -227,10 +228,12 @@ export default function ListingDetailPage() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-2xl font-bold">{owner?.fullName ?? "Listing owner"}</h3>
+                  <h3 className="text-2xl font-bold">{owner?.fullName ?? t("listingDetail.listingOwnerFallback")}</h3>
                   <VerifiedBadge verified={owner?.verified} />
                 </div>
-                <p className="text-lg text-foreground/60">{owner?.age ? `${owner.age} years old` : "Roomi member"}</p>
+                <p className="text-lg text-foreground/60">
+                  {owner?.age ? `${owner.age} ${t("listingDetail.yearsOld")}` : t("listingDetail.roomiMember")}
+                </p>
               </div>
             </div>
 
@@ -244,7 +247,7 @@ export default function ListingDetailPage() {
               className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0f957d] px-5 py-4 text-lg font-semibold text-white transition hover:bg-[#0d856f] disabled:opacity-60"
             >
               <Mail className="h-5 w-5" />
-              {messageLoading ? "Opening chat..." : "Message Owner"}
+              {messageLoading ? t("listingDetail.openingChat") : t("listingDetail.messageOwner")}
             </button>
 
             {owner?.email ? (
@@ -252,7 +255,7 @@ export default function ListingDetailPage() {
                 href={`mailto:${owner.email}`}
                 className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#eadfce] px-5 py-3 text-sm font-medium text-foreground/70 transition hover:bg-[#faf6ef]"
               >
-                Or email directly
+                {t("listingDetail.orEmailDirectly")}
               </a>
             ) : null}
 
@@ -266,20 +269,20 @@ export default function ListingDetailPage() {
               }`}
             >
               <Heart className={`h-5 w-5 ${isFavorite(listing.id) ? "fill-current" : ""}`} />
-              {isFavorite(listing.id) ? "Saved" : "Save Listing"}
+              {isFavorite(listing.id) ? t("listingDetail.saved") : t("listingDetail.saveListing")}
             </button>
 
             <div className="mt-6 border-t border-[#efe5d9] pt-6 text-base text-foreground/70">
               <div className="flex items-center justify-between">
-                <span>Response rate</span>
+                <span>{t("listingDetail.responseRate")}</span>
                 <span className="font-semibold text-foreground">98%</span>
               </div>
               <div className="mt-4 flex items-center justify-between">
-                <span>Response time</span>
-                <span className="font-semibold text-foreground">Within 2 hours</span>
+                <span>{t("listingDetail.responseTime")}</span>
+                <span className="font-semibold text-foreground">{t("listingDetail.withinTwoHours")}</span>
               </div>
               <div className="mt-4 flex items-center justify-between">
-                <span>Listed</span>
+                <span>{t("listingDetail.listed")}</span>
                 <span className="font-semibold text-foreground">{formatDate(listing.createdAt)}</span>
               </div>
             </div>
@@ -291,19 +294,19 @@ export default function ListingDetailPage() {
               className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-border bg-white px-5 py-3 text-sm font-semibold shadow-soft"
             >
               <Pencil className="h-4 w-4" />
-              Edit listing
+              {t("listingDetail.editListing")}
             </Link>
           ) : null}
 
           <section className="rounded-[2rem] border border-[#eadfce] bg-white p-6 shadow-soft">
-            <h3 className="text-lg font-bold">Listing Summary</h3>
+            <h3 className="text-lg font-bold">{t("listingDetail.listingSummary")}</h3>
             <p className="mt-3 text-sm leading-7 text-foreground/65">
               {formatListingPrice(listing.monthlyRent, listing.depositRequired, listing.depositAmount)}
             </p>
             <p className="mt-3 text-sm leading-7 text-foreground/65">
               {listing.preferences.genderPreference === "any"
-                ? "Open to any roommate preference."
-                : `Preferred roommate gender: ${listing.preferences.genderPreference}.`}
+                ? t("listingDetail.anyGenderPreference")
+                : `${t("listingDetail.preferredGenderPrefix")} ${listing.preferences.genderPreference}.`}
             </p>
           </section>
         </aside>

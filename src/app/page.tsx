@@ -2,8 +2,6 @@
 
 import {
   ArrowRight,
-  BedDouble,
-  Building2,
   CalendarDays,
   CheckCircle2,
   ChevronRight,
@@ -11,7 +9,6 @@ import {
   MapPin,
   MessageCircle,
   Search,
-  ShieldCheck,
   Sparkles,
   Star,
   Users
@@ -23,26 +20,42 @@ import { useState } from "react";
 
 import { Footer } from "@/components/layout/footer";
 import { LanguageMenu } from "@/components/layout/language-menu";
+import { ListingCard } from "@/components/listings/listing-card";
+import { RoommateCard } from "@/components/roommates/roommate-card";
+import { Carousel } from "@/components/ui/carousel";
 import { useLocale } from "@/context/locale-context";
 import { CITIES } from "@/lib/constants/cities";
 import { demoListings, demoProfiles, demoUniversities } from "@/lib/data/demo";
-import { formatCurrency, formatDate, formatMonthlyRent } from "@/lib/utils/format";
 
 const testimonials = [
   {
     name: "Madina",
     role: "Student at KazNU",
     badge: "Verified Tenant",
+    image:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=700&q=80",
     quote:
-      "Я нашел иделаьную комнату для себя за 3 дня. Платформа очень удобная, также процент соотношениий хорошо подбирает варианты."
+      "Я нашла идеальную комнату для себя за 3 дня. Платформа очень удобная, а процент совместимости хорошо подбирает варианты."
+  },
+  {
+    name: "Alikhan",
+    role: "Student at Nazarbayev University",
+    badge: "Verified Tenant",
+    image:
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=700&q=80",
+    quote:
+      "Matching by lifestyle actually works. My roommate and I have the same sleep schedule and cleanliness habits — living together has been stress-free."
+  },
+  {
+    name: "Aigerim",
+    role: "Young professional in Almaty",
+    badge: "Verified Host",
+    image:
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=700&q=80",
+    quote:
+      "I listed my spare room and found a reliable roommate within a week. Chatting before meeting made it feel safe and simple."
   }
 ];
-
-const listingTypeLabels: Record<(typeof demoListings)[number]["listingType"], string> = {
-  private_room: "Private Room",
-  shared_room: "Shared Room",
-  entire_place: "Studio"
-};
 
 export default function HomePage() {
   const { locale, t } = useLocale();
@@ -69,8 +82,6 @@ export default function HomePage() {
   const platformStats = getPlatformStats(locale);
   const faqs = getFaqs(locale);
   const roommateHighlights = getRoommateHighlights(locale);
-  const statusLabel = locale === "en" ? "Today" : locale === "ru" ? "Сегодня" : "Бүгін";
-  const delayedStatusLabel = locale === "en" ? "2 days" : locale === "ru" ? "2 дня" : "2 күн";
   const searchFields = [
     {
       icon: MapPin,
@@ -271,92 +282,15 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="mt-8 grid gap-6 lg:grid-cols-3">
-            {demoListings.slice(0, 3).map((listing, index) => {
-              const owner = demoProfiles.find((profile) => profile.uid === listing.ownerId);
-
-              return (
-                <Link
-                  key={listing.id}
-                  href={`/rooms/${listing.id}`}
-                  className="group overflow-hidden rounded-[2rem] border border-[#efe5d9] bg-white shadow-[0_20px_40px_rgba(64,43,17,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_26px_48px_rgba(64,43,17,0.14)]"
-                >
-                  <div className="relative aspect-[1.08/0.92] overflow-hidden">
-                    <Image
-                      src={listing.photoUrls[0]}
-                      alt={listing.title}
-                      fill
-                      className="object-cover transition duration-500 group-hover:scale-105"
-                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                    />
-                    <div className="absolute left-4 top-4 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur">
-                        {listingTypeLabels[listing.listingType]}
-                      </span>
-                      <span className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-white shadow-sm">
-                        Verified
-                      </span>
-                    </div>
-                    <div className="absolute right-4 top-4 rounded-full bg-[#f1a531] px-3 py-1 text-xs font-medium text-white shadow-sm">
-                      {index === 2 ? delayedStatusLabel : statusLabel}
-                    </div>
-
-                    {owner ? (
-                      <div className="absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-full bg-white/92 px-2 py-1 shadow-sm backdrop-blur">
-                        <div className="relative h-7 w-7 overflow-hidden rounded-full bg-[#ece4d8]">
-                          {owner.photoURL ? (
-                            <Image src={owner.photoURL} alt={owner.fullName} fill className="object-cover" sizes="28px" />
-                          ) : null}
-                        </div>
-                        <span className="pr-2 text-sm font-medium text-foreground">
-                          {owner.fullName}, {owner.age}
-                        </span>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="p-6">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="line-clamp-2 font-heading text-[1.2rem] font-bold leading-8 text-foreground sm:text-[1.35rem]">
-                          {listing.title}
-                        </h3>
-                        <p className="mt-2 flex items-center gap-1 text-sm text-foreground/55">
-                          <MapPin className="h-3.5 w-3.5" />
-                          {listing.city}, {listing.district}
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <span className="block text-lg font-bold text-primary sm:text-xl">
-                          {formatMonthlyRent(listing.monthlyRent)}
-                        </span>
-                        {listing.depositRequired ? (
-                          <span className="mt-1 block text-xs font-medium text-[#8e7d70]">
-                            + {formatCurrency(listing.depositAmount)} deposit
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-foreground/55">
-                      <span className="inline-flex items-center gap-1">
-                        <BedDouble className="h-3.5 w-3.5" />
-                        {listing.bedrooms} bd
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <Building2 className="h-3.5 w-3.5" />
-                        {listing.bathrooms} ba
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <CalendarDays className="h-3.5 w-3.5" />
-                        {formatDate(listing.availableFrom)}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <Carousel
+            className="mt-8"
+            ariaLabel={t("home.featuredTitle")}
+            itemClassName="basis-[86%] sm:basis-[47%] lg:basis-[31.5%]"
+          >
+            {demoListings.slice(0, 6).map((listing) => (
+              <ListingCard key={listing.id} listing={listing} />
+            ))}
+          </Carousel>
         </div>
       </section>
 
@@ -435,45 +369,11 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            {demoProfiles.slice(0, 4).map((profile, index) => (
-              <Link
-                key={profile.uid}
-                href={`/roommates/${profile.uid}`}
-                className={`rounded-[1.75rem] bg-white p-5 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl ${index % 2 === 1 ? "sm:translate-y-5" : ""}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="relative h-12 w-12 overflow-hidden rounded-full bg-[#ece4d8]">
-                    {profile.photoURL ? (
-                      <Image src={profile.photoURL} alt={profile.fullName} fill className="object-cover" sizes="48px" />
-                    ) : null}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-heading text-base font-bold">{profile.fullName}</h3>
-                      {profile.verified ? <ShieldCheck className="h-4 w-4 text-primary" /> : null}
-                    </div>
-                    <p className="text-xs text-foreground/55">
-                      {profile.age} · {profile.occupation}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex items-center gap-2">
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e8f3ef]">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${94 - index * 3}%` }} />
-                  </div>
-                  <span className="text-sm font-bold text-primary">{94 - index * 3}%</span>
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-2 text-xs text-foreground/60">
-                  <span className="rounded-full bg-[#f5efe6] px-3 py-1">{profile.lifestyle.smoking.replaceAll("_", " ")}</span>
-                  <span className="rounded-full bg-[#f5efe6] px-3 py-1">{profile.lifestyle.cleanliness.replaceAll("_", " ")}</span>
-                  <span className="rounded-full bg-[#f5efe6] px-3 py-1">{profile.lifestyle.sleepSchedule.replaceAll("_", " ")}</span>
-                </div>
-              </Link>
+          <Carousel ariaLabel={t("home.roommateTitle")} itemClassName="basis-[86%] sm:basis-[47%]">
+            {demoProfiles.slice(0, 6).map((profile) => (
+              <RoommateCard key={profile.uid} profile={profile} />
             ))}
-          </div>
+          </Carousel>
         </div>
       </section>
 
@@ -481,40 +381,41 @@ export default function HomePage() {
         <div className="mx-auto max-w-5xl">
           <SectionHeader badge={t("home.testimonialBadge")} title={t("home.testimonialTitle")} centered />
 
-          <div className="mt-10 grid items-center gap-8 rounded-[2rem] border border-[#efe5d9] bg-white p-8 shadow-soft md:grid-cols-[0.9fr_1.1fr] md:p-10">
-            <div className="relative mx-auto h-56 w-56 overflow-hidden rounded-[1.75rem] bg-[#f5efe6]">
-              <Image
-                src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=700&q=80"
-                alt="Happy Roomi user"
-                fill
-                className="object-cover"
-                sizes="224px"
-              />
-              <div className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-full bg-[#f1a531] text-white shadow-lg">
-                <Sparkles className="h-4 w-4" />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-1 text-[#f1a531]">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <Star key={index} className="h-4 w-4 fill-current" />
-                ))}
-              </div>
-              <blockquote className="mt-5 font-heading text-xl leading-9 text-foreground/80 sm:text-2xl">
-                &quot;{testimonials[0].quote}&quot;
-              </blockquote>
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <div>
-                  <p className="font-semibold">{testimonials[0].name}</p>
-                  <p className="text-sm text-foreground/55">{testimonials[0].role}</p>
+          <Carousel className="mt-10" ariaLabel={t("home.testimonialTitle")}>
+            {testimonials.map((testimonial) => (
+              <div
+                key={testimonial.name}
+                className="grid items-center gap-6 rounded-[2rem] border border-[#efe5d9] bg-white p-6 shadow-soft sm:gap-8 sm:p-8 md:grid-cols-[0.9fr_1.1fr] md:p-10"
+              >
+                <div className="relative mx-auto h-44 w-44 overflow-hidden rounded-[1.75rem] bg-[#f5efe6] sm:h-56 sm:w-56">
+                  <Image src={testimonial.image} alt={testimonial.name} fill className="object-cover" sizes="224px" />
+                  <div className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-full bg-[#f1a531] text-white shadow-lg">
+                    <Sparkles className="h-4 w-4" />
+                  </div>
                 </div>
-                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                  {testimonials[0].badge}
-                </span>
+
+                <div>
+                  <div className="flex items-center gap-1 text-[#f1a531]">
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <Star key={index} className="h-4 w-4 fill-current" />
+                    ))}
+                  </div>
+                  <blockquote className="mt-5 font-heading text-lg leading-8 text-foreground/80 sm:text-2xl sm:leading-9">
+                    &quot;{testimonial.quote}&quot;
+                  </blockquote>
+                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                    <div>
+                      <p className="font-semibold">{testimonial.name}</p>
+                      <p className="text-sm text-foreground/55">{testimonial.role}</p>
+                    </div>
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                      {testimonial.badge}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            ))}
+          </Carousel>
         </div>
       </section>
 

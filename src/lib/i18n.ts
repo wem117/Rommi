@@ -422,7 +422,11 @@ const translations = {
       retry: "Retry",
       emptyTitle: "No listings yet",
       emptyText: "Create the first room listing to start the marketplace.",
-      loadMore: "Load more"
+      loadMore: "Load more",
+      listView: "List",
+      mapView: "Map",
+      openListing: "Open Listing",
+      mapEmpty: "None of these listings have a location pinned yet."
     },
     listingFilters: {
       search: "Search",
@@ -950,7 +954,11 @@ const translations = {
       retry: "Повторить",
       emptyTitle: "Объявлений пока нет",
       emptyText: "Создайте первое объявление, чтобы запустить маркетплейс.",
-      loadMore: "Загрузить еще"
+      loadMore: "Загрузить еще",
+      listView: "Список",
+      mapView: "Карта",
+      openListing: "Открыть объявление",
+      mapEmpty: "Ни у одного из этих объявлений пока не указано местоположение."
     },
     listingFilters: {
       search: "Поиск",
@@ -1477,7 +1485,11 @@ const translations = {
       retry: "Қайталау",
       emptyTitle: "Хабарландырулар әлі жоқ",
       emptyText: "Маркетплейсті бастау үшін алғашқы бөлме хабарландыруын жариялаңыз.",
-      loadMore: "Тағы жүктеу"
+      loadMore: "Тағы жүктеу",
+      listView: "Тізім",
+      mapView: "Карта",
+      openListing: "Хабарландыруды ашу",
+      mapEmpty: "Бұл хабарландырулардың ешқайсысында әзірге орналасқан жері белгіленбеген."
     },
     listingFilters: {
       search: "Іздеу",

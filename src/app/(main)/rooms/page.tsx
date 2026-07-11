@@ -1,13 +1,15 @@
 "use client";
 
-import { ArrowRight, Loader2, RefreshCcw } from "lucide-react";
+import { ArrowRight, List, Loader2, Map as MapIcon, RefreshCcw } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 import { ListingFiltersBar } from "@/components/listings/listing-filters";
 import { ListingGrid } from "@/components/listings/listing-grid";
+import { LazyMap, type MapMarker } from "@/components/map/lazy-map";
 import { useLocale } from "@/context/locale-context";
+import { formatCurrency } from "@/lib/utils/format";
 import { type ListingFilters, useListings } from "@/hooks/use-listings";
 
 const FILTERS_STORAGE_KEY = "roomi:rooms:filters";
@@ -31,8 +33,27 @@ function RoomsPageContent() {
   const searchParams = useSearchParams();
   const [filters, setFilters] = useState<ListingFilters>(() => buildInitialFilters(searchParams));
   const restoredRef = useRef(false);
+  const [view, setView] = useState<"list" | "map">("list");
   const { t } = useLocale();
   const { listings, loading, loadingMore, error, hasMore, reload, loadMore } = useListings(filters);
+
+  const mapMarkers = useMemo<MapMarker[]>(
+    () =>
+      listings
+        .filter((listing) => listing.lat != null && listing.lng != null)
+        .map((listing) => ({
+          id: listing.id,
+          lat: listing.lat as number,
+          lng: listing.lng as number,
+          title: listing.title,
+          price: formatCurrency(listing.monthlyRent),
+          district: listing.district,
+          university: listing.university,
+          photo: listing.photoUrls[0],
+          href: `/rooms/${listing.id}`
+        })),
+    [listings]
+  );
 
   // Restore the last-used filters when the user opens /rooms with no explicit
   // search params (arriving via nav rather than a homepage search). URL params
@@ -88,11 +109,50 @@ function RoomsPageContent() {
           <div className="mt-8">
             <ListingFiltersBar filters={filters} onChange={setFilters} count={listings.length} />
           </div>
+
+          <div className="mt-4 flex justify-end">
+            <div className="inline-flex rounded-full border border-[#e6daca] bg-white p-1 text-sm font-semibold">
+              <button
+                type="button"
+                onClick={() => setView("list")}
+                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition ${
+                  view === "list" ? "bg-primary text-white" : "text-foreground/60 hover:text-foreground"
+                }`}
+                aria-pressed={view === "list"}
+              >
+                <List className="h-4 w-4" />
+                {t("rooms.listView")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("map")}
+                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition ${
+                  view === "map" ? "bg-primary text-white" : "text-foreground/60 hover:text-foreground"
+                }`}
+                aria-pressed={view === "map"}
+              >
+                <MapIcon className="h-4 w-4" />
+                {t("rooms.mapView")}
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        {loading ? (
+        {!loading && !error && view === "map" ? (
+          mapMarkers.length > 0 ? (
+            <div className="h-[70vh] overflow-hidden rounded-[1.75rem] border border-[#ece1d3] shadow-soft">
+              <LazyMap markers={mapMarkers} openLabel={t("rooms.openListing")} />
+            </div>
+          ) : (
+            <div className="rounded-[1.75rem] bg-white p-8 text-center shadow-soft">
+              <p className="text-sm text-foreground/60">{t("rooms.mapEmpty")}</p>
+            </div>
+          )
+        ) : null}
+
+        {view === "list" && loading ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
               <div key={index} className="h-[390px] animate-pulse rounded-[1.75rem] bg-white shadow-soft" />
@@ -115,7 +175,7 @@ function RoomsPageContent() {
           </div>
         ) : null}
 
-        {!loading && !error && listings.length === 0 ? (
+        {view === "list" && !loading && !error && listings.length === 0 ? (
           <div className="rounded-[1.75rem] bg-white p-8 text-center shadow-soft">
             <h2 className="font-heading text-2xl font-bold">{t("rooms.emptyTitle")}</h2>
             <p className="mt-2 text-sm text-foreground/60">
@@ -124,7 +184,7 @@ function RoomsPageContent() {
           </div>
         ) : null}
 
-        {!loading && !error && listings.length > 0 ? (
+        {view === "list" && !loading && !error && listings.length > 0 ? (
           <>
             <ListingGrid listings={listings} />
 

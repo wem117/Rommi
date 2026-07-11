@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { CountUp } from "@/components/count-up";
+import { Reveal } from "@/components/reveal";
 import { Footer } from "@/components/layout/footer";
 import { LanguageMenu } from "@/components/layout/language-menu";
 import { ListingCard } from "@/components/listings/listing-card";
@@ -464,7 +465,7 @@ export default function HomePage() {
 
           <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {steps.map((step, index) => (
-              <div key={step.title} className="group relative">
+              <Reveal key={step.title} className="group relative" delayMs={index * 100}>
                 <article className="rounded-[1.75rem] border border-[#eee2d2] bg-white p-6 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl">
                   <div className="flex items-center justify-between">
                     <span className="text-5xl font-bold text-primary/15">{step.number}</span>
@@ -478,7 +479,7 @@ export default function HomePage() {
                 {index < steps.length - 1 ? (
                   <ChevronRight className="absolute right-[-18px] top-1/2 hidden h-5 w-5 -translate-y-1/2 text-[#d8cdbd] lg:block" />
                 ) : null}
-              </div>
+              </Reveal>
             ))}
           </div>
 

@@ -73,13 +73,29 @@ const DEFAULT_PUBLIC_SETTINGS: PublicSettings = {
   featuredRoommatesLimit: 8
 };
 
+// LocaleProvider, Footer, and the home page all read these settings on the
+// same page load. Cache the in-flight/resolved request so they share one
+// network round-trip instead of issuing duplicate identical queries.
+let cachedSettings: Promise<PublicSettings> | null = null;
+
+export function invalidatePublicSettingsCache() {
+  cachedSettings = null;
+}
+
+export async function getPublicSettings(): Promise<PublicSettings> {
+  if (!cachedSettings) {
+    cachedSettings = fetchPublicSettings();
+  }
+  return cachedSettings;
+}
+
 /**
  * Public (RLS-safe) subset of site_settings: homepage hero/sections,
  * maintenance mode, and platform chrome (site name, logo, footer, SEO).
  * Falls back to sensible defaults when Supabase isn't configured, the table
  * doesn't exist yet, or a key hasn't been set.
  */
-export async function getPublicSettings(): Promise<PublicSettings> {
+async function fetchPublicSettings(): Promise<PublicSettings> {
   if (!isSupabaseConfigured) return DEFAULT_PUBLIC_SETTINGS;
 
   try {

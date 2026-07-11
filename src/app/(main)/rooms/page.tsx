@@ -3,12 +3,15 @@
 import { ArrowRight, Loader2, RefreshCcw } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 import { ListingFiltersBar } from "@/components/listings/listing-filters";
 import { ListingGrid } from "@/components/listings/listing-grid";
 import { useLocale } from "@/context/locale-context";
 import { type ListingFilters, useListings } from "@/hooks/use-listings";
+
+const FILTERS_STORAGE_KEY = "roomi:rooms:filters";
+const URL_FILTER_KEYS = ["university", "city", "listingType", "propertyType", "maxRent", "minRent", "search"];
 
 function buildInitialFilters(searchParams: URLSearchParams): ListingFilters {
   const university = searchParams.get("university");
@@ -27,8 +30,36 @@ function buildInitialFilters(searchParams: URLSearchParams): ListingFilters {
 function RoomsPageContent() {
   const searchParams = useSearchParams();
   const [filters, setFilters] = useState<ListingFilters>(() => buildInitialFilters(searchParams));
+  const restoredRef = useRef(false);
   const { t } = useLocale();
   const { listings, loading, loadingMore, error, hasMore, reload, loadMore } = useListings(filters);
+
+  // Restore the last-used filters when the user opens /rooms with no explicit
+  // search params (arriving via nav rather than a homepage search). URL params
+  // always win. Runs once, after mount, to avoid any SSR/hydration mismatch.
+  useEffect(() => {
+    const hasUrlParams = URL_FILTER_KEYS.some((key) => searchParams.get(key));
+    if (!hasUrlParams) {
+      try {
+        const saved = window.localStorage.getItem(FILTERS_STORAGE_KEY);
+        if (saved) setFilters((current) => ({ ...current, ...(JSON.parse(saved) as ListingFilters) }));
+      } catch {
+        // ignore malformed storage
+      }
+    }
+    restoredRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist filters (after the initial restore) so they survive navigation.
+  useEffect(() => {
+    if (!restoredRef.current) return;
+    try {
+      window.localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
+    } catch {
+      // ignore quota/serialization errors
+    }
+  }, [filters]);
 
   return (
     <main className="min-h-[70vh] bg-[#faf6ef]">

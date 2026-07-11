@@ -1,4 +1,4 @@
-import { BedDouble, CalendarDays, MapPin, ShieldCheck, ShowerHead } from "lucide-react";
+import { BedDouble, CalendarDays, GraduationCap, MapPin, ShowerHead, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -29,16 +29,12 @@ export function ListingCard({ listing }: { listing: Listing }) {
     shared_room: t("listing.types.sharedRoom"),
     entire_place: t("listing.types.entirePlace")
   };
-  const statusBadge =
-    listing.monthlyRent >= 220000
-      ? t("listing.availableSoon")
-      : listing.monthlyRent <= 120000
-        ? t("listing.availableFlexible")
-        : t("listing.availableToday");
   const propertyBadge =
     listing.propertyType === "apartment" || listing.propertyType === "studio"
       ? propertyLabels[listing.propertyType]
       : listingTypeLabels[listing.listingType];
+  // "New" = created within the last 14 days (a real signal, not a rent guess).
+  const isNew = Date.now() - listing.createdAt.getTime() < 14 * 24 * 60 * 60 * 1000;
 
   return (
     <Link
@@ -64,17 +60,19 @@ export function ListingCard({ listing }: { listing: Listing }) {
           <div className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm backdrop-blur">
             {propertyBadge}
           </div>
-          {listing.monthlyRent >= 150000 ? (
-            <div className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-sm">
-              <ShieldCheck className="h-3 w-3" />
-              {t("listing.verified")}
+          {listing.featured ? (
+            <div className="inline-flex items-center gap-1 rounded-full bg-highlight px-3 py-1.5 text-xs font-semibold text-highlight-foreground shadow-sm">
+              <Sparkles className="h-3 w-3" />
+              {t("listing.featured")}
             </div>
           ) : null}
         </div>
 
-        <div className="absolute right-3 top-3 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-white shadow-sm">
-          {statusBadge}
-        </div>
+        {isNew ? (
+          <div className="absolute right-3 top-3 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm">
+            {t("listing.new")}
+          </div>
+        ) : null}
 
         <div className="absolute bottom-3 right-3">
           <FavoriteButton listingId={listing.id} />
@@ -98,6 +96,13 @@ export function ListingCard({ listing }: { listing: Listing }) {
             {listing.district ? `, ${listing.district}` : ""}
           </span>
         </div>
+
+        {listing.university ? (
+          <div className="mt-2 inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">
+            <GraduationCap className="h-3.5 w-3.5 shrink-0" />
+            <span className="line-clamp-1">{listing.university}</span>
+          </div>
+        ) : null}
 
         {owner ? (
           <div className="mt-3 flex items-center gap-3 rounded-xl bg-surface-muted p-2">

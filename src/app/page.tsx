@@ -56,9 +56,31 @@ export default function HomePage() {
       void getFeaturedListings(next.featuredListingsLimit).then(setFeaturedListings);
       void getFeaturedRoommates(next.featuredRoommatesLimit).then(setFeaturedRoommates);
     });
+
+    // Remember the last home-page search (restored after mount to avoid a
+    // hydration mismatch with the server-rendered empty defaults).
+    try {
+      const saved = window.localStorage.getItem("roomi:home:search");
+      if (saved) {
+        const parsed = JSON.parse(saved) as { city?: string; budget?: string; type?: string };
+        if (parsed.city) setSearchCity(parsed.city);
+        if (parsed.budget) setSearchBudget(parsed.budget);
+        if (parsed.type) setSearchType(parsed.type);
+      }
+    } catch {
+      // ignore malformed storage
+    }
   }, []);
 
   function handleSearch() {
+    try {
+      window.localStorage.setItem(
+        "roomi:home:search",
+        JSON.stringify({ city: searchCity, budget: searchBudget, type: searchType })
+      );
+    } catch {
+      // ignore quota errors
+    }
     const params = new URLSearchParams();
     if (searchCity) params.set("city", searchCity);
     if (searchBudget) params.set("maxRent", searchBudget);

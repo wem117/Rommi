@@ -457,6 +457,8 @@ const translations = {
     listing: {
       noPhoto: "No photo",
       verified: "Verified",
+      featured: "Featured",
+      new: "New",
       currentRoommate: "Current roommate",
       availableToday: "Today",
       availableSoon: "2 days",
@@ -981,6 +983,8 @@ const translations = {
     listing: {
       noPhoto: "Нет фото",
       verified: "Проверено",
+      featured: "Рекомендуемое",
+      new: "Новое",
       currentRoommate: "Текущий сосед",
       availableToday: "Сегодня",
       availableSoon: "2 дня",
@@ -1504,6 +1508,8 @@ const translations = {
     listing: {
       noPhoto: "Фото жоқ",
       verified: "Тексерілген",
+      featured: "Ұсынылған",
+      new: "Жаңа",
       currentRoommate: "Қазіргі roommate",
       availableToday: "Бүгін",
       availableSoon: "2 күн",

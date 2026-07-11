@@ -49,11 +49,20 @@ export async function signUpWithEmail(email: string, password: string) {
 }
 
 function getGoogleRedirectTo(nextPath?: string) {
-  if (!supabaseConfig.googleRedirectTo) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_GOOGLE_REDIRECT_TO. Add it to .env.local.");
+  // Always return to the SAME origin the user is on (localhost in dev, the
+  // deployed domain in prod). This avoids the common failure where a hardcoded
+  // NEXT_PUBLIC_SUPABASE_GOOGLE_REDIRECT_TO env points at the wrong environment.
+  // The configured value is used only as a fallback (e.g. non-browser contexts).
+  const base =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/api/auth/callback`
+      : supabaseConfig.googleRedirectTo;
+
+  if (!base) {
+    throw new Error("Cannot determine the OAuth redirect URL for Google sign-in.");
   }
 
-  const callbackUrl = new URL(supabaseConfig.googleRedirectTo, window.location.origin);
+  const callbackUrl = new URL(base, typeof window !== "undefined" ? window.location.origin : undefined);
 
   if (nextPath?.startsWith("/") && !nextPath.startsWith("//")) {
     callbackUrl.searchParams.set("next", nextPath);

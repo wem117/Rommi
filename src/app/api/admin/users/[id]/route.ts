@@ -17,7 +17,8 @@ const adminProfileUpdateSchema = z.object({
   suspended: z.boolean().optional(),
   roommateStatus: z.enum(["pending", "approved", "rejected"]).optional(),
   featured: z.boolean().optional(),
-  featuredPosition: z.number().int().min(0).nullable().optional()
+  featuredPosition: z.number().int().min(0).nullable().optional(),
+  contactsHidden: z.boolean().optional()
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -48,6 +49,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (input.roommateStatus !== undefined) payload.roommate_status = input.roommateStatus;
     if (input.featured !== undefined) payload.featured = input.featured;
     if (input.featuredPosition !== undefined) payload.featured_position = input.featuredPosition;
+    if (input.contactsHidden !== undefined) payload.contacts_hidden = input.contactsHidden;
 
     const { data, error } = await supabase.from("profiles").update(payload).eq("uid", id).select("*").single();
     if (error) throw error;

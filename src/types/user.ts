@@ -29,6 +29,9 @@ export interface UserProfile {
   lookingForApartment: boolean;
   photoURL?: string | null;
   bio?: string;
+  telegram?: string;
+  phone?: string;
+  contactsHidden?: boolean;
   role?: "user" | "admin";
   verified?: boolean;
   banned?: boolean;

@@ -4,10 +4,12 @@ import {
   Activity,
   ArrowDown,
   ArrowUp,
+  EyeOff,
   Flag,
   Loader2,
   MoreVertical,
   Pencil,
+  Phone,
   RotateCcw,
   ShieldBan,
   ShieldCheck,
@@ -148,6 +150,16 @@ export default function AdminRoommatesPage() {
       await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Reset failed");
+    }
+  }
+
+  async function toggleContactsHidden(uid: string, hidden: boolean) {
+    try {
+      await patch(uid, { contactsHidden: hidden });
+      toast.success(hidden ? "Contacts hidden" : "Contacts shown");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Update failed");
     }
   }
 
@@ -324,6 +336,7 @@ export default function AdminRoommatesPage() {
                       {item.banned ? <Badge variant="destructive">Banned</Badge> : null}
                       {item.suspended ? <Badge variant="warning">Suspended</Badge> : null}
                       {item.featured ? <Badge variant="default">Featured</Badge> : null}
+                      {item.contactsHidden ? <Badge variant="outline">Contacts hidden</Badge> : null}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -387,6 +400,10 @@ export default function AdminRoommatesPage() {
                           <DropdownMenuItem onClick={() => resetFeatured(item.uid)}>
                             <RotateCcw className="mr-2 h-4 w-4" />
                             Reset featured
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => toggleContactsHidden(item.uid, !item.contactsHidden)}>
+                            {item.contactsHidden ? <Phone className="mr-2 h-4 w-4" /> : <EyeOff className="mr-2 h-4 w-4" />}
+                            {item.contactsHidden ? "Show contacts" : "Hide contacts"}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => void openReports(item)}>
                             <Flag className="mr-2 h-4 w-4" />

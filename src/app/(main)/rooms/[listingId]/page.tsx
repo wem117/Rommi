@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ListingGallery } from "@/components/listings/listing-gallery";
 import { ListingGrid } from "@/components/listings/listing-grid";
+import { ContactLinks } from "@/components/shared/contact-links";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
@@ -270,6 +271,12 @@ export default function ListingDetailPage() {
               >
                 {t("listingDetail.orEmailDirectly")}
               </a>
+            ) : null}
+
+            {owner && (owner.telegram || owner.phone) && !owner.contactsHidden ? (
+              <div className="mt-3 flex justify-center">
+                <ContactLinks telegram={owner.telegram} phone={owner.phone} contactsHidden={owner.contactsHidden} size="sm" />
+              </div>
             ) : null}
 
             <button

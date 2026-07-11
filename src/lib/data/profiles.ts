@@ -36,6 +36,9 @@ function toProfilePayload(profile: Partial<UserProfile>) {
   }
   if (hasOwnProperty(profile, "photoURL")) payload.photo_url = profile.photoURL ?? null;
   if (hasOwnProperty(profile, "bio")) payload.bio = profile.bio ?? "";
+  if (hasOwnProperty(profile, "telegram")) payload.telegram = profile.telegram ?? "";
+  if (hasOwnProperty(profile, "phone")) payload.phone = profile.phone ?? "";
+  if (hasOwnProperty(profile, "contactsHidden")) payload.contacts_hidden = profile.contactsHidden ?? false;
   if (hasOwnProperty(profile, "role")) payload.role = profile.role ?? "user";
   if (hasOwnProperty(profile, "verified")) payload.verified = profile.verified ?? false;
   if (hasOwnProperty(profile, "profileCompletion")) {

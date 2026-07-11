@@ -6,12 +6,14 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AvatarUpload } from "@/components/profile/avatar-upload";
+import { UniversityCombobox } from "@/components/shared/university-combobox";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
-import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { updateProfile } from "@/lib/data/profiles";
 import { sendCurrentUserVerificationEmail } from "@/lib/supabase/auth";
 import { profileCompletion } from "@/lib/utils/compatibility";
+import { isValidPhone, isValidTelegram, normalizePhone, normalizeTelegram } from "@/lib/utils/contacts";
 import type { LifestylePreferences, UserProfile } from "@/types/user";
 
 const lifestyleOptions: Record<
@@ -87,6 +89,18 @@ export default function EditProfilePage() {
 
   async function saveProfile() {
     if (!user || !draft) return;
+
+    const telegramInput = (draft.telegram ?? "").trim();
+    if (telegramInput && !isValidTelegram(telegramInput)) {
+      toast.error(t("profileEdit.telegramInvalid"));
+      return;
+    }
+    const phoneInput = (draft.phone ?? "").trim();
+    if (phoneInput && !isValidPhone(phoneInput)) {
+      toast.error(t("profileEdit.phoneInvalid"));
+      return;
+    }
+
     setSaving(true);
     try {
       const completion = profileCompletion(draft);
@@ -102,6 +116,8 @@ export default function EditProfilePage() {
         preferredMoveInDate: draft.preferredMoveInDate,
         lifestyle: draft.lifestyle,
         bio: draft.bio ?? "",
+        telegram: telegramInput ? normalizeTelegram(telegramInput) : "",
+        phone: phoneInput ? normalizePhone(phoneInput) : "",
         lookingForApartment: draft.lookingForApartment,
         photoURL: draft.photoURL ?? null,
         profileCompletion: completion,
@@ -206,26 +222,50 @@ export default function EditProfilePage() {
               onChange={(event) => updateField("bio", event.target.value)}
             />
           </div>
+
           <div className="sm:col-span-2 rounded-[1.5rem] border border-[#e8dccd] bg-[#f8f2e8] p-4">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm font-semibold text-foreground">{t("profileEdit.contactsSectionTitle")}</div>
+            <p className="mt-1 text-sm text-foreground/60">{t("profileEdit.contactsSectionHelp")}</p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
+                <label htmlFor="telegram">{t("profileEdit.telegramLabel")}</label>
+                <input
+                  id="telegram"
+                  inputMode="text"
+                  autoComplete="off"
+                  placeholder={t("profileEdit.telegramPlaceholder")}
+                  value={draft.telegram ?? ""}
+                  onChange={(event) => updateField("telegram", event.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="phone">{t("profileEdit.phoneLabel")}</label>
+                <input
+                  id="phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder={t("profileEdit.phonePlaceholder")}
+                  value={draft.phone ?? ""}
+                  onChange={(event) => updateField("phone", event.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="sm:col-span-2 rounded-[1.5rem] border border-[#e8dccd] bg-[#f8f2e8] p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-foreground">{t("profileEdit.lookingForApartmentLabel")}</div>
                 <p className="mt-1 text-sm text-foreground/60">{t("profileEdit.lookingForApartmentDescription")}</p>
               </div>
-              <button
-                type="button"
-                onClick={() => updateField("lookingForApartment", !draft.lookingForApartment)}
-                className={`inline-flex h-11 w-20 items-center rounded-full p-1 transition ${
-                  draft.lookingForApartment ? "bg-primary" : "bg-[#d8cdbd]"
-                }`}
-                aria-pressed={draft.lookingForApartment}
-              >
-                <span
-                  className={`h-9 w-9 rounded-full bg-white shadow-sm transition ${
-                    draft.lookingForApartment ? "translate-x-9" : "translate-x-0"
-                  }`}
+              <div className="shrink-0 pt-0.5">
+                <Switch
+                  checked={draft.lookingForApartment}
+                  onCheckedChange={(checked) => updateField("lookingForApartment", checked)}
+                  aria-label={t("profileEdit.lookingForApartmentLabel")}
                 />
-              </button>
+              </div>
             </div>
           </div>
         </div>

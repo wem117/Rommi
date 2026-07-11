@@ -13,6 +13,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { FavoriteRoommateButton } from "@/components/favorites/favorite-roommate-button";
+import { ContactLinks } from "@/components/shared/contact-links";
 import { getUniversityCity } from "@/lib/constants/universities";
 import { StatusBanner } from "@/components/StatusBanner";
 import { useAuth } from "@/context/auth-context";
@@ -288,6 +289,10 @@ export default function RoommateDetailPage() {
 
             <div className="mt-4 flex justify-center rounded-full bg-[#f7f1e7] px-5 py-4">
               <FavoriteRoommateButton roommateId={profile.uid} showLabel />
+            </div>
+
+            <div className="mt-4 flex justify-center">
+              <ContactLinks telegram={profile.telegram} phone={profile.phone} contactsHidden={profile.contactsHidden} />
             </div>
           </div>
         </aside>

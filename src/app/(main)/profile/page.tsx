@@ -6,7 +6,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { ContactLinks } from "@/components/shared/contact-links";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
 import { useConversations } from "@/hooks/use-conversations";
@@ -152,6 +154,11 @@ export default function ProfilePage() {
                   active={profile.lookingForApartment}
                 />
               </div>
+              {profile.telegram || profile.phone ? (
+                <div className="mt-4">
+                  <ContactLinks telegram={profile.telegram} phone={profile.phone} size="sm" />
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -205,35 +212,30 @@ export default function ProfilePage() {
                   <Info label={t("profile.gender")} value={profile.gender.replaceAll("_", " ")} />
                 </div>
 
-                <div className="mt-4 rounded-[1.5rem] border border-[#e8dccd] bg-[#f8f2e8] p-4">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
+                <div className="mt-4 rounded-[1.5rem] border border-[#e8dccd] bg-[#f8f2e8] p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
                       <h3 className="text-sm font-semibold text-foreground">{t("profile.searchVisibility")}</h3>
                       <p className="mt-1 text-sm leading-6 text-foreground/60">
                         {t("profile.searchVisibilityDescription")}
                       </p>
-                      <p className="mt-2 text-xs font-semibold text-primary">
+                      <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${profile.lookingForApartment ? "bg-primary" : "bg-foreground/30"}`}
+                        />
                         {profile.lookingForApartment ? t("profile.searchVisibilityOn") : t("profile.searchVisibilityOff")}
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => void toggleVisibility()}
-                      disabled={visibilitySaving}
-                      className={`inline-flex h-11 w-20 items-center rounded-full p-1 transition disabled:cursor-not-allowed disabled:opacity-70 ${
-                        profile.lookingForApartment ? "bg-primary" : "bg-[#d8cdbd]"
-                      }`}
-                      aria-pressed={profile.lookingForApartment}
-                    >
-                      <span
-                        className={`grid h-9 w-9 place-items-center rounded-full bg-white shadow-sm transition ${
-                          profile.lookingForApartment ? "translate-x-9" : "translate-x-0"
-                        }`}
-                      >
-                        {visibilitySaving ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : null}
-                      </span>
-                    </button>
+                    <div className="flex shrink-0 items-center gap-2 pt-0.5">
+                      {visibilitySaving ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : null}
+                      <Switch
+                        checked={profile.lookingForApartment}
+                        disabled={visibilitySaving}
+                        onCheckedChange={() => void toggleVisibility()}
+                        aria-label={t("profile.searchVisibility")}
+                      />
+                    </div>
                   </div>
                 </div>
               </Panel>

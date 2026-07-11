@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, ShieldX, Trash2 } from "lucide-react";
+import { History, Loader2, MoreVertical, NotebookPen, ShieldAlert, ShieldBan, ShieldX, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -16,14 +16,24 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Textarea } from "@/components/ui/textarea";
 import type { Report } from "@/types/report";
+
+type ModerationAction = "remove_content" | "warn" | "suspend" | "ban";
 
 export default function AdminReportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
+  const [pendingDeleteTargetId, setPendingDeleteTargetId] = useState<Report | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ report: Report; action: ModerationAction } | null>(null);
+  const [historyReport, setHistoryReport] = useState<Report | null>(null);
+  const [noteReport, setNoteReport] = useState<Report | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -43,16 +53,16 @@ export default function AdminReportsPage() {
     void load();
   }, [load]);
 
-  async function updateReport(reportId: string, status: "resolved" | "dismissed") {
+  async function updateReport(reportId: string, status: "resolved" | "dismissed", note?: string) {
     setBusyId(reportId);
     try {
       const res = await fetch("/api/reports", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reportId, status })
+        body: JSON.stringify({ reportId, status, note })
       });
       if (!res.ok) throw new Error("Update failed");
-      setReports((current) => current.map((report) => (report.id === reportId ? { ...report, status } : report)));
+      await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Update failed");
     } finally {
@@ -60,22 +70,44 @@ export default function AdminReportsPage() {
     }
   }
 
-  async function removeContent(reportId: string) {
-    setBusyId(reportId);
+  async function runModeration(report: Report, action: ModerationAction) {
+    setBusyId(report.id);
     try {
       const res = await fetch("/api/reports/remove-content", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reportId })
+        body: JSON.stringify({ reportId: report.id, action })
       });
-      if (!res.ok) throw new Error("Could not remove content");
-      toast.success("Reported content removed");
+      if (!res.ok) throw new Error("Action failed");
+      toast.success(
+        action === "warn"
+          ? "Warning recorded"
+          : action === "suspend"
+            ? "User suspended"
+            : action === "ban"
+              ? "User banned"
+              : "Listing removed"
+      );
       await load();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not remove content");
+      toast.error(error instanceof Error ? error.message : "Action failed");
     } finally {
       setBusyId(null);
-      setPendingRemoveId(null);
+      setPendingAction(null);
+    }
+  }
+
+  async function deleteTarget(report: Report) {
+    try {
+      const endpoint = report.targetType === "listing" ? `/api/admin/listings/${report.targetId}` : `/api/admin/users/${report.targetId}`;
+      const res = await fetch(endpoint, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      toast.success(report.targetType === "listing" ? "Listing deleted" : "Roommate deleted");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Delete failed");
+    } finally {
+      setPendingDeleteTargetId(null);
     }
   }
 
@@ -91,6 +123,21 @@ export default function AdminReportsPage() {
       setPendingDeleteId(null);
     }
   }
+
+  async function saveNote() {
+    if (!noteReport) return;
+    setSavingNote(true);
+    try {
+      await updateReport(noteReport.id, noteReport.status === "dismissed" ? "dismissed" : "resolved", noteDraft);
+      setNoteReport(null);
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
+  const history = historyReport
+    ? reports.filter((r) => r.targetId === historyReport.targetId && r.targetType === historyReport.targetType)
+    : [];
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
@@ -141,18 +188,58 @@ export default function AdminReportsPage() {
                         <Button size="sm" variant="outline" disabled={busyId === report.id} onClick={() => updateReport(report.id, "dismissed")}>
                           Dismiss
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="hover:bg-destructive/10 hover:text-destructive"
-                          disabled={busyId === report.id}
-                          onClick={() => setPendingRemoveId(report.id)}
-                        >
-                          <ShieldX className="h-4 w-4" />
-                          Remove content
-                        </Button>
                       </>
                     ) : null}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" aria-label="More actions">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {report.targetType === "listing" ? (
+                          <DropdownMenuItem onClick={() => setPendingAction({ report, action: "remove_content" })}>
+                            <ShieldX className="mr-2 h-4 w-4" />
+                            Remove listing
+                          </DropdownMenuItem>
+                        ) : (
+                          <>
+                            <DropdownMenuItem onClick={() => setPendingAction({ report, action: "warn" })}>
+                              <ShieldAlert className="mr-2 h-4 w-4" />
+                              Warn user
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setPendingAction({ report, action: "suspend" })}>
+                              <ShieldBan className="mr-2 h-4 w-4" />
+                              Suspend user
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setPendingAction({ report, action: "ban" })}>
+                              <ShieldX className="mr-2 h-4 w-4" />
+                              Ban user
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setNoteReport(report);
+                            setNoteDraft(report.adminNote ?? "");
+                          }}
+                        >
+                          <NotebookPen className="mr-2 h-4 w-4" />
+                          Add note
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setHistoryReport(report)}>
+                          <History className="mr-2 h-4 w-4" />
+                          View history
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => setPendingDeleteTargetId(report)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete {report.targetType}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -170,21 +257,45 @@ export default function AdminReportsPage() {
         )}
       </div>
 
-      <AlertDialog open={Boolean(pendingRemoveId)} onOpenChange={(open) => !open && setPendingRemoveId(null)}>
+      <AlertDialog open={Boolean(pendingAction)} onOpenChange={(open) => !open && setPendingAction(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove reported content?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This hides the reported listing or bans the reported user, and marks the report resolved.
-            </AlertDialogDescription>
+            <AlertDialogTitle>
+              {pendingAction?.action === "warn"
+                ? "Warn this user?"
+                : pendingAction?.action === "suspend"
+                  ? "Suspend this user?"
+                  : pendingAction?.action === "ban"
+                    ? "Ban this user?"
+                    : "Remove this listing?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>This marks the report resolved.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => pendingRemoveId && removeContent(pendingRemoveId)}
+              onClick={() => pendingAction && runModeration(pendingAction.report, pendingAction.action)}
             >
-              Remove content
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={Boolean(pendingDeleteTargetId)} onOpenChange={(open) => !open && setPendingDeleteTargetId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently delete this {pendingDeleteTargetId?.targetType}?</AlertDialogTitle>
+            <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => pendingDeleteTargetId && deleteTarget(pendingDeleteTargetId)}
+            >
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -207,6 +318,50 @@ export default function AdminReportsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={Boolean(noteReport)} onOpenChange={(open) => !open && setNoteReport(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Admin note</DialogTitle>
+          </DialogHeader>
+          <Textarea rows={4} value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder="Internal note about this report..." />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNoteReport(null)}>
+              Cancel
+            </Button>
+            <Button onClick={saveNote} disabled={savingNote}>
+              {savingNote ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Save note
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(historyReport)} onOpenChange={(open) => !open && setHistoryReport(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Report history — {historyReport?.targetType} {historyReport?.targetId}</DialogTitle>
+          </DialogHeader>
+          {history.length === 0 ? (
+            <p className="text-sm text-foreground/60">No other reports for this target.</p>
+          ) : (
+            <ul className="space-y-3">
+              {history.map((r) => (
+                <li key={r.id} className="rounded-xl border border-border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold">{r.reason}</span>
+                    <Badge variant={r.status === "resolved" ? "success" : r.status === "dismissed" ? "secondary" : "warning"}>
+                      {r.status}
+                    </Badge>
+                  </div>
+                  {r.details ? <p className="mt-1 text-sm text-foreground/60">{r.details}</p> : null}
+                  <p className="mt-1 text-xs text-foreground/40">{r.createdAt.toLocaleDateString()}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

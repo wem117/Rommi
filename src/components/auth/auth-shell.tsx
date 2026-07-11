@@ -5,24 +5,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { LanguageMenu } from "@/components/layout/language-menu";
-
-const highlights = [
-  {
-    icon: ShieldCheck,
-    title: "Verified Profiles",
-    subtitle: "ID-verified users only"
-  },
-  {
-    icon: UserRoundSearch,
-    title: "Smart Matching",
-    subtitle: "94% compatibility accuracy"
-  },
-  {
-    icon: Zap,
-    title: "Quick Setup",
-    subtitle: "Under 5 minutes"
-  }
-] as const;
+import { useLocale } from "@/context/locale-context";
 
 export function AuthShell({
   heading,
@@ -43,6 +26,14 @@ export function AuthShell({
   footerLinkLabel: string;
   children: ReactNode;
 }) {
+  const { t } = useLocale();
+
+  const highlights = [
+    { icon: ShieldCheck, title: t("auth.highlightVerifiedTitle"), subtitle: t("auth.highlightVerifiedSubtitle") },
+    { icon: UserRoundSearch, title: t("auth.highlightMatchingTitle"), subtitle: t("auth.highlightMatchingSubtitle") },
+    { icon: Zap, title: t("auth.highlightSetupTitle"), subtitle: t("auth.highlightSetupSubtitle") }
+  ];
+
   return (
     <main className="min-h-screen bg-[#faf6ef] text-[#16110f]">
       <header className="border-b border-[#eadfce] bg-white/90 backdrop-blur">
@@ -58,13 +49,13 @@ export function AuthShell({
 
           <nav className="hidden items-center gap-12 text-[1.05rem] font-medium text-[#2e2622] md:flex">
             <Link href="/rooms" className="transition hover:text-[#12b000]">
-              Rooms
+              {t("nav.rooms")}
             </Link>
             <Link href="/roommates" className="transition hover:text-[#12b000]">
-              Roommates
+              {t("nav.roommates")}
             </Link>
             <Link href="/list-a-room/step-1" className="transition hover:text-[#12b000]">
-              List a Room
+              {t("nav.listRoom")}
             </Link>
           </nav>
 
@@ -93,12 +84,10 @@ export function AuthShell({
 
           <div className="mt-10 max-w-2xl">
             <h1 className="text-5xl font-bold leading-[0.96] sm:text-6xl lg:text-[5.25rem]">
-              Find your <span className="text-[#0f957d]">perfect roommate</span> in Kazakhstan
+              {t("auth.heroTitleLead")} <span className="text-[#0f957d]">{t("auth.heroTitleAccent")}</span>{" "}
+              {t("auth.heroTitleSuffix")}
             </h1>
-            <p className="mt-8 max-w-xl text-2xl leading-10 text-[#7f5e4a]">
-              Join students and young professionals who found compatible roommates, safer listings,
-              and a smoother way to settle in.
-            </p>
+            <p className="mt-8 max-w-xl text-2xl leading-10 text-[#7f5e4a]">{t("auth.heroDescription")}</p>
           </div>
 
           <div className="mt-12 grid gap-4 sm:grid-cols-3">
@@ -123,13 +112,13 @@ export function AuthShell({
           {children}
 
           <p className="mt-8 text-center text-base leading-7 text-[#9a6e56]">
-            By continuing, you agree to our{" "}
+            {t("auth.termsAgreement")}{" "}
             <Link href="/terms" className="font-semibold text-primary hover:underline">
-              Terms of Service
+              {t("footer.terms")}
             </Link>{" "}
-            and{" "}
+            {t("auth.and")}{" "}
             <Link href="/privacy" className="font-semibold text-primary hover:underline">
-              Privacy Policy
+              {t("footer.privacy")}
             </Link>
           </p>
 
@@ -142,7 +131,7 @@ export function AuthShell({
 
           <div className="mt-8 text-center">
             <Link href="/rooms" className="inline-flex items-center gap-2 text-lg font-medium text-[#9a6e56] transition hover:text-[#0f957d]">
-              Browse listings first
+              {t("auth.browseListingsFirst")}
               <ChevronRight className="h-4 w-4" />
             </Link>
           </div>

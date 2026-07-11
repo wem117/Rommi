@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+
+import { useLocale } from "@/context/locale-context";
 
 const socialLinks = [
   {
@@ -34,57 +38,71 @@ const socialLinks = [
 ];
 
 export function Footer() {
-  return (
-    <footer className="border-t border-border bg-white">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr] lg:px-8">
-        <div>
-          <Link href="/" className="font-heading text-2xl font-bold text-primary">
-            Roomi
-          </Link>
-          <p className="mt-3 max-w-sm text-sm leading-6 text-foreground/60">
-            Student rooms and roommate matching for Kazakhstan.
-          </p>
+  const { t } = useLocale();
 
-          <div className="mt-5 flex flex-wrap gap-3">
+  const platformLinks = [
+    { label: t("footer.browseRooms"), href: "/rooms" },
+    { label: t("footer.findRoommates"), href: "/roommates" },
+    { label: t("footer.universities"), href: "/universities" }
+  ];
+
+  const supportLinks = [
+    { label: t("footer.safety"), href: "/safety" },
+    { label: t("footer.terms"), href: "/terms" },
+    { label: t("footer.privacy"), href: "/privacy" }
+  ];
+
+  return (
+    <footer className="border-t border-border bg-card">
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 sm:px-6 md:grid-cols-[1.6fr_1fr_1fr] lg:px-8">
+        <div>
+          <Link href="/" className="font-heading text-2xl font-bold text-foreground">
+            Room<span className="text-primary">i</span>
+          </Link>
+          <p className="mt-3 max-w-sm text-sm leading-6 text-foreground/60">{t("footer.tagline")}</p>
+
+          <div className="mt-5 flex flex-wrap gap-2 sm:gap-3">
             {socialLinks.map((social) => (
               <a
                 key={social.label}
                 href={social.href}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-full border border-[#e7dccf] bg-[#fffaf4] px-4 py-2 text-sm font-semibold text-foreground/70 transition hover:border-primary hover:text-primary"
+                aria-label={social.label}
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-muted px-4 py-2 text-sm font-semibold text-foreground/70 transition hover:border-primary hover:text-primary"
               >
                 {social.icon}
-                {social.label}
+                <span className="hidden sm:inline">{social.label}</span>
               </a>
             ))}
           </div>
         </div>
+
         <div>
-          <h3 className="font-heading font-bold">Platform</h3>
+          <h3 className="font-heading font-bold text-foreground">{t("footer.platform")}</h3>
           <div className="mt-3 grid gap-2 text-sm text-foreground/60">
-            <Link href="/rooms">Rooms</Link>
-            <Link href="/roommates">Roommates</Link>
-            <Link href="/universities">Universities</Link>
+            {platformLinks.map((link) => (
+              <Link key={link.href} href={link.href} className="transition hover:text-primary">
+                {link.label}
+              </Link>
+            ))}
           </div>
         </div>
+
         <div>
-          <h3 className="font-heading font-bold">Company</h3>
+          <h3 className="font-heading font-bold text-foreground">{t("footer.support")}</h3>
           <div className="mt-3 grid gap-2 text-sm text-foreground/60">
-            <Link href="/">About</Link>
-            <Link href="/">Careers</Link>
-          </div>
-        </div>
-        <div>
-          <h3 className="font-heading font-bold">Support</h3>
-          <div className="mt-3 grid gap-2 text-sm text-foreground/60">
-            <Link href="/">Help</Link>
-            <Link href="/">Safety</Link>
+            {supportLinks.map((link) => (
+              <Link key={link.href} href={link.href} className="transition hover:text-primary">
+                {link.label}
+              </Link>
+            ))}
           </div>
         </div>
       </div>
+
       <div className="border-t border-border px-4 py-5 text-center text-xs text-foreground/50">
-        © 2026 Roomi. All rights reserved.
+        © {new Date().getFullYear()} Roomi. {t("footer.rights")}
       </div>
     </footer>
   );

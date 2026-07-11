@@ -124,11 +124,11 @@ export function AuthShell({
 
           <p className="mt-8 text-center text-base leading-7 text-[#9a6e56]">
             By continuing, you agree to our{" "}
-            <Link href="/" className="font-semibold text-[#0f957d]">
+            <Link href="/terms" className="font-semibold text-primary hover:underline">
               Terms of Service
             </Link>{" "}
             and{" "}
-            <Link href="/" className="font-semibold text-[#0f957d]">
+            <Link href="/privacy" className="font-semibold text-primary hover:underline">
               Privacy Policy
             </Link>
           </p>

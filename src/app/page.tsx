@@ -21,6 +21,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Footer } from "@/components/layout/footer";
 import { LanguageMenu } from "@/components/layout/language-menu";
 import { useLocale } from "@/context/locale-context";
 import { CITIES } from "@/lib/constants/cities";
@@ -133,7 +134,7 @@ export default function HomePage() {
                   <Home className="h-5 w-5" />
                 </span>
                 <span className="font-heading text-lg font-bold sm:text-xl">
-                  Roommate <span className="text-primary">KZ</span>
+                  Room<span className="text-primary">i</span>
                 </span>
               </Link>
 
@@ -371,12 +372,12 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {demoUniversities.map((university, index) => (
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-3">
+            {demoUniversities.slice(0, 6).map((university) => (
               <Link
                 key={university.name}
-                href={`/roommates?university=${encodeURIComponent(university.name)}`}
-                className={`group overflow-hidden rounded-[1.75rem] border border-[#efe5d9] bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl ${index === 0 ? "md:col-span-2 xl:col-span-1" : ""}`}
+                href={`/rooms?university=${encodeURIComponent(university.name)}`}
+                className="group overflow-hidden rounded-2xl border border-[#efe5d9] bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl sm:rounded-[1.75rem]"
               >
                 <div className="relative aspect-[1.6/1] overflow-hidden">
                   <Image
@@ -384,18 +385,20 @@ export default function HomePage() {
                     alt={university.name}
                     fill
                     className="object-cover transition duration-500 group-hover:scale-105"
-                    sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
+                    sizes="(min-width: 1280px) 33vw, (min-width: 640px) 33vw, 50vw"
                   />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                    <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white backdrop-blur">
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 sm:p-4">
+                    <span className="rounded-full bg-white/15 px-2 py-0.5 text-[0.65rem] font-medium text-white backdrop-blur sm:px-3 sm:py-1 sm:text-xs">
                       {university.city}
                     </span>
                   </div>
                 </div>
-                <div className="p-5">
-                  <h3 className="font-heading text-2xl font-bold">{university.name}</h3>
-                  <p className="mt-2 text-sm text-foreground/55">
-                    {university.listings} listings <span className="mx-2 text-[#d3c6b7]">|</span> {university.students} students
+                <div className="p-3 sm:p-5">
+                  <h3 className="font-heading text-base font-bold leading-tight sm:text-2xl">{university.name}</h3>
+                  <p className="mt-1 text-xs text-foreground/55 sm:mt-2 sm:text-sm">
+                    {university.listings} {t("home.listingsWord")}
+                    <span className="mx-1.5 text-[#d3c6b7] sm:mx-2">|</span>
+                    {university.students} {t("home.studentsWord")}
                   </p>
                 </div>
               </Link>
@@ -482,7 +485,7 @@ export default function HomePage() {
             <div className="relative mx-auto h-56 w-56 overflow-hidden rounded-[1.75rem] bg-[#f5efe6]">
               <Image
                 src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=700&q=80"
-                alt="Happy Roommate KZ user"
+                alt="Happy Roomi user"
                 fill
                 className="object-cover"
                 sizes="224px"
@@ -580,52 +583,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className="border-t border-[#ecdfce] bg-[#fffdf9]">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.5fr_1fr_1fr_1fr] lg:px-8">
-          <div>
-            <Link href="/" className="flex items-center gap-3 text-foreground">
-              <span className="grid h-10 w-10 place-items-center rounded-2xl bg-primary text-white shadow-lg">
-                <Home className="h-5 w-5" />
-              </span>
-              <span className="font-heading text-xl font-bold">
-                Roommate <span className="text-primary">KZ</span>
-              </span>
-            </Link>
-            <p className="mt-4 max-w-sm text-sm leading-7 text-foreground/60">
-              Kazakhstan&apos;s trusted roommate and housing platform for students and young professionals.
-            </p>
-          </div>
-
-          <FooterColumn
-            title="Platform"
-            links={[
-              { label: "Browse Rooms", href: "/rooms" },
-              { label: "Find Roommates", href: "/roommates" },
-              { label: "Universities", href: "/universities" }
-            ]}
-          />
-          <FooterColumn
-            title="Company"
-            links={[
-              { label: "About Us", href: "/" },
-              { label: "Contact", href: "/" },
-              { label: "Careers", href: "/" }
-            ]}
-          />
-          <FooterColumn
-            title="Support"
-            links={[
-              { label: "Help Center", href: "/" },
-              { label: "Terms of Service", href: "/" },
-              { label: "Privacy Policy", href: "/" }
-            ]}
-          />
-        </div>
-
-        <div className="border-t border-[#ecdfce] px-4 py-5 text-center text-xs text-foreground/50">
-          © 2026 Roommate KZ. All rights reserved.
-        </div>
-      </footer>
+      <Footer />
     </main>
   );
 }
@@ -677,27 +635,6 @@ function SectionHeader({
           {description}
         </p>
       ) : null}
-    </div>
-  );
-}
-
-function FooterColumn({
-  title,
-  links
-}: {
-  title: string;
-  links: Array<{ label: string; href: string }>;
-}) {
-  return (
-    <div>
-      <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-foreground/70">{title}</h3>
-      <div className="mt-4 grid gap-3 text-sm text-foreground/60">
-        {links.map((link) => (
-          <Link key={link.label} href={link.href} className="transition hover:text-primary">
-            {link.label}
-          </Link>
-        ))}
-      </div>
     </div>
   );
 }
@@ -852,7 +789,7 @@ function getFaqs(locale: "en" | "ru" | "kz") {
           "Система сравнивает бюджет, дату заезда, чистоту, режим сна, гостей и другие привычки, чтобы сильные совпадения поднимались выше."
       },
       {
-        question: "Насколько безопасен Roommate KZ?",
+        question: "Насколько безопасен Roomi?",
         answer:
           "Платформа строится вокруг проверенных профилей, деталей жилья и прозрачной активности, чтобы студентам было спокойнее принимать решения."
       },
@@ -882,7 +819,7 @@ function getFaqs(locale: "en" | "ru" | "kz") {
           "Жүйе бюджет, көшу уақыты, тазалық, ұйқы тәртібі, қонақтар және басқа әдеттерді салыстырып, мықты сәйкестіктерді жоғары қояды."
       },
       {
-        question: "Roommate KZ қолдану қауіпсіз бе?",
+        question: "Roomi қолдану қауіпсіз бе?",
         answer:
           "Платформа тексерілген профильдерге, тұрғын үй ақпаратына және ашық белсенділікке сүйеніп, студенттерге сенімдірек шешім қабылдауға көмектеседі."
       },
@@ -911,7 +848,7 @@ function getFaqs(locale: "en" | "ru" | "kz") {
         "Our match score compares budget, move-in timing, cleanliness, sleep schedule, guests, and other lifestyle preferences so you can shortlist better fits faster."
     },
     {
-      question: "Is it safe to use Roommate KZ?",
+      question: "Is it safe to use Roomi?",
       answer:
         "The platform is designed around verified profiles, room details, and reportable activity so students can make more confident decisions before meeting."
     },

@@ -17,13 +17,35 @@ export const homepageSectionSchema = z.object({
   visible: z.boolean()
 });
 
+const platformSettingsSchema = z.object({
+  siteName: z.string().trim().max(80).optional(),
+  logoUrl: z.string().trim().max(500).optional(),
+  faviconUrl: z.string().trim().max(500).optional(),
+  contactEmail: z.string().trim().max(200).optional(),
+  contactPhone: z.string().trim().max(60).optional(),
+  socialLinks: z
+    .object({
+      instagram: z.string().trim().max(300).optional(),
+      telegram: z.string().trim().max(300).optional(),
+      whatsapp: z.string().trim().max(300).optional(),
+      facebook: z.string().trim().max(300).optional()
+    })
+    .optional(),
+  footerText: z.string().trim().max(300).optional(),
+  seoTitle: z.string().trim().max(200).optional(),
+  seoDescription: z.string().trim().max(400).optional(),
+  analyticsGaId: z.string().trim().max(60).optional(),
+  defaultLanguage: z.enum(["en", "ru", "kz"]).optional()
+});
+
 export const siteSettingsUpdateSchema = z.object({
   featuredListingsLimit: z.number().int().min(1).max(50).optional(),
   featuredRoommatesLimit: z.number().int().min(1).max(50).optional(),
   maintenanceMode: z.boolean().optional(),
   adminEmails: z.array(z.string().trim().email()).max(20).optional(),
   homepageHero: homepageHeroSchema.optional(),
-  homepageSections: z.array(homepageSectionSchema).optional()
+  homepageSections: z.array(homepageSectionSchema).optional(),
+  platform: platformSettingsSchema.optional()
 });
 
 export type SiteSettingsUpdateInput = z.infer<typeof siteSettingsUpdateSchema>;

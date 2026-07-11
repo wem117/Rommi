@@ -1,6 +1,6 @@
 "use client";
 
-import type { Session, User } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 import {
   createContext,
   useCallback,
@@ -40,26 +40,6 @@ function mapUser(user: User | null): AuthUser | null {
   };
 }
 
-async function syncServerSession(session: Session | null) {
-  if (!session?.access_token) {
-    await fetch("/api/auth/session", { method: "DELETE" });
-    return;
-  }
-
-  const response = await fetch("/api/auth/session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      accessToken: session.access_token,
-      refreshToken: session.refresh_token
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error("Unable to sync session");
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -84,24 +64,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(mapUser(nextUser));
       setProfile(null);
 
+      if (!nextUser) {
+        if (!cancelled) setLoading(false);
+        return;
+      }
+
       try {
-        const { data } = await supabase.auth.getSession();
-        await syncServerSession(data.session ?? null);
-
-        if (!nextUser) {
-          if (!cancelled) setLoading(false);
-          return;
-        }
-
         const nextProfile = await getProfileById(nextUser.id);
         if (!cancelled) {
           setProfile(nextProfile);
           setLoading(false);
         }
       } catch (error) {
-        console.error("Auth session sync failed", error);
+        console.error("Failed to load profile", error);
         if (!cancelled) {
-          toast.error("Could not start your secure session");
+          toast.error("Could not load your profile");
           setLoading(false);
         }
       }

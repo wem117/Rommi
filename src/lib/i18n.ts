@@ -124,6 +124,11 @@ const translations = {
       rooms: "Rooms",
       roommates: "Roommates"
     },
+    maintenance: {
+      title: "We'll be right back",
+      description: "Roomi is undergoing scheduled maintenance. Please check back shortly.",
+      badge: "Under maintenance"
+    },
     rooms: {
       badge: "Browse Rooms",
       title: "Verified rooms across Kazakhstan",
@@ -358,6 +363,11 @@ const translations = {
       rooms: "Комнаты",
       roommates: "Соседи"
     },
+    maintenance: {
+      title: "Мы скоро вернемся",
+      description: "На сайте Roomi проводятся плановые технические работы. Пожалуйста, зайдите позже.",
+      badge: "Технические работы"
+    },
     rooms: {
       badge: "Поиск комнат",
       title: "Проверенные комнаты по всему Казахстану",
@@ -590,6 +600,11 @@ const translations = {
       cardDescription: "Осы кампуспен байланысты хабарландырулар мен студенттерді қараңыз.",
       rooms: "Бөлмелер",
       roommates: "Roommate"
+    },
+    maintenance: {
+      title: "Жақында ораламыз",
+      description: "Roomi сайтында жоспарлы техникалық жұмыстар жүргізілуде. Сәл кейінірек кіріп көріңіз.",
+      badge: "Техникалық жұмыстар"
     },
     rooms: {
       badge: "Бөлмелерді қарау",

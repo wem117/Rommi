@@ -2,7 +2,12 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
+import { getPublicSettings } from "@/lib/data/public-settings";
 import { type Locale, translate } from "@/lib/i18n";
+
+function isLocale(value: string | undefined | null): value is Locale {
+  return value === "en" || value === "ru" || value === "kz";
+}
 
 interface LocaleContextValue {
   locale: Locale;
@@ -17,9 +22,17 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const saved = window.localStorage.getItem("roomi:locale");
-    if (saved === "en" || saved === "ru" || saved === "kz") {
+    if (isLocale(saved)) {
       setLocaleState(saved);
+      return;
     }
+
+    // No saved preference yet: use the admin-configured default language.
+    void getPublicSettings().then((settings) => {
+      if (isLocale(settings.platform.defaultLanguage) && !window.localStorage.getItem("roomi:locale")) {
+        setLocaleState(settings.platform.defaultLanguage);
+      }
+    });
   }, []);
 
   useEffect(() => {

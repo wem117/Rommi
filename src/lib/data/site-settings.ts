@@ -1,5 +1,6 @@
 import "server-only";
 
+import { DEFAULT_PLATFORM_SETTINGS, type PlatformSettings } from "@/lib/data/public-settings";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import type { HomepageHero, HomepageSection } from "@/lib/validations/site-settings.schema";
 
@@ -10,6 +11,7 @@ export interface SiteSettings {
   adminEmails: string[];
   homepageHero: HomepageHero;
   homepageSections: HomepageSection[];
+  platform: PlatformSettings;
 }
 
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
@@ -25,7 +27,8 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
     { key: "featured_roommates", visible: true },
     { key: "testimonials", visible: true },
     { key: "faq", visible: true }
-  ]
+  ],
+  platform: DEFAULT_PLATFORM_SETTINGS
 };
 
 const KEY_MAP: Record<keyof SiteSettings, string> = {
@@ -34,7 +37,8 @@ const KEY_MAP: Record<keyof SiteSettings, string> = {
   maintenanceMode: "maintenance_mode",
   adminEmails: "admin_emails",
   homepageHero: "homepage_hero",
-  homepageSections: "homepage_sections"
+  homepageSections: "homepage_sections",
+  platform: "platform"
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
@@ -53,14 +57,17 @@ export async function getSiteSettings(): Promise<SiteSettings> {
       adminEmails: (byKey.get("admin_emails") as string[]) ?? DEFAULT_SITE_SETTINGS.adminEmails,
       homepageHero: (byKey.get("homepage_hero") as HomepageHero) ?? DEFAULT_SITE_SETTINGS.homepageHero,
       homepageSections:
-        (byKey.get("homepage_sections") as HomepageSection[]) ?? DEFAULT_SITE_SETTINGS.homepageSections
+        (byKey.get("homepage_sections") as HomepageSection[]) ?? DEFAULT_SITE_SETTINGS.homepageSections,
+      platform: { ...DEFAULT_PLATFORM_SETTINGS, ...((byKey.get("platform") as Partial<PlatformSettings>) ?? {}) }
     };
   } catch {
     return DEFAULT_SITE_SETTINGS;
   }
 }
 
-export async function updateSiteSettings(partial: Partial<SiteSettings>) {
+type SiteSettingsUpdate = Partial<Omit<SiteSettings, "platform">> & { platform?: Partial<PlatformSettings> };
+
+export async function updateSiteSettings(partial: SiteSettingsUpdate) {
   const supabase = createSupabaseAdminClient();
   const rows = (Object.entries(partial) as [keyof SiteSettings, unknown][]).map(([key, value]) => ({
     key: KEY_MAP[key],

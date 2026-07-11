@@ -12,13 +12,49 @@ const protectedPrefixes = [
   "/onboarding"
 ];
 
+// Always reachable even while maintenance mode is on, so admins can sign in
+// and disable it, and so auth/API calls made by the app itself keep working.
+const maintenanceBypassPrefixes = ["/admin", "/api", "/sign-in", "/sign-up", "/reset-password", "/maintenance"];
+
 function isProtected(pathname: string) {
   return protectedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+function bypassesMaintenance(pathname: string) {
+  return maintenanceBypassPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+async function isMaintenanceModeOn(supabaseUrl: string, anonKey: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/site_settings?key=eq.maintenance_mode&select=value`,
+      {
+        headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+        // Cache briefly at the edge so maintenance mode doesn't add a Supabase
+        // round-trip to every request; toggling takes up to ~30s to propagate.
+        next: { revalidate: 30 }
+      }
+    );
+    if (!res.ok) return false;
+    const rows = (await res.json()) as Array<{ value: unknown }>;
+    return rows[0]?.value === true;
+  } catch {
+    return false;
+  }
 }
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   let response = NextResponse.next({ request });
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (supabaseUrl && supabaseAnonKey && !bypassesMaintenance(pathname)) {
+    if (await isMaintenanceModeOn(supabaseUrl, supabaseAnonKey)) {
+      return NextResponse.redirect(new URL("/maintenance", request.url));
+    }
+  }
 
   if (!isProtected(pathname)) {
     return response;
@@ -27,9 +63,6 @@ export async function middleware(request: NextRequest) {
   const redirectPath = `${pathname}${search}`;
   const signInUrl = new URL("/sign-in", request.url);
   signInUrl.searchParams.set("redirect", redirectPath);
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
     signInUrl.searchParams.set("error", "supabase_not_configured");
@@ -88,12 +121,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/profile/:path*",
-    "/list-a-room/:path*",
-    "/favorites",
-    "/inbox/:path*",
-    "/admin/:path*",
-    "/onboarding/:path*"
-  ]
+  // Skip Next internals, API routes, and any path with a file extension
+  // (static assets: images, fonts, manifest, robots.txt, sitemap.xml, ...).
+  matcher: ["/((?!_next/static|_next/image|api/|.*\\..*).*)"]
 };

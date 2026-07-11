@@ -4,18 +4,23 @@ import { Loader2, Plus, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { AdminImageUpload } from "@/components/admin/admin-image-upload";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { DEFAULT_PLATFORM_SETTINGS, type PlatformSettings } from "@/lib/data/public-settings";
 
 type Settings = {
   featuredListingsLimit: number;
   featuredRoommatesLimit: number;
   maintenanceMode: boolean;
   adminEmails: string[];
+  platform: PlatformSettings;
 };
 
 export default function AdminSettingsPage() {
@@ -23,6 +28,7 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newEmail, setNewEmail] = useState("");
+  const [platformDraft, setPlatformDraft] = useState<PlatformSettings>(DEFAULT_PLATFORM_SETTINGS);
 
   useEffect(() => {
     void load();
@@ -35,6 +41,7 @@ export default function AdminSettingsPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to load settings");
       setSettings(json.settings);
+      setPlatformDraft({ ...DEFAULT_PLATFORM_SETTINGS, ...json.settings.platform });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load settings");
     } finally {
@@ -60,6 +67,10 @@ export default function AdminSettingsPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function savePlatform() {
+    void save({ platform: platformDraft });
   }
 
   function addEmail() {
@@ -94,6 +105,148 @@ export default function AdminSettingsPage() {
     <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
       <h1 className="text-2xl font-bold sm:text-3xl">Settings</h1>
       <p className="mt-1 text-sm text-foreground/60">Platform-wide configuration. Changes apply immediately, no deploy required.</p>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Site identity &amp; SEO</CardTitle>
+          <CardDescription>Site name, logo, favicon, and default search-engine metadata.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="site-name">Site name</Label>
+            <Input
+              id="site-name"
+              value={platformDraft.siteName}
+              onChange={(e) => setPlatformDraft({ ...platformDraft, siteName: e.target.value })}
+              placeholder="Roomi"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="default-language">Default language</Label>
+            <Select
+              value={platformDraft.defaultLanguage}
+              onValueChange={(value) => setPlatformDraft({ ...platformDraft, defaultLanguage: value })}
+            >
+              <SelectTrigger id="default-language">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="ru">Русский</SelectItem>
+                <SelectItem value="kz">Қазақша</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Logo</Label>
+            <AdminImageUpload value={platformDraft.logoUrl} onChange={(url) => setPlatformDraft({ ...platformDraft, logoUrl: url })} placeholder="Logo URL" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Favicon</Label>
+            <AdminImageUpload value={platformDraft.faviconUrl} onChange={(url) => setPlatformDraft({ ...platformDraft, faviconUrl: url })} placeholder="Favicon URL" />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="seo-title">SEO title</Label>
+            <Input
+              id="seo-title"
+              value={platformDraft.seoTitle}
+              onChange={(e) => setPlatformDraft({ ...platformDraft, seoTitle: e.target.value })}
+              placeholder="Roomi — Student Roommates & Rooms in Kazakhstan"
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="seo-description">SEO description</Label>
+            <Textarea
+              id="seo-description"
+              rows={2}
+              value={platformDraft.seoDescription}
+              onChange={(e) => setPlatformDraft({ ...platformDraft, seoDescription: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="analytics-ga">Google Analytics ID</Label>
+            <Input
+              id="analytics-ga"
+              value={platformDraft.analyticsGaId}
+              onChange={(e) => setPlatformDraft({ ...platformDraft, analyticsGaId: e.target.value })}
+              placeholder="G-XXXXXXXXXX"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Contact &amp; social</CardTitle>
+          <CardDescription>Shown in the footer.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="contact-email">Contact email</Label>
+            <Input
+              id="contact-email"
+              type="email"
+              value={platformDraft.contactEmail}
+              onChange={(e) => setPlatformDraft({ ...platformDraft, contactEmail: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="contact-phone">Contact phone</Label>
+            <Input
+              id="contact-phone"
+              value={platformDraft.contactPhone}
+              onChange={(e) => setPlatformDraft({ ...platformDraft, contactPhone: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="social-instagram">Instagram URL</Label>
+            <Input
+              id="social-instagram"
+              value={platformDraft.socialLinks.instagram ?? ""}
+              onChange={(e) => setPlatformDraft({ ...platformDraft, socialLinks: { ...platformDraft.socialLinks, instagram: e.target.value } })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="social-telegram">Telegram URL</Label>
+            <Input
+              id="social-telegram"
+              value={platformDraft.socialLinks.telegram ?? ""}
+              onChange={(e) => setPlatformDraft({ ...platformDraft, socialLinks: { ...platformDraft.socialLinks, telegram: e.target.value } })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="social-whatsapp">WhatsApp URL</Label>
+            <Input
+              id="social-whatsapp"
+              value={platformDraft.socialLinks.whatsapp ?? ""}
+              onChange={(e) => setPlatformDraft({ ...platformDraft, socialLinks: { ...platformDraft.socialLinks, whatsapp: e.target.value } })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="social-facebook">Facebook URL</Label>
+            <Input
+              id="social-facebook"
+              value={platformDraft.socialLinks.facebook ?? ""}
+              onChange={(e) => setPlatformDraft({ ...platformDraft, socialLinks: { ...platformDraft.socialLinks, facebook: e.target.value } })}
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="footer-text">Footer copyright text (leave blank for the default)</Label>
+            <Input
+              id="footer-text"
+              value={platformDraft.footerText}
+              onChange={(e) => setPlatformDraft({ ...platformDraft, footerText: e.target.value })}
+              placeholder={`© ${new Date().getFullYear()} Roomi. All rights reserved.`}
+            />
+          </div>
+        </CardContent>
+        <CardContent>
+          <Button onClick={savePlatform} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save site settings
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card className="mt-6">
         <CardHeader>

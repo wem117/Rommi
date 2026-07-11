@@ -7,12 +7,14 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 import { UniversityCombobox } from "@/components/shared/university-combobox";
-import { basicInfoSchema, type BasicInfoInput } from "@/lib/validations/profile.schema";
 import { useAuth } from "@/context/auth-context";
+import { useLocale } from "@/context/locale-context";
+import { basicInfoSchema, type BasicInfoInput } from "@/lib/validations/profile.schema";
 
 export default function OnboardingStepOnePage() {
   const router = useRouter();
   const { profile } = useAuth();
+  const { t } = useLocale();
   const {
     register,
     handleSubmit,
@@ -56,36 +58,36 @@ export default function OnboardingStepOnePage() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold">Tell us about yourself</h1>
-        <p className="mt-2 text-sm text-foreground/60">This helps students recognize who they are meeting.</p>
+        <h1 className="text-2xl font-bold">{t("onboarding.step1Title")}</h1>
+        <p className="mt-2 text-sm text-foreground/60">{t("onboarding.step1Subtitle")}</p>
       </div>
 
       <div>
-        <label htmlFor="fullName">Full name</label>
+        <label htmlFor="fullName">{t("onboarding.fullNameLabel")}</label>
         <input id="fullName" autoComplete="name" {...register("fullName")} />
         {errors.fullName ? <p className="mt-1 text-xs text-red-600">{errors.fullName.message}</p> : null}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="age">Age</label>
+          <label htmlFor="age">{t("onboarding.ageLabel")}</label>
           <input id="age" type="number" min={16} {...register("age", { valueAsNumber: true })} />
           {errors.age ? <p className="mt-1 text-xs text-red-600">{errors.age.message}</p> : null}
         </div>
         <div>
-          <label htmlFor="gender">Gender</label>
+          <label htmlFor="gender">{t("onboarding.genderLabel")}</label>
           <select id="gender" {...register("gender")}>
-            <option value="female">Female</option>
-            <option value="male">Male</option>
-            <option value="other">Other</option>
-            <option value="prefer_not_to_say">Prefer not to say</option>
+            <option value="female">{t("onboarding.genderFemale")}</option>
+            <option value="male">{t("onboarding.genderMale")}</option>
+            <option value="other">{t("onboarding.genderOther")}</option>
+            <option value="prefer_not_to_say">{t("onboarding.genderPreferNotToSay")}</option>
           </select>
           {errors.gender ? <p className="mt-1 text-xs text-red-600">{errors.gender.message}</p> : null}
         </div>
       </div>
 
       <div>
-        <label htmlFor="university">University</label>
+        <label htmlFor="university">{t("onboarding.universityLabel")}</label>
         <UniversityCombobox
           id="university"
           value={watch("university") ?? ""}
@@ -95,7 +97,7 @@ export default function OnboardingStepOnePage() {
       </div>
 
       <div>
-        <label htmlFor="occupation">Occupation</label>
+        <label htmlFor="occupation">{t("onboarding.occupationLabel")}</label>
         <input id="occupation" {...register("occupation")} />
         {errors.occupation ? <p className="mt-1 text-xs text-red-600">{errors.occupation.message}</p> : null}
       </div>
@@ -104,7 +106,7 @@ export default function OnboardingStepOnePage() {
         type="submit"
         className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white"
       >
-        Continue
+        {t("onboarding.continueButton")}
         <ArrowRight className="h-4 w-4" />
       </button>
     </form>

@@ -6,12 +6,14 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
-import { housingSchema, type HousingInput } from "@/lib/validations/profile.schema";
 import { useAuth } from "@/context/auth-context";
+import { useLocale } from "@/context/locale-context";
+import { housingSchema, type HousingInput } from "@/lib/validations/profile.schema";
 
 export default function OnboardingStepTwoPage() {
   const router = useRouter();
   const { profile } = useAuth();
+  const { t } = useLocale();
   const {
     register,
     handleSubmit,
@@ -49,13 +51,13 @@ export default function OnboardingStepTwoPage() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold">Set your housing range</h1>
-        <p className="mt-2 text-sm text-foreground/60">All budgets are saved in Kazakhstani Tenge.</p>
+        <h1 className="text-2xl font-bold">{t("onboarding.step2Title")}</h1>
+        <p className="mt-2 text-sm text-foreground/60">{t("onboarding.step2Subtitle")}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="minBudget">Min budget (₸)</label>
+          <label htmlFor="minBudget">{t("onboarding.minBudgetLabel")}</label>
           <input
             id="minBudget"
             type="number"
@@ -66,7 +68,7 @@ export default function OnboardingStepTwoPage() {
           {errors.minBudget ? <p className="mt-1 text-xs text-red-600">{errors.minBudget.message}</p> : null}
         </div>
         <div>
-          <label htmlFor="maxBudget">Max budget (₸)</label>
+          <label htmlFor="maxBudget">{t("onboarding.maxBudgetLabel")}</label>
           <input
             id="maxBudget"
             type="number"
@@ -79,7 +81,7 @@ export default function OnboardingStepTwoPage() {
       </div>
 
       <div>
-        <label htmlFor="preferredMoveInDate">Preferred move-in date</label>
+        <label htmlFor="preferredMoveInDate">{t("onboarding.moveInDateLabel")}</label>
         <input id="preferredMoveInDate" type="date" {...register("preferredMoveInDate")} />
         {errors.preferredMoveInDate ? (
           <p className="mt-1 text-xs text-red-600">{errors.preferredMoveInDate.message}</p>
@@ -93,13 +95,13 @@ export default function OnboardingStepTwoPage() {
           className="flex items-center justify-center gap-2 rounded-full border border-border px-5 py-3 text-sm font-semibold"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back
+          {t("onboarding.backButton")}
         </button>
         <button
           type="submit"
           className="flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white"
         >
-          Continue
+          {t("onboarding.continueButton")}
           <ArrowRight className="h-4 w-4" />
         </button>
       </div>

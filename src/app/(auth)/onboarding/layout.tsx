@@ -6,17 +6,18 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { useAuth } from "@/context/auth-context";
-
-const steps = [
-  { href: "/onboarding/step-1", label: "Basics" },
-  { href: "/onboarding/step-2", label: "Housing" },
-  { href: "/onboarding/step-3", label: "Lifestyle" }
-];
+import { useLocale } from "@/context/locale-context";
 
 export default function OnboardingLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, profile, loading } = useAuth();
+  const { t } = useLocale();
+  const steps = [
+    { href: "/onboarding/step-1", label: t("onboarding.stepBasicsLabel") },
+    { href: "/onboarding/step-2", label: t("onboarding.stepHousingLabel") },
+    { href: "/onboarding/step-3", label: t("onboarding.stepLifestyleLabel") }
+  ];
   const activeIndex = Math.max(
     steps.findIndex((step) => pathname.endsWith(step.href)),
     0

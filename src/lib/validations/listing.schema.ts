@@ -18,6 +18,8 @@ export const listingSchema = z
     district: z.string().optional(),
     address: z.string().min(5, "Address is required"),
     university: z.string().min(1, "Select the nearest university"),
+    lat: z.number().min(-90).max(90).nullable().optional(),
+    lng: z.number().min(-180).max(180).nullable().optional(),
     bedrooms: z.number().int().min(0).max(20),
     bathrooms: z.number().min(0).max(20),
     availableFrom: z.string().min(1, "Available date is required"),

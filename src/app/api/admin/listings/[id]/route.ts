@@ -10,7 +10,10 @@ const listingAdminUpdateSchema = listingUpdateSchema.extend({
   status: z.enum(["pending", "approved", "rejected"]).optional(),
   archived: z.boolean().optional(),
   featured: z.boolean().optional(),
-  featuredPosition: z.number().int().min(0).nullable().optional()
+  featuredPosition: z.number().int().min(0).nullable().optional(),
+  university: z.string().trim().max(200).optional(),
+  lat: z.number().min(-90).max(90).nullable().optional(),
+  lng: z.number().min(-180).max(180).nullable().optional()
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -26,6 +29,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (input.city !== undefined) payload.city = input.city;
     if (input.district !== undefined) payload.district = input.district;
     if (input.address !== undefined) payload.address = input.address;
+    if (input.university !== undefined) payload.university = input.university;
+    if (input.lat !== undefined) payload.lat = input.lat;
+    if (input.lng !== undefined) payload.lng = input.lng;
     if (input.status !== undefined) payload.status = input.status;
     if (input.archived !== undefined) payload.archived = input.archived;
     if (input.featured !== undefined) payload.featured = input.featured;

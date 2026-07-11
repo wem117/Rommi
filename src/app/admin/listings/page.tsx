@@ -25,7 +25,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import type { Listing } from "@/types/listing";
 
-const EDIT_EMPTY = { title: "", description: "", monthlyRent: 0, city: "", district: "", address: "" };
+const EDIT_EMPTY = {
+  title: "",
+  description: "",
+  monthlyRent: 0,
+  city: "",
+  district: "",
+  address: "",
+  lat: "" as string,
+  lng: "" as string
+};
 
 type StatusFilter = "all" | "pending" | "approved" | "rejected" | "archived" | "hidden";
 
@@ -177,7 +186,9 @@ export default function AdminListingsPage() {
       monthlyRent: listing.monthlyRent,
       city: listing.city,
       district: listing.district ?? "",
-      address: listing.address
+      address: listing.address,
+      lat: listing.lat != null ? String(listing.lat) : "",
+      lng: listing.lng != null ? String(listing.lng) : ""
     });
   }
 
@@ -185,7 +196,12 @@ export default function AdminListingsPage() {
     if (!editing) return;
     setSaving(true);
     try {
-      await patch(editing.id, editForm);
+      const { lat, lng, ...rest } = editForm;
+      await patch(editing.id, {
+        ...rest,
+        lat: lat.trim() === "" ? null : Number(lat),
+        lng: lng.trim() === "" ? null : Number(lng)
+      });
       toast.success("Listing updated");
       setEditing(null);
       await load();
@@ -470,6 +486,30 @@ export default function AdminListingsPage() {
               <div className="space-y-1.5">
                 <Label htmlFor="edit-address">Address</Label>
                 <Input id="edit-address" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-lat">Latitude</Label>
+                <Input
+                  id="edit-lat"
+                  type="number"
+                  step="any"
+                  placeholder="43.238"
+                  value={editForm.lat}
+                  onChange={(e) => setEditForm({ ...editForm, lat: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-lng">Longitude</Label>
+                <Input
+                  id="edit-lng"
+                  type="number"
+                  step="any"
+                  placeholder="76.945"
+                  value={editForm.lng}
+                  onChange={(e) => setEditForm({ ...editForm, lng: e.target.value })}
+                />
               </div>
             </div>
           </div>

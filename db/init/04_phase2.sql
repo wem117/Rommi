@@ -10,6 +10,10 @@ create index if not exists universities_featured_idx on public.universities(feat
 
 alter table public.listings add column if not exists archived boolean not null default false;
 alter table public.listings add column if not exists category_id uuid references public.property_categories(id) on delete set null;
+-- Map coordinates (mirrors supabase-migration-university-search-map.sql for
+-- local Postgres parity; the app's interactive maps read these).
+alter table public.listings add column if not exists lat double precision;
+alter table public.listings add column if not exists lng double precision;
 
 create index if not exists listings_category_id_idx on public.listings(category_id);
 create index if not exists listings_archived_idx on public.listings(archived);

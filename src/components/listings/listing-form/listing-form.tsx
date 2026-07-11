@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
+import { AddressAutocomplete } from "@/components/map/address-autocomplete";
 import { PhotoUploader } from "@/components/listings/photo-uploader";
 import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { useAuth } from "@/context/auth-context";
@@ -54,6 +55,8 @@ export function listingToInput(listing: Listing): ListingInput {
     district: listing.district ?? "",
     address: listing.address,
     university: listing.university ?? "",
+    lat: listing.lat,
+    lng: listing.lng,
     bedrooms: listing.bedrooms,
     bathrooms: listing.bathrooms,
     availableFrom: dateInputValue(listing.availableFrom),
@@ -104,6 +107,8 @@ export function ListingForm({
             district: "",
             address: "",
             university: "",
+            lat: null,
+            lng: null,
             bedrooms: 1,
             bathrooms: 1,
             availableFrom: dateInputValue(new Date()),
@@ -253,7 +258,18 @@ export function ListingForm({
 
         <div className="md:col-span-2">
           <label htmlFor="address">{t("listingForm.address")}</label>
-          <input id="address" {...register("address")} />
+          <AddressAutocomplete
+            address={watch("address") ?? ""}
+            onAddressChange={(value) => setValue("address", value, { shouldValidate: true })}
+            lat={watch("lat") ?? null}
+            lng={watch("lng") ?? null}
+            onCoordsChange={(nextLat, nextLng) => {
+              setValue("lat", nextLat, { shouldValidate: true });
+              setValue("lng", nextLng, { shouldValidate: true });
+            }}
+            placeholder={t("listingForm.addressSearchPlaceholder")}
+            dragHint={t("listingForm.addressDragHint")}
+          />
           {errors.address ? <p className="mt-1 text-xs text-red-600">{errors.address.message}</p> : null}
         </div>
 

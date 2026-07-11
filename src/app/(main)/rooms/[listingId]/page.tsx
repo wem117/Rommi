@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ListingGallery } from "@/components/listings/listing-gallery";
 import { ListingGrid } from "@/components/listings/listing-grid";
+import { LazyMap } from "@/components/map/lazy-map";
 import { ContactLinks } from "@/components/shared/contact-links";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { useAuth } from "@/context/auth-context";
@@ -205,13 +206,32 @@ export default function ListingDetailPage() {
               </div>
 
               <div className="mt-4 overflow-hidden rounded-[2rem] border border-[#eadfce] bg-[#f7f1e7]">
-                <iframe
-                  title={`Map for ${listing.title}`}
-                  src={`https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=15&output=embed`}
-                  className="h-[360px] w-full border-0"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                />
+                {listing.lat != null && listing.lng != null ? (
+                  <div className="h-[360px] w-full">
+                    <LazyMap
+                      markers={[
+                        {
+                          id: listing.id,
+                          lat: listing.lat,
+                          lng: listing.lng,
+                          title: listing.title,
+                          price: formatCurrency(listing.monthlyRent),
+                          district: listing.district,
+                          university: listing.university
+                        }
+                      ]}
+                      zoom={15}
+                    />
+                  </div>
+                ) : (
+                  <iframe
+                    title={`Map for ${listing.title}`}
+                    src={`https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=15&output=embed`}
+                    className="h-[360px] w-full border-0"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                )}
               </div>
             </div>
           </section>

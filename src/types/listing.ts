@@ -26,6 +26,8 @@ export interface Listing {
   district?: string;
   address: string;
   university: string;
+  lat: number | null;
+  lng: number | null;
   bedrooms: number;
   bathrooms: number;
   availableFrom: Date;

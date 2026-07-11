@@ -84,6 +84,8 @@ export function mapListingRow(row: GenericRecord): Listing {
     district: typeof row.district === "string" ? row.district : "",
     address: String(row.address ?? ""),
     university: String(row.university ?? ""),
+    lat: typeof row.lat === "number" ? row.lat : row.lat != null && !Number.isNaN(Number(row.lat)) ? Number(row.lat) : null,
+    lng: typeof row.lng === "number" ? row.lng : row.lng != null && !Number.isNaN(Number(row.lng)) ? Number(row.lng) : null,
     bedrooms: asNumber(row.bedrooms, 1),
     bathrooms: asNumber(row.bathrooms, 1),
     availableFrom: asDate(row.available_from ?? row.availableFrom),

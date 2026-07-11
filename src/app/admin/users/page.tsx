@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Loader2, Pencil, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
+import { ExternalLink, Loader2, Pencil, ShieldAlert, ShieldBan, ShieldCheck, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -79,6 +79,18 @@ export default function AdminUsersPage() {
         body: JSON.stringify({ userId, ban })
       });
       if (!res.ok) throw new Error("Could not update user status.");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Update failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function toggleSuspend(userId: string, suspend: boolean) {
+    setBusyId(userId);
+    try {
+      await patch(userId, { suspended: suspend });
       await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Update failed");
@@ -180,6 +192,7 @@ export default function AdminUsersPage() {
                     <div className="flex flex-wrap gap-1">
                       {user.verified ? <Badge variant="secondary">Verified</Badge> : null}
                       {user.banned ? <Badge variant="destructive">Banned</Badge> : null}
+                      {user.suspended ? <Badge variant="warning">Suspended</Badge> : null}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -207,6 +220,15 @@ export default function AdminUsersPage() {
                         className={user.banned ? "" : "hover:bg-destructive/10 hover:text-destructive"}
                       >
                         <ShieldAlert className={`h-4 w-4 ${user.banned ? "text-destructive" : ""}`} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={user.suspended ? "Unsuspend" : "Suspend"}
+                        onClick={() => toggleSuspend(user.uid, !user.suspended)}
+                        disabled={busyId === user.uid}
+                      >
+                        <ShieldBan className={`h-4 w-4 ${user.suspended ? "text-accent" : ""}`} />
                       </Button>
                       <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => startEdit(user)}>
                         <Pencil className="h-4 w-4" />

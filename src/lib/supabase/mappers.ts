@@ -51,6 +51,8 @@ export function mapProfileRow(row: GenericRecord): UserProfile {
     verified: Boolean(row.verified),
     banned: Boolean(row.banned),
     bannedAt: row.banned_at || row.bannedAt ? asDate(row.banned_at ?? row.bannedAt) : null,
+    suspended: Boolean(row.suspended),
+    suspendedAt: row.suspended_at || row.suspendedAt ? asDate(row.suspended_at ?? row.suspendedAt) : null,
     profileCompletion: asNumber(row.profile_completion ?? row.profileCompletion, 0),
     favoriteListingIds: asStringArray(row.favorite_listing_ids ?? row.favoriteListingIds),
     favoriteRoommateIds: asStringArray(row.favorite_roommate_ids ?? row.favoriteRoommateIds),

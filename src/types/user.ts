@@ -33,6 +33,8 @@ export interface UserProfile {
   verified?: boolean;
   banned?: boolean;
   bannedAt?: Date | null;
+  suspended?: boolean;
+  suspendedAt?: Date | null;
   profileCompletion?: number;
   favoriteListingIds?: string[];
   favoriteRoommateIds?: string[];

@@ -46,6 +46,14 @@ create index if not exists listings_archived_idx on public.listings(archived);
 alter table public.profiles add column if not exists suspended boolean not null default false;
 alter table public.profiles add column if not exists suspended_at timestamptz;
 
+-- Re-narrow the public read policy now that "suspended" exists: suspended
+-- roommates should disappear from public browsing just like banned ones.
+drop policy if exists select_profiles_public on public.profiles;
+create policy select_profiles_public
+  on public.profiles
+  for select
+  using (banned is not true and suspended is not true);
+
 -- 5. Platform-wide settings (site identity, SEO, social, footer, contact) ----
 insert into public.site_settings (key, value) values
   ('platform', '{

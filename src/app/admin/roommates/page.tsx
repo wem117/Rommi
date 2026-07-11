@@ -1,6 +1,19 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Loader2, Pencil, ShieldCheck, Star, Trash2 } from "lucide-react";
+import {
+  Activity,
+  ArrowDown,
+  ArrowUp,
+  Flag,
+  Loader2,
+  MoreVertical,
+  Pencil,
+  RotateCcw,
+  ShieldBan,
+  ShieldCheck,
+  Star,
+  Trash2
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -23,10 +36,12 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import type { Report } from "@/types/report";
 import type { UserProfile } from "@/types/user";
 
 const EDIT_EMPTY = { fullName: "", university: "", occupation: "", bio: "" };
@@ -40,6 +55,10 @@ export default function AdminRoommatesPage() {
   const [editForm, setEditForm] = useState(EDIT_EMPTY);
   const [saving, setSaving] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [activityUser, setActivityUser] = useState<UserProfile | null>(null);
+  const [reportsUser, setReportsUser] = useState<UserProfile | null>(null);
+  const [reports, setReports] = useState<Report[] | null>(null);
+  const [reportsLoading, setReportsLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -106,6 +125,56 @@ export default function AdminRoommatesPage() {
       toast.error(error instanceof Error ? error.message : "Update failed");
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function toggleSuspend(uid: string, suspend: boolean) {
+    setBusyId(uid);
+    try {
+      await patch(uid, { suspended: suspend });
+      toast.success(suspend ? "Roommate suspended" : "Suspension lifted");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Update failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function resetVerification(uid: string) {
+    try {
+      await patch(uid, { verified: false });
+      toast.success("Verification reset");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Reset failed");
+    }
+  }
+
+  async function resetFeatured(uid: string) {
+    try {
+      await patch(uid, { featured: false, featuredPosition: null });
+      toast.success("Removed from featured");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Reset failed");
+    }
+  }
+
+  async function openReports(item: UserProfile) {
+    setReportsUser(item);
+    setReportsLoading(true);
+    try {
+      const res = await fetch("/api/reports");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to load reports");
+      const all = (json.reports ?? []) as Report[];
+      setReports(all.filter((r) => r.targetType === "user" && r.targetId === item.uid));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load reports");
+      setReports([]);
+    } finally {
+      setReportsLoading(false);
     }
   }
 
@@ -253,6 +322,7 @@ export default function AdminRoommatesPage() {
                     <div className="flex flex-wrap gap-1">
                       {item.verified ? <Badge variant="secondary">Verified</Badge> : null}
                       {item.banned ? <Badge variant="destructive">Banned</Badge> : null}
+                      {item.suspended ? <Badge variant="warning">Suspended</Badge> : null}
                       {item.featured ? <Badge variant="default">Featured</Badge> : null}
                     </div>
                   </TableCell>
@@ -299,6 +369,35 @@ export default function AdminRoommatesPage() {
                       <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => startEdit(item)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" aria-label="More actions">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => toggleSuspend(item.uid, !item.suspended)}>
+                            <ShieldBan className="mr-2 h-4 w-4" />
+                            {item.suspended ? "Unsuspend" : "Suspend"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => resetVerification(item.uid)}>
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Reset verification
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => resetFeatured(item.uid)}>
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Reset featured
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => void openReports(item)}>
+                            <Flag className="mr-2 h-4 w-4" />
+                            View reports
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setActivityUser(item)}>
+                            <Activity className="mr-2 h-4 w-4" />
+                            View activity
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -371,6 +470,74 @@ export default function AdminRoommatesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={Boolean(activityUser)} onOpenChange={(open) => !open && setActivityUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Activity — {activityUser?.fullName}</DialogTitle>
+          </DialogHeader>
+          {activityUser ? (
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+              <dt className="text-foreground/50">Joined</dt>
+              <dd>{activityUser.createdAt.toLocaleDateString()}</dd>
+              <dt className="text-foreground/50">Last updated</dt>
+              <dd>{activityUser.updatedAt.toLocaleDateString()}</dd>
+              <dt className="text-foreground/50">Verified</dt>
+              <dd>{activityUser.verified ? "Yes" : "No"}</dd>
+              <dt className="text-foreground/50">Banned</dt>
+              <dd>
+                {activityUser.banned ? `Yes (${activityUser.bannedAt?.toLocaleDateString() ?? "—"})` : "No"}
+              </dd>
+              <dt className="text-foreground/50">Suspended</dt>
+              <dd>
+                {activityUser.suspended ? `Yes (${activityUser.suspendedAt?.toLocaleDateString() ?? "—"})` : "No"}
+              </dd>
+              <dt className="text-foreground/50">Favorited listings</dt>
+              <dd>{activityUser.favoriteListingIds?.length ?? 0}</dd>
+              <dt className="text-foreground/50">Viewed listings</dt>
+              <dd>{activityUser.viewedListingIds?.length ?? 0}</dd>
+              <dt className="text-foreground/50">Contacted listings</dt>
+              <dd>{activityUser.contactedListingIds?.length ?? 0}</dd>
+            </dl>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(reportsUser)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setReportsUser(null);
+            setReports(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reports — {reportsUser?.fullName}</DialogTitle>
+          </DialogHeader>
+          {reportsLoading ? (
+            <div className="grid place-items-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          ) : !reports || reports.length === 0 ? (
+            <p className="text-sm text-foreground/60">No reports filed against this user.</p>
+          ) : (
+            <ul className="space-y-3">
+              {reports.map((report) => (
+                <li key={report.id} className="rounded-xl border border-border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold">{report.reason}</span>
+                    <Badge variant={report.status === "resolved" ? "success" : "warning"}>{report.status}</Badge>
+                  </div>
+                  {report.details ? <p className="mt-1 text-sm text-foreground/60">{report.details}</p> : null}
+                  <p className="mt-1 text-xs text-foreground/40">{report.createdAt.toLocaleDateString()}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

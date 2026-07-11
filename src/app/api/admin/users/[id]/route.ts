@@ -14,6 +14,7 @@ const adminProfileUpdateSchema = z.object({
   role: z.enum(["user", "admin"]).optional(),
   verified: z.boolean().optional(),
   banned: z.boolean().optional(),
+  suspended: z.boolean().optional(),
   roommateStatus: z.enum(["pending", "approved", "rejected"]).optional(),
   featured: z.boolean().optional(),
   featuredPosition: z.number().int().min(0).nullable().optional()
@@ -39,6 +40,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (input.banned !== undefined) {
       payload.banned = input.banned;
       payload.banned_at = input.banned ? new Date().toISOString() : null;
+    }
+    if (input.suspended !== undefined) {
+      payload.suspended = input.suspended;
+      payload.suspended_at = input.suspended ? new Date().toISOString() : null;
     }
     if (input.roommateStatus !== undefined) payload.roommate_status = input.roommateStatus;
     if (input.featured !== undefined) payload.featured = input.featured;

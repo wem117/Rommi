@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { imageReference } from "@/lib/validations/shared";
+
 function slugify(value: string) {
   return value
     .trim()
@@ -13,9 +15,9 @@ export const universityCreateSchema = z.object({
   slug: z.string().trim().max(160).optional().default(""),
   city: z.string().trim().max(80).optional().default(""),
   description: z.string().trim().max(600).optional().default(""),
-  imageUrl: z.string().trim().url().max(500).optional().or(z.literal("")).default(""),
-  logoUrl: z.string().trim().url().max(500).optional().or(z.literal("")).default(""),
-  coverImageUrl: z.string().trim().url().max(500).optional().or(z.literal("")).default(""),
+  imageUrl: imageReference,
+  logoUrl: imageReference,
+  coverImageUrl: imageReference,
   position: z.number().int().min(0).max(999).optional().default(0),
   active: z.boolean().optional().default(true),
   featured: z.boolean().optional().default(false),

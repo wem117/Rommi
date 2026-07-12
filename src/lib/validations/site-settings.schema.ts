@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { imageReference } from "@/lib/validations/shared";
+
 const localizedHeroSchema = z.object({
   title: z.string().trim().max(200).optional().default(""),
   subtitle: z.string().trim().max(400).optional().default("")
@@ -9,7 +11,7 @@ export const homepageHeroSchema = z.object({
   en: localizedHeroSchema.optional(),
   ru: localizedHeroSchema.optional(),
   kz: localizedHeroSchema.optional(),
-  imageUrl: z.string().trim().url().max(500).optional().or(z.literal("")).default("")
+  imageUrl: imageReference
 });
 
 export const homepageSectionSchema = z.object({

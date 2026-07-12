@@ -134,10 +134,12 @@ export async function getFeaturedUniversities(limit = 6): Promise<UniversityWith
     const withStats = await Promise.all(
       data.map(async (row) => {
         const [listings, roommates] = await Promise.all([
-          supabase.from("listings").select("*", { count: "exact", head: true }).eq("university", row.name).eq("removed", false),
+          supabase.from("listings").select("id", { count: "exact", head: true }).eq("university", row.name).eq("removed", false),
           supabase
             .from("profiles")
-            .select("*", { count: "exact", head: true })
+            // Count by pk only: anon lacks column privileges on contact fields,
+            // so `select("*")` would be rejected (see contact-privacy migration).
+            .select("uid", { count: "exact", head: true })
             .eq("university", row.name)
             .eq("looking_for_apartment", true)
             .eq("onboarding_complete", true)

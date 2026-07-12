@@ -60,6 +60,41 @@ function toProfilePayload(profile: Partial<UserProfile>) {
   return payload;
 }
 
+/**
+ * Columns safe to expose on public browse surfaces (roommate cards, featured
+ * rows). Excludes contacts (email/telegram/phone — revoked from the anon role
+ * at the database, see supabase-migration-contact-privacy.sql) and the
+ * viewer-private favorites/viewed/contacted arrays. `select("*")` would be
+ * rejected by PostgREST for anonymous visitors once those columns are revoked.
+ */
+const PUBLIC_PROFILE_COLUMNS = [
+  "uid",
+  "full_name",
+  "age",
+  "gender",
+  "university",
+  "occupation",
+  "min_budget",
+  "max_budget",
+  "preferred_move_in_date",
+  "lifestyle",
+  "onboarding_complete",
+  "looking_for_apartment",
+  "photo_url",
+  "bio",
+  "contacts_hidden",
+  "role",
+  "verified",
+  "banned",
+  "suspended",
+  "profile_completion",
+  "roommate_status",
+  "featured",
+  "featured_position",
+  "created_at",
+  "updated_at"
+].join(", ");
+
 export async function getProfileById(uid: string) {
   if (!isSupabaseConfigured) {
     return demoProfiles.find((profile) => profile.uid === uid) ?? null;
@@ -84,14 +119,16 @@ export async function getRoommateProfiles(currentUid?: string | null) {
   const supabase = getSupabaseBrowserClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("*")
+    .select(PUBLIC_PROFILE_COLUMNS)
     .eq("onboarding_complete", true)
     .eq("looking_for_apartment", true)
     .order("created_at", { ascending: false })
     .limit(150);
 
   if (error) throw error;
-  return (data ?? []).map(mapProfileRow).filter((profile: UserProfile) => profile.uid !== currentUid);
+  return (data ?? [])
+    .map((row) => mapProfileRow(row as unknown as Record<string, unknown>))
+    .filter((profile: UserProfile) => profile.uid !== currentUid);
 }
 
 /** Admin-curated roommates for the home page. Falls back to demo profiles when none are featured. */
@@ -103,7 +140,7 @@ export async function getFeaturedRoommates(limit = 6) {
   const supabase = getSupabaseBrowserClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("*")
+    .select(PUBLIC_PROFILE_COLUMNS)
     .eq("featured", true)
     .eq("banned", false)
     .eq("onboarding_complete", true)
@@ -115,7 +152,7 @@ export async function getFeaturedRoommates(limit = 6) {
     return demoProfiles.filter((profile) => profile.onboardingComplete && profile.lookingForApartment).slice(0, limit);
   }
 
-  return data.map(mapProfileRow);
+  return data.map((row) => mapProfileRow(row as unknown as Record<string, unknown>));
 }
 
 export async function upsertProfile(profile: Partial<UserProfile> & Pick<UserProfile, "uid">) {

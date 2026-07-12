@@ -41,7 +41,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
       href={`/rooms/${listing.id}`}
       className="group overflow-hidden rounded-[1.75rem] border border-border bg-card shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl"
     >
-      <div className="relative h-[220px] overflow-hidden bg-background">
+      <div className="relative h-[180px] overflow-hidden bg-background sm:h-[220px]">
         {cover ? (
           <Image
             src={cover}
@@ -56,12 +56,12 @@ export function ListingCard({ listing }: { listing: Listing }) {
           </div>
         )}
 
-        <div className="absolute left-3 top-3 flex flex-wrap items-center gap-2">
-          <div className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm backdrop-blur">
+        <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <div className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur sm:px-3 sm:py-1.5">
             {propertyBadge}
           </div>
           {listing.featured ? (
-            <div className="inline-flex items-center gap-1 rounded-full bg-highlight px-3 py-1.5 text-xs font-semibold text-highlight-foreground shadow-sm">
+            <div className="inline-flex items-center gap-1 rounded-full bg-highlight px-2.5 py-1 text-xs font-semibold text-highlight-foreground shadow-sm sm:px-3 sm:py-1.5">
               <Sparkles className="h-3 w-3" />
               {t("listing.featured")}
             </div>
@@ -69,7 +69,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
         </div>
 
         {isNew ? (
-          <div className="absolute right-3 top-3 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm">
+          <div className="absolute right-3 top-3 rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground shadow-sm sm:px-3 sm:py-1.5">
             {t("listing.new")}
           </div>
         ) : null}
@@ -79,17 +79,17 @@ export function ListingCard({ listing }: { listing: Listing }) {
         </div>
       </div>
 
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         <div className="flex items-start justify-between gap-2">
           <h3 className="line-clamp-2 flex-1 font-heading text-sm font-semibold text-foreground sm:text-base">
             {listing.title}
           </h3>
-          <span className="shrink-0 text-right text-sm font-bold text-primary">
+          <span className="shrink-0 text-right text-base font-bold text-primary">
             {formatListingPrice(listing.monthlyRent, listing.depositRequired, listing.depositAmount)}
           </span>
         </div>
 
-        <div className="mt-2 flex items-center gap-1 text-xs text-foreground/55">
+        <div className="mt-1.5 flex items-center gap-1 text-xs text-foreground/55 sm:mt-2">
           <MapPin className="h-3.5 w-3.5" />
           <span className="line-clamp-1">
             {listing.city}
@@ -98,14 +98,14 @@ export function ListingCard({ listing }: { listing: Listing }) {
         </div>
 
         {listing.university ? (
-          <div className="mt-2 inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">
+          <div className="mt-1.5 inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary sm:mt-2">
             <GraduationCap className="h-3.5 w-3.5 shrink-0" />
             <span className="line-clamp-1">{listing.university}</span>
           </div>
         ) : null}
 
         {owner ? (
-          <div className="mt-3 flex items-center gap-3 rounded-xl bg-surface-muted p-2">
+          <div className="mt-2 flex items-center gap-2.5 rounded-xl bg-surface-muted p-1.5 sm:mt-3 sm:gap-3 sm:p-2">
             <div className="relative h-8 w-8 overflow-hidden rounded-full bg-background">
               {owner.photoURL ? (
                 <Image src={owner.photoURL} alt={owner.fullName} fill className="object-cover" sizes="32px" />
@@ -124,7 +124,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
           </div>
         ) : null}
 
-        <div className="mt-3 flex items-center gap-4 text-xs text-foreground/55">
+        <div className="mt-2 flex items-center gap-4 text-xs text-foreground/55 sm:mt-3">
           <span className="inline-flex items-center gap-1">
             <BedDouble className="h-3.5 w-3.5" />
             {listing.bedrooms} {t("shared.bedroomsAbbrev")}
@@ -139,7 +139,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
           </span>
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-2">
+        <div className="mt-2.5 flex items-center justify-between gap-2 sm:mt-4">
           <span className="rounded-full bg-background px-3 py-1 text-xs font-medium text-foreground/65">
             {propertyLabels[listing.propertyType]}
           </span>
@@ -160,7 +160,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
                 console.error(err);
               }
             }}
-            className="rounded-xl bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+            className="rounded-xl bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 sm:py-2"
           >
             {t("listing.message")}
           </button>

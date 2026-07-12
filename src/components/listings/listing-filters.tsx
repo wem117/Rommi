@@ -38,8 +38,8 @@ export function ListingFiltersBar({
   }, []);
 
   return (
-    <section className="rounded-[1.75rem] border border-[#ebe0d2] bg-[#f7f1e7] p-4 shadow-soft sm:p-5">
-      <div className="flex flex-col gap-3 md:flex-row">
+    <section className="rounded-[1.75rem] border border-[#ebe0d2] bg-[#f7f1e7] p-3 shadow-soft sm:p-5">
+      <div className="flex flex-col gap-2.5 sm:gap-3 md:flex-row">
         <label className="relative flex-1">
           <span className="sr-only">{t("listingFilters.search")}</span>
           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" />
@@ -54,14 +54,14 @@ export function ListingFiltersBar({
         <button
           type="button"
           onClick={() => setShowAdvanced((current) => !current)}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-5 py-3.5 text-sm font-medium text-foreground/80 transition hover:bg-[#f3ecdf]"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-5 py-2.5 text-sm font-medium text-foreground/80 transition hover:bg-[#f3ecdf] sm:py-3.5"
         >
           <SlidersHorizontal className="h-4 w-4" />
           {t("listingFilters.filters")}
         </button>
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-3">
+      <div className="mt-3 flex items-center justify-between gap-3 sm:mt-4">
         <p className="text-sm text-foreground/55">
           <span className="font-semibold text-foreground">{count}</span> {t("listingFilters.found")}
         </p>
@@ -89,7 +89,7 @@ export function ListingFiltersBar({
       </div>
 
       {showAdvanced ? (
-        <div className="mt-4 grid gap-3 border-t border-[#eadfce] pt-4 md:grid-cols-4">
+        <div className="mt-3 grid grid-cols-2 gap-2.5 border-t border-[#eadfce] pt-3 sm:mt-4 sm:gap-3 sm:pt-4 md:grid-cols-4">
           <select value={filters.city ?? ""} onChange={(event) => onChange({ ...filters, city: event.target.value, university: "" })}>
             <option value="">{t("listingFilters.allCities")}</option>
             {CITIES.map((city) => (
@@ -98,11 +98,13 @@ export function ListingFiltersBar({
               </option>
             ))}
           </select>
-          <UniversityCombobox
-            value={filters.university ?? ""}
-            onChange={(value) => onChange({ ...filters, university: value, city: value ? "" : filters.city })}
-            placeholder={t("listingFilters.universityPlaceholder")}
-          />
+          <div className="col-span-2 md:col-span-1">
+            <UniversityCombobox
+              value={filters.university ?? ""}
+              onChange={(value) => onChange({ ...filters, university: value, city: value ? "" : filters.city })}
+              placeholder={t("listingFilters.universityPlaceholder")}
+            />
+          </div>
           <select
             value={filters.listingType ?? ""}
             onChange={(event) =>

@@ -91,7 +91,8 @@ h6 {
 input,
 select,
 textarea {
-  @apply w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20;
+  /* Slightly denser controls on phones; desktop keeps the original py-3. */
+  @apply w-full rounded-2xl border border-border bg-card px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 sm:px-4 sm:py-3;
 }
 
 label {

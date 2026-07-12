@@ -20,18 +20,18 @@ export default function UniversitiesPage() {
   }, []);
 
   return (
-    <main className="mx-auto min-h-[70vh] max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="text-4xl font-bold">{t("universities.title")}</h1>
-      <p className="mt-2 max-w-2xl text-foreground/65">{t("universities.description")}</p>
+    <main className="mx-auto min-h-[70vh] max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
+      <h1 className="text-3xl font-bold sm:text-4xl">{t("universities.title")}</h1>
+      <p className="mt-2 max-w-2xl text-sm text-foreground/65 sm:text-base">{t("universities.description")}</p>
 
       {loading ? (
         <div className="mt-10 grid place-items-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-5 grid gap-4 sm:mt-8 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
           {universities.map((university) => (
-            <article key={university.id} className="rounded-2xl bg-white p-6 shadow-soft">
+            <article key={university.id} className="rounded-2xl bg-white p-4 shadow-soft sm:p-6">
               <h2 className="font-heading text-xl font-bold">{university.name}</h2>
               <p className="mt-2 text-sm text-foreground/60">
                 {university.description || t("universities.cardDescription")}

@@ -85,32 +85,32 @@ function RoomsPageContent() {
   return (
     <main className="min-h-[70vh] bg-[#faf6ef]">
       <section className="border-b border-[#ece1d3] bg-[#fffdf9]">
-        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <span className="inline-flex rounded-full bg-[#fde8c9] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#b97716]">
+              <span className="inline-flex rounded-full bg-[#fde8c9] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#b97716] sm:px-4 sm:py-2">
                 {t("rooms.badge")}
               </span>
-              <h1 className="mt-4 text-4xl font-bold sm:text-5xl">{t("rooms.title")}</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-foreground/60 sm:text-base">
+              <h1 className="mt-3 text-3xl font-bold sm:mt-4 sm:text-5xl">{t("rooms.title")}</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground/60 sm:mt-3 sm:leading-7 sm:text-base">
                 {t("rooms.description")}
               </p>
             </div>
 
             <Link
               href="/list-a-room/step-1"
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary/90"
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary/90 sm:px-6 sm:py-3"
             >
               {t("rooms.listRoom")}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
 
-          <div className="mt-8">
+          <div className="mt-5 sm:mt-8">
             <ListingFiltersBar filters={filters} onChange={setFilters} count={listings.length} />
           </div>
 
-          <div className="mt-4 flex justify-end">
+          <div className="mt-3 flex justify-end sm:mt-4">
             <div className="inline-flex rounded-full border border-[#e6daca] bg-white p-1 text-sm font-semibold">
               <button
                 type="button"
@@ -139,7 +139,7 @@ function RoomsPageContent() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-10 lg:px-8">
         {!loading && !error && view === "map" ? (
           mapMarkers.length > 0 ? (
             <div className="h-[70vh] overflow-hidden rounded-[1.75rem] border border-[#ece1d3] shadow-soft">
@@ -153,9 +153,9 @@ function RoomsPageContent() {
         ) : null}
 
         {view === "list" && loading ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="h-[390px] animate-pulse rounded-[1.75rem] bg-white shadow-soft" />
+              <div key={index} className="h-[330px] animate-pulse rounded-[1.75rem] bg-white shadow-soft sm:h-[390px]" />
             ))}
           </div>
         ) : null}

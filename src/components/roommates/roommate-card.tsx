@@ -23,13 +23,13 @@ export function RoommateCard({
   const city = getUniversityCity(profile.university);
 
   return (
-    <article className="rounded-[2rem] border border-[#eadfce] bg-white p-6 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl">
-      <div className="flex items-start gap-4">
-        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full bg-[#efe7dc]">
+    <article className="rounded-3xl border border-[#eadfce] bg-white p-4 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl sm:rounded-[2rem] sm:p-6">
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-[#efe7dc] sm:h-20 sm:w-20">
           {profile.photoURL ? (
             <Image src={profile.photoURL} alt={profile.fullName} fill className="object-cover" sizes="80px" />
           ) : (
-            <div className="grid h-full place-items-center text-2xl font-bold text-[#12b000]">
+            <div className="grid h-full place-items-center text-xl font-bold text-[#12b000] sm:text-2xl">
               {profile.fullName.slice(0, 1).toUpperCase()}
             </div>
           )}
@@ -37,15 +37,15 @@ export function RoommateCard({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate text-[1.85rem] font-semibold leading-none text-[#16110f]">
+            <h3 className="truncate text-xl font-semibold leading-none text-[#16110f] sm:text-[1.85rem]">
               {profile.fullName}
             </h3>
             {profile.verified ? <BadgeCheck className="h-5 w-5 shrink-0 fill-[#0f8d00] text-[#0f8d00]" /> : null}
           </div>
-          <p className="mt-2 text-[15px] text-[#9a6e56]">
+          <p className="mt-1 text-sm text-[#9a6e56] sm:mt-2 sm:text-[15px]">
             {profile.age} · {profile.occupation}
           </p>
-          <p className="line-clamp-2 text-[15px] text-[#9a6e56]">
+          <p className="line-clamp-2 text-sm text-[#9a6e56] sm:text-[15px]">
             {profile.university} · {city}
           </p>
         </div>
@@ -53,11 +53,11 @@ export function RoommateCard({
         <FavoriteRoommateButton roommateId={profile.uid} />
       </div>
 
-      <div className="mt-6">
+      <div className="mt-4 sm:mt-6">
         <CompatibilityBar score={score} />
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-3 rounded-[1.4rem] bg-[#f4ede3] px-5 py-4 text-[15px] text-[#9a6e56]">
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 rounded-[1.4rem] bg-[#f4ede3] px-4 py-2.5 text-sm text-[#9a6e56] sm:mt-5 sm:gap-3 sm:px-5 sm:py-4 sm:text-[15px]">
         <span className="inline-flex items-center gap-2">
           <Coins className="h-4 w-4 text-[#a87458]" />
           {formatCurrency(profile.maxBudget)}
@@ -68,25 +68,25 @@ export function RoommateCard({
         </span>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2.5">
+      <div className="mt-3 flex flex-wrap gap-2 sm:mt-5 sm:gap-2.5">
         {lifestyleTags.map((tag) => (
           <span
             key={tag}
-            className="rounded-full bg-[#f2e7db] px-3.5 py-1.5 text-sm font-medium text-[#7b583f]"
+            className="rounded-full bg-[#f2e7db] px-3 py-1 text-xs font-medium text-[#7b583f] sm:px-3.5 sm:py-1.5 sm:text-sm"
           >
             {tag}
           </span>
         ))}
       </div>
 
-      <p className="mt-5 line-clamp-3 text-[15px] leading-8 text-[#8a644f]">
+      <p className="mt-3 line-clamp-2 text-sm leading-6 text-[#8a644f] sm:mt-5 sm:line-clamp-3 sm:text-[15px] sm:leading-8">
         {profile.bio ||
           t("roommates.cardFallbackBio")}
       </p>
 
       <Link
         href={`/roommates/${profile.uid}`}
-        className="mt-6 inline-flex items-center justify-center rounded-full bg-[#12b000] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#109900]"
+        className="mt-4 inline-flex items-center justify-center rounded-full bg-[#12b000] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#109900] sm:mt-6 sm:py-3"
       >
         {t("roommates.connect")}
       </Link>

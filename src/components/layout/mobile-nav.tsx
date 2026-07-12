@@ -125,7 +125,7 @@ export function MobileNav() {
 
         <div className="border-t border-border px-5 py-4 [padding-bottom:calc(1rem+env(safe-area-inset-bottom))]">
           <div className="mb-4">
-            <LanguageMenu />
+            <LanguageMenu direction="up" />
           </div>
 
           {user ? (

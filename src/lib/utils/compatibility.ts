@@ -11,10 +11,10 @@ import type { LifestylePreferences, UserProfile } from "@/types/user";
  *   - move-in date proximity                                          10
  *   - age proximity                                                    5
  *
- * The raw total is mapped onto a 40–97 display range so that genuinely
- * similar profiles land around 75–95% and clearly different ones around
- * 40–60% — mirroring how marketplaces like Roomies present match quality.
- * No randomness: the same two profiles always produce the same score.
+ * The raw total is mapped onto a 75–97 display range: matches ranked by the
+ * same weighted signals, but the floor never dips below 75% — mirroring how
+ * marketplaces like Roomies present match quality (encouraging, never
+ * dismissive). No randomness: the same two profiles always score the same.
  */
 
 // Ordered scales get partial credit for adjacent values.
@@ -111,14 +111,14 @@ export function calculateCompatibilityScore(a?: UserProfile | null, b?: UserProf
     moveInAffinity(a, b) * 10 +
     ageAffinity(a, b) * 5;
 
-  // Map raw 0–100 onto the 40–97 display band.
-  return Math.min(97, Math.max(40, Math.round(40 + raw * 0.57)));
+  // Map raw 0–100 onto the 75–97 display band.
+  return Math.min(97, Math.max(75, Math.round(75 + raw * 0.22)));
 }
 
 /** Tier label key for the score badge (i18n key under shared.*). */
 export function compatibilityTierKey(score: number): string {
-  if (score >= 85) return "shared.excellentMatch";
-  if (score >= 70) return "shared.greatMatch";
+  if (score >= 90) return "shared.excellentMatch";
+  if (score >= 82) return "shared.greatMatch";
   return "shared.goodMatch";
 }
 

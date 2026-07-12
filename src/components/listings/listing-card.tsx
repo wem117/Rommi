@@ -80,17 +80,17 @@ export function ListingCard({ listing }: { listing: Listing }) {
       </div>
 
       <div className="p-3 sm:p-4">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="line-clamp-2 flex-1 font-heading text-sm font-semibold text-foreground sm:text-base">
-            {listing.title}
-          </h3>
-          <span className="shrink-0 text-right text-base font-bold text-primary">
-            {formatListingPrice(listing.monthlyRent, listing.depositRequired, listing.depositAmount)}
-          </span>
+        {/* Price leads (Krisha/Airbnb hierarchy), then title and location. */}
+        <div className="text-lg font-bold leading-none text-primary sm:text-xl">
+          {formatListingPrice(listing.monthlyRent, listing.depositRequired, listing.depositAmount)}
         </div>
 
-        <div className="mt-1.5 flex items-center gap-1 text-xs text-foreground/55 sm:mt-2">
-          <MapPin className="h-3.5 w-3.5" />
+        <h3 className="mt-1.5 line-clamp-1 font-heading text-sm font-semibold text-foreground sm:text-base">
+          {listing.title}
+        </h3>
+
+        <div className="mt-1 flex items-center gap-1 text-xs text-foreground/55">
+          <MapPin className="h-3.5 w-3.5 shrink-0" />
           <span className="line-clamp-1">
             {listing.city}
             {listing.district ? `, ${listing.district}` : ""}

@@ -129,60 +129,52 @@ export default function ListingDetailPage() {
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-8">
-          <section className="rounded-[2rem] bg-white p-6 shadow-soft sm:p-8">
+          <section className="rounded-2xl bg-white p-4 shadow-soft sm:rounded-[2rem] sm:p-8">
             <div className="flex flex-wrap gap-2">
-              <span className="rounded-full bg-[#dff8f1] px-4 py-2 text-sm font-semibold text-[#0d8f7a]">
+              <span className="rounded-full bg-[#dff8f1] px-3 py-1.5 text-xs font-semibold text-[#0d8f7a] sm:px-4 sm:py-2 sm:text-sm">
                 {listingTypeLabels[listing.listingType]}
-              </span>
-              <span className="rounded-full bg-[#fde8c9] px-4 py-2 text-sm font-semibold text-[#b97716]">{t("listingDetail.today")}</span>
-              <span className="inline-flex items-center gap-2 rounded-full bg-[#e7fbeb] px-4 py-2 text-sm font-semibold text-primary">
-                <ShieldCheck className="h-4 w-4" />
-                {t("listingDetail.verified")}
               </span>
             </div>
 
-            <h1 className="mt-5 text-3xl font-bold sm:text-5xl">{listing.title}</h1>
-            <p className="mt-3 flex flex-wrap items-center gap-2 text-lg text-foreground/60">
-              <MapPin className="h-5 w-5 text-[#a98272]" />
+            <h1 className="mt-3 text-2xl font-bold leading-tight sm:mt-5 sm:text-4xl">{listing.title}</h1>
+            <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-foreground/60 sm:mt-3 sm:text-lg">
+              <MapPin className="h-4 w-4 text-[#a98272] sm:h-5 sm:w-5" />
               {listing.city}
               {listing.district ? `, ${listing.district}` : ""}
             </p>
 
-            <div className="mt-8 rounded-[2rem] bg-[#f7f1e7] px-6 py-7">
-              <div className="text-3xl font-bold text-foreground sm:text-5xl">
+            {/* Price first — the number renters scan for. */}
+            <div className="mt-4 rounded-2xl bg-[#f7f1e7] px-4 py-4 sm:mt-6 sm:rounded-[2rem] sm:px-6 sm:py-6">
+              <div className="text-2xl font-bold text-foreground sm:text-4xl">
                 {formatCurrency(listing.monthlyRent)}
-                <span className="ml-1 text-xl font-medium text-foreground/70">{t("listingDetail.perMonth")}</span>
+                <span className="ml-1 text-sm font-medium text-foreground/70 sm:text-xl">{t("listingDetail.perMonth")}</span>
               </div>
               {listing.depositRequired ? (
-                <p className="mt-3 text-base font-semibold text-[#8e6f5e]">
+                <p className="mt-1.5 text-sm font-semibold text-[#8e6f5e] sm:mt-2 sm:text-base">
                   {t("listingDetail.depositPrefix")} {formatCurrency(listing.depositAmount)} {t("listingDetail.depositSuffix")}
                 </p>
               ) : (
-                <p className="mt-3 text-base font-semibold text-[#8e6f5e]">{t("listingDetail.noDeposit")}</p>
+                <p className="mt-1.5 text-sm font-semibold text-[#8e6f5e] sm:mt-2 sm:text-base">{t("listingDetail.noDeposit")}</p>
               )}
             </div>
 
-            <div className="mt-8">
-              <h2 className="text-2xl font-bold">{t("listingDetail.aboutTitle")}</h2>
-              <p className="mt-4 whitespace-pre-line text-lg leading-9 text-foreground/75">{listing.description}</p>
-            </div>
-
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {/* Key facts immediately after price. */}
+            <div className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-4 xl:grid-cols-4">
               <InfoCard icon={<Home className="h-5 w-5" />} label={t("listingDetail.bedrooms")} value={`${listing.bedrooms}`} />
               <InfoCard label={t("listingDetail.bathrooms")} value={`${listing.bathrooms}`} />
               <InfoCard icon={<CalendarDays className="h-5 w-5" />} label={t("listingDetail.available")} value={formatDate(listing.availableFrom)} />
               <InfoCard label={t("listingDetail.type")} value={listingTypeLabels[listing.listingType]} />
             </div>
 
-            <div className="mt-10">
-              <h2 className="text-2xl font-bold">{t("listingDetail.amenitiesTitle")}</h2>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="mt-6 sm:mt-8">
+              <h2 className="text-lg font-bold sm:text-2xl">{t("listingDetail.amenitiesTitle")}</h2>
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:mt-4 sm:grid-cols-2 sm:gap-3">
                 {listing.amenities.map((amenity) => (
                   <div
                     key={amenity}
-                    className="flex items-center gap-3 rounded-[1.5rem] bg-[#f7f1e7] px-5 py-4 text-lg font-medium"
+                    className="flex items-center gap-2.5 rounded-xl bg-[#f7f1e7] px-3.5 py-2.5 text-sm font-medium sm:rounded-[1.25rem] sm:px-5 sm:py-3 sm:text-base"
                   >
-                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#d2d0c6] text-primary">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#d2d0c6] text-primary sm:h-9 sm:w-9 sm:rounded-xl">
                       <ShieldCheck className="h-4 w-4" />
                     </span>
                     {KNOWN_AMENITIES.has(amenity) ? t(`amenities.${amenity}`) : amenity}
@@ -191,9 +183,9 @@ export default function ListingDetailPage() {
               </div>
             </div>
 
-            <div className="mt-10">
+            <div className="mt-6 sm:mt-8">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-2xl font-bold">{t("listingDetail.locationTitle")}</h2>
+                <h2 className="text-lg font-bold sm:text-2xl">{t("listingDetail.locationTitle")}</h2>
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`}
                   target="_blank"
@@ -205,9 +197,9 @@ export default function ListingDetailPage() {
                 </a>
               </div>
 
-              <div className="mt-4 overflow-hidden rounded-[2rem] border border-[#eadfce] bg-[#f7f1e7]">
+              <div className="mt-3 overflow-hidden rounded-2xl border border-[#eadfce] bg-[#f7f1e7] sm:mt-4 sm:rounded-[2rem]">
                 {listing.lat != null && listing.lng != null ? (
-                  <div className="h-[360px] w-full">
+                  <div className="h-[260px] w-full sm:h-[360px]">
                     <LazyMap
                       markers={[
                         {
@@ -227,19 +219,27 @@ export default function ListingDetailPage() {
                   <iframe
                     title={`Map for ${listing.title}`}
                     src={`https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=15&output=embed`}
-                    className="h-[360px] w-full border-0"
+                    className="h-[260px] w-full border-0 sm:h-[360px]"
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
                   />
                 )}
               </div>
             </div>
+
+            {/* Description last — facts above are what renters scan first. */}
+            <div className="mt-6 sm:mt-8">
+              <h2 className="text-lg font-bold sm:text-2xl">{t("listingDetail.aboutTitle")}</h2>
+              <p className="mt-2 whitespace-pre-line text-sm leading-6 text-foreground/75 sm:mt-4 sm:text-base sm:leading-7">
+                {listing.description}
+              </p>
+            </div>
           </section>
 
           {relatedListings.length ? (
             <section>
-              <h2 className="text-3xl font-bold">{t("listingDetail.similarListings")}</h2>
-              <div className="mt-5">
+              <h2 className="text-xl font-bold sm:text-3xl">{t("listingDetail.similarListings")}</h2>
+              <div className="mt-4 sm:mt-5">
                 <ListingGrid listings={relatedListings} />
               </div>
             </section>
@@ -365,12 +365,12 @@ function InfoCard({
   icon?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[1.5rem] bg-[#f7f1e7] p-5 text-center">
-      <div className="flex items-center justify-center gap-2 text-sm font-medium text-[#9c7364]">
+    <div className="rounded-xl bg-[#f7f1e7] p-3 text-center sm:rounded-[1.5rem] sm:p-5">
+      <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-[#9c7364] sm:gap-2 sm:text-sm">
         {icon}
         {label}
       </div>
-      <div className="mt-3 text-3xl font-bold">{value}</div>
+      <div className="mt-1.5 text-lg font-bold sm:mt-3 sm:text-2xl">{value}</div>
     </div>
   );
 }

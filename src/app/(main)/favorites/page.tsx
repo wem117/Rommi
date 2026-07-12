@@ -13,7 +13,7 @@ export default function FavoritesPage() {
 
   return (
     <main className="mx-auto min-h-[70vh] max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="text-4xl font-bold">{t("favorites.title")}</h1>
+      <h1 className="text-2xl font-bold sm:text-4xl">{t("favorites.title")}</h1>
       <p className="mt-2 text-foreground/65">{t("favorites.subtitle")}</p>
 
       {loading ? <div className="mt-8 rounded-2xl bg-white p-8 shadow-soft">{t("favorites.loading")}</div> : null}

@@ -87,6 +87,9 @@ const translations = {
     },
     shared: {
       signInToSave: "Sign in to save favorites",
+      goodMatch: "Good Match",
+      greatMatch: "Great Match",
+      excellentMatch: "Excellent Match",
       noPhotosAdded: "No photos added",
       reportButton: "Report",
       reportListing: "Report listing",
@@ -624,6 +627,9 @@ const translations = {
     },
     shared: {
       signInToSave: "Войдите, чтобы сохранять избранное",
+      goodMatch: "Хорошее совпадение",
+      greatMatch: "Отличное совпадение",
+      excellentMatch: "Идеальное совпадение",
       noPhotosAdded: "Фото не добавлены",
       reportButton: "Пожаловаться",
       reportListing: "Пожаловаться на объявление",
@@ -1159,6 +1165,9 @@ const translations = {
     },
     shared: {
       signInToSave: "Таңдаулыларды сақтау үшін кіріңіз",
+      goodMatch: "Жақсы сәйкестік",
+      greatMatch: "Тамаша сәйкестік",
+      excellentMatch: "Мінсіз сәйкестік",
       noPhotosAdded: "Фото қосылмаған",
       reportButton: "Шағымдану",
       reportListing: "Хабарландыруға шағымдану",

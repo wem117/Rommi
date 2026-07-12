@@ -141,7 +141,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-3xl font-bold">{profile.fullName}</h1>
+                <h1 className="text-2xl font-bold sm:text-3xl">{profile.fullName}</h1>
                 <VerifiedBadge verified={profile.verified || user?.emailVerified} />
               </div>
               <p className="mt-2 max-w-2xl text-foreground/65">{profile.bio || t("profile.noBio")}</p>

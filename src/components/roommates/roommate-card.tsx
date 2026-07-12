@@ -53,9 +53,11 @@ export function RoommateCard({
         <FavoriteRoommateButton roommateId={profile.uid} />
       </div>
 
-      <div className="mt-4 sm:mt-6">
-        <CompatibilityBar score={score} />
-      </div>
+      {score > 0 ? (
+        <div className="mt-4 sm:mt-6">
+          <CompatibilityBar score={score} />
+        </div>
+      ) : null}
 
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 rounded-[1.4rem] bg-[#f4ede3] px-4 py-2.5 text-sm text-[#9a6e56] sm:mt-5 sm:gap-3 sm:px-5 sm:py-4 sm:text-[15px]">
         <span className="inline-flex items-center gap-2">

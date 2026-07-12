@@ -131,28 +131,35 @@ export async function getFeaturedUniversities(limit = 6): Promise<UniversityWith
       }));
     }
 
-    const withStats = await Promise.all(
-      data.map(async (row) => {
-        const [listings, roommates] = await Promise.all([
-          supabase.from("listings").select("id", { count: "exact", head: true }).eq("university", row.name).eq("removed", false),
-          supabase
-            .from("profiles")
-            // Count by pk only: anon lacks column privileges on contact fields,
-            // so `select("*")` would be rejected (see contact-privacy migration).
-            .select("uid", { count: "exact", head: true })
-            .eq("university", row.name)
-            .eq("looking_for_apartment", true)
-            .eq("onboarding_complete", true)
-        ]);
-        return {
-          ...mapRow(row),
-          listingsCount: listings.count ?? 0,
-          roommatesCount: roommates.count ?? 0
-        };
-      })
-    );
+    // Two bulk queries instead of two count queries per university (N+1):
+    // fetch only the `university` column for matching rows and tally locally.
+    const names = data.map((row) => row.name as string);
+    const [listings, roommates] = await Promise.all([
+      supabase.from("listings").select("university").in("university", names).eq("removed", false),
+      supabase
+        .from("profiles")
+        .select("university")
+        .in("university", names)
+        .eq("looking_for_apartment", true)
+        .eq("onboarding_complete", true)
+    ]);
 
-    return withStats;
+    const tally = (rows: Array<{ university: string | null }> | null) => {
+      const counts = new Map<string, number>();
+      for (const row of rows ?? []) {
+        if (row.university) counts.set(row.university, (counts.get(row.university) ?? 0) + 1);
+      }
+      return counts;
+    };
+
+    const listingCounts = tally(listings.data);
+    const roommateCounts = tally(roommates.data);
+
+    return data.map((row) => ({
+      ...mapRow(row),
+      listingsCount: listingCounts.get(row.name as string) ?? 0,
+      roommatesCount: roommateCounts.get(row.name as string) ?? 0
+    }));
   } catch {
     return demoUniversities.slice(0, limit).map((u) => ({
       id: u.name,

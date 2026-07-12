@@ -45,7 +45,7 @@ export function RoommateCard({
           <p className="mt-2 text-[15px] text-[#9a6e56]">
             {profile.age} · {profile.occupation}
           </p>
-          <p className="text-[15px] text-[#9a6e56]">
+          <p className="line-clamp-2 text-[15px] text-[#9a6e56]">
             {profile.university} · {city}
           </p>
         </div>

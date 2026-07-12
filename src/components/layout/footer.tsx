@@ -60,7 +60,7 @@ export function Footer() {
 
   return (
     <footer className="border-t border-border bg-card">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 sm:px-6 md:grid-cols-[1.6fr_1fr_1fr] lg:px-8">
+      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:grid-cols-2 sm:gap-8 sm:px-6 sm:py-10 md:grid-cols-[1.6fr_1fr_1fr] lg:px-8">
         <div>
           <Link href="/" className="font-heading text-2xl font-bold text-foreground">
             {platform.siteName ? (

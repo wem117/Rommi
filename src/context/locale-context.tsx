@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { getPublicSettings } from "@/lib/data/public-settings";
 import { type Locale, translate } from "@/lib/i18n";
 
 function isLocale(value: string | undefined | null): value is Locale {
@@ -20,19 +19,13 @@ const LocaleContext = createContext<LocaleContextValue | undefined>(undefined);
 export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("en");
 
+  // Locale priority: the user's saved choice wins; otherwise English is the
+  // default for every new visitor (the useState initial value above).
   useEffect(() => {
     const saved = window.localStorage.getItem("roomi:locale");
     if (isLocale(saved)) {
       setLocaleState(saved);
-      return;
     }
-
-    // No saved preference yet: use the admin-configured default language.
-    void getPublicSettings().then((settings) => {
-      if (isLocale(settings.platform.defaultLanguage) && !window.localStorage.getItem("roomi:locale")) {
-        setLocaleState(settings.platform.defaultLanguage);
-      }
-    });
   }, []);
 
   useEffect(() => {

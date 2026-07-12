@@ -160,7 +160,7 @@ export default function HomePage() {
   // carry primary navigation and the closing conversion CTA.
   const sectionRenderers: Record<string, ReactNode> = {
     featured_listings: (
-      <section key="featured_listings" className="bg-[#fbf7f0] px-4 py-16 sm:px-6 lg:px-8">
+      <section key="featured_listings" className="bg-[#fbf7f0] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
             <SectionHeader
@@ -190,7 +190,7 @@ export default function HomePage() {
       </section>
     ),
     universities: (
-      <section key="universities" className="bg-[#fffdf9] px-4 py-16 sm:px-6 lg:px-8">
+      <section key="universities" className="bg-[#fffdf9] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <SectionHeader title={t("home.universityTitle")} description={t("home.universityDescription")} />
@@ -241,8 +241,8 @@ export default function HomePage() {
       </section>
     ),
     featured_roommates: (
-      <section key="featured_roommates" className="bg-primary px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+      <section key="featured_roommates" className="bg-primary px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
+        <div className="mx-auto grid max-w-6xl gap-6 sm:gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div className="text-white">
             <SectionHeader
               badge={t("home.roommateBadge")}
@@ -278,7 +278,7 @@ export default function HomePage() {
       </section>
     ),
     testimonials: (
-      <section key="testimonials" className="bg-[#fffdf9] px-4 py-16 sm:px-6 lg:px-8">
+      <section key="testimonials" className="bg-[#fffdf9] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-5xl">
           <SectionHeader badge={t("home.testimonialBadge")} title={t("home.testimonialTitle")} centered />
 
@@ -321,7 +321,7 @@ export default function HomePage() {
       </section>
     ),
     faq: (
-      <section key="faq" className="bg-[#fbf7f0] px-4 py-16 sm:px-6 lg:px-8">
+      <section key="faq" className="bg-[#fbf7f0] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-4xl">
           <SectionHeader
             badge={t("home.faqBadge")}
@@ -435,7 +435,7 @@ export default function HomePage() {
             </div>
           </nav>
 
-          <div className="flex min-h-[560px] items-center justify-center py-20 sm:min-h-[760px] sm:py-28 lg:min-h-[820px]">
+          <div className="flex min-h-[520px] items-center justify-center py-16 sm:min-h-[760px] sm:py-28 lg:min-h-[820px]">
             <div className="w-full max-w-4xl text-center">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-medium text-white/90 backdrop-blur-sm sm:text-sm">
                 <span className="h-2 w-2 rounded-full bg-[#f1a531]" />
@@ -453,7 +453,7 @@ export default function HomePage() {
                 {heroDescription}
               </p>
 
-              <div className="mt-8 rounded-[2rem] border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur-xl sm:mt-10 sm:p-3">
+              <div className="mt-6 rounded-[2rem] border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur-xl sm:mt-10 sm:p-3">
                 <div className="grid gap-2 md:grid-cols-[1.2fr_1fr_0.8fr_auto]">
                   {searchFields.map((field) => (
                     <div key={field.label} className="relative">
@@ -475,9 +475,9 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-white sm:gap-10">
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-5 text-white sm:mt-10 sm:gap-10">
                 {stats.map((stat, index) => (
-                  <div key={stat.label} className="flex items-center gap-6 sm:gap-10">
+                  <div key={stat.label} className="flex items-center gap-5 sm:gap-10">
                     <div className="text-center">
                       <p className="text-2xl font-bold sm:text-3xl">
                         <CountUp value={stat.value} format={(n) => `${n.toLocaleString()}+`} />
@@ -493,7 +493,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="bg-[#fffdf9] px-4 py-16 sm:px-6 lg:px-8">
+      <section className="bg-[#fffdf9] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <SectionHeader
             badge={t("home.howItWorksBadge")}
@@ -539,7 +539,7 @@ export default function HomePage() {
 
       {sectionOrder.map((key) => sectionRenderers[key] ?? null)}
 
-      <section className="relative overflow-hidden px-4 py-16 sm:px-6 lg:px-8">
+      <section className="relative overflow-hidden px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="absolute inset-0">
           <Image
             src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1800&q=85"
@@ -635,12 +635,12 @@ function SectionHeader({
           {badge}
         </span>
       ) : null}
-      <h2 className={`mt-4 text-3xl font-bold sm:text-4xl ${light ? "text-white" : "text-foreground"}`}>
+      <h2 className={`mt-3 text-2xl font-bold sm:mt-4 sm:text-4xl ${light ? "text-white" : "text-foreground"}`}>
         {title}
       </h2>
       {description ? (
         <p
-          className={`mt-3 max-w-2xl text-sm leading-7 sm:text-base ${centered ? "mx-auto" : ""} ${
+          className={`mt-2 max-w-2xl text-sm leading-6 sm:mt-3 sm:leading-7 sm:text-base ${centered ? "mx-auto" : ""} ${
             light ? "text-white/75" : "text-foreground/60"
           }`}
         >

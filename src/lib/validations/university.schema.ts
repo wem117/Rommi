@@ -10,25 +10,61 @@ function slugify(value: string) {
     .replace(/(^-|-$)/g, "");
 }
 
-export const universityCreateSchema = z.object({
+// Field validators WITHOUT defaults, shared by create and update. Defaults
+// live only in the create schema: in Zod 4, `.partial()` does not neutralize
+// `.default()`, so a `createSchema.partial()` update schema injected phantom
+// values (featured=false, active=true, position=0, imageUrl="") into every
+// PATCH and silently reset columns the admin never touched.
+const universityFields = {
   name: z.string().trim().min(1).max(160),
-  slug: z.string().trim().max(160).optional().default(""),
-  city: z.string().trim().max(80).optional().default(""),
-  description: z.string().trim().max(600).optional().default(""),
+  slug: z.string().trim().max(160),
+  city: z.string().trim().max(80),
+  description: z.string().trim().max(600),
   imageUrl: imageReference,
   logoUrl: imageReference,
   coverImageUrl: imageReference,
-  position: z.number().int().min(0).max(999).optional().default(0),
-  active: z.boolean().optional().default(true),
-  featured: z.boolean().optional().default(false),
-  featuredPosition: z.number().int().min(0).nullable().optional(),
-  // Optional admin overrides for the two hub-card digits. null = use the live
-  // computed count. Kept out of `.default()` so they're only sent when set.
-  listingsCountOverride: z.number().int().min(0).max(9_999_999).nullable().optional(),
-  studentsCountOverride: z.number().int().min(0).max(9_999_999).nullable().optional()
+  position: z.number().int().min(0).max(999),
+  active: z.boolean(),
+  featured: z.boolean(),
+  featuredPosition: z.number().int().min(0).nullable(),
+  // Admin overrides for the two hub-card digits. null = use the live count.
+  listingsCountOverride: z.number().int().min(0).max(9_999_999).nullable(),
+  studentsCountOverride: z.number().int().min(0).max(9_999_999).nullable()
+};
+
+export const universityCreateSchema = z.object({
+  name: universityFields.name,
+  slug: universityFields.slug.optional().default(""),
+  city: universityFields.city.optional().default(""),
+  description: universityFields.description.optional().default(""),
+  imageUrl: universityFields.imageUrl.optional().default(""),
+  logoUrl: universityFields.logoUrl.optional().default(""),
+  coverImageUrl: universityFields.coverImageUrl.optional().default(""),
+  position: universityFields.position.optional().default(0),
+  active: universityFields.active.optional().default(true),
+  featured: universityFields.featured.optional().default(false),
+  featuredPosition: universityFields.featuredPosition.optional(),
+  listingsCountOverride: universityFields.listingsCountOverride.optional(),
+  studentsCountOverride: universityFields.studentsCountOverride.optional()
 });
 
-export const universityUpdateSchema = universityCreateSchema.partial();
+// True partial update: absent keys stay absent, so PATCH only ever touches
+// the fields the caller explicitly sent.
+export const universityUpdateSchema = z.object({
+  name: universityFields.name.optional(),
+  slug: universityFields.slug.optional(),
+  city: universityFields.city.optional(),
+  description: universityFields.description.optional(),
+  imageUrl: universityFields.imageUrl.optional(),
+  logoUrl: universityFields.logoUrl.optional(),
+  coverImageUrl: universityFields.coverImageUrl.optional(),
+  position: universityFields.position.optional(),
+  active: universityFields.active.optional(),
+  featured: universityFields.featured.optional(),
+  featuredPosition: universityFields.featuredPosition.optional(),
+  listingsCountOverride: universityFields.listingsCountOverride.optional(),
+  studentsCountOverride: universityFields.studentsCountOverride.optional()
+});
 
 export type UniversityCreateInput = z.infer<typeof universityCreateSchema>;
 export type UniversityUpdateInput = z.infer<typeof universityUpdateSchema>;

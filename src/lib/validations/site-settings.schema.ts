@@ -11,7 +11,7 @@ export const homepageHeroSchema = z.object({
   en: localizedHeroSchema.optional(),
   ru: localizedHeroSchema.optional(),
   kz: localizedHeroSchema.optional(),
-  imageUrl: imageReference
+  imageUrl: imageReference.optional().default("")
 });
 
 export const homepageSectionSchema = z.object({

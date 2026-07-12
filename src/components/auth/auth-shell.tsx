@@ -35,7 +35,7 @@ export function AuthShell({
   ];
 
   return (
-    <main className="min-h-screen overflow-x-clip bg-[#faf6ef] text-[#16110f]">
+    <main className="min-h-screen bg-[#faf6ef] text-[#16110f]">
       <header className="border-b border-[#eadfce] bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-5 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-3">

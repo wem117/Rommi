@@ -353,7 +353,7 @@ export default function HomePage() {
   };
 
   return (
-    <main className="min-h-screen overflow-x-clip bg-[#faf6ef] text-foreground">
+    <main className="min-h-screen bg-[#faf6ef] text-foreground">
       <section className="relative overflow-hidden">
         <Image
           src={heroImage}
@@ -366,9 +366,9 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(17,16,12,0.62)_0%,rgba(17,16,12,0.35)_30%,rgba(17,16,12,0.72)_100%)]" />
 
         <div className="relative z-10 mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
-          <nav className="fixed inset-x-0 top-0 z-30 px-4 sm:px-6 lg:px-8">
+          <nav className="fixed inset-x-0 top-0 z-30 px-3 sm:px-6 lg:px-8">
             <div className="mx-auto mt-4 max-w-7xl rounded-[1.75rem] border border-white/15 bg-[rgba(16,14,12,0.5)] shadow-xl backdrop-blur-md">
-              <div className="flex items-center justify-between gap-2 px-4 py-3 sm:px-6">
+              <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-6 sm:py-3">
                 <Link href="/" className="flex items-center gap-2.5 text-white sm:gap-3">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-primary text-white shadow-lg sm:h-10 sm:w-10">
                     <Home className="h-5 w-5" />

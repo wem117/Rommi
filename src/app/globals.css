@@ -103,3 +103,19 @@ label {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
+
+/*
+ * Sonner toaster overflow fix.
+ * Sonner's own mobile stylesheet sets `width: 100%` on the position:fixed
+ * toaster WHILE also applying left/right offsets (default 16px). That over-
+ * constrained box computes to a full-viewport-wide element starting 16px in,
+ * so it sticks ~16px past the right edge and causes horizontal scrolling on
+ * phones. Letting the left/right offsets define the width (width:auto) removes
+ * the overflow and keeps the intended side padding. `!important` is required
+ * because Sonner injects its own rule at runtime, after this stylesheet.
+ */
+@media (max-width: 600px) {
+  [data-sonner-toaster] {
+    width: auto !important;
+  }
+}

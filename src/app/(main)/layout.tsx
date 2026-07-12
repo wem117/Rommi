@@ -47,9 +47,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    // overflow-x-clip prevents any stray horizontal scroll without creating a
-    // scroll container, so the sticky navbar/sidebars keep working.
-    <div className="min-h-screen overflow-x-clip bg-background">
+    <div className="min-h-screen bg-background">
       <Navbar />
       {children}
       <Footer />

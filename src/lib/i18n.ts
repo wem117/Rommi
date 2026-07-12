@@ -16,12 +16,15 @@ const translations = {
     nav: {
       rooms: "Rooms",
       roommates: "Roommates",
+      universities: "Universities",
       listRoom: "List a Room",
       myAccount: "Profile",
       signIn: "Sign In",
       signUp: "Sign Up",
       signOut: "Sign Out",
       loading: "Loading",
+      menu: "Menu",
+      closeMenu: "Close menu",
     },
     footer: {
       tagline:
@@ -549,12 +552,15 @@ const translations = {
     nav: {
       rooms: "Комнаты",
       roommates: "Соседи",
+      universities: "Университеты",
       listRoom: "Сдать жилье",
       myAccount: "Профиль",
       signIn: "Войти",
       signUp: "Регистрация",
       signOut: "Выйти",
       loading: "Загрузка",
+      menu: "Меню",
+      closeMenu: "Закрыть меню",
     },
     footer: {
       tagline:
@@ -1080,12 +1086,15 @@ const translations = {
     nav: {
       rooms: "Бөлмелер",
       roommates: "Көршілер",
+      universities: "Университеттер",
       listRoom: "Бөлме жариялау",
       myAccount: "Профиль",
       signIn: "Кіру",
       signUp: "Тіркелу",
       signOut: "Шығу",
       loading: "Жүктелуде",
+      menu: "Мәзір",
+      closeMenu: "Мәзірді жабу",
     },
     footer: {
       tagline:

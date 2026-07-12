@@ -4,6 +4,7 @@ import { Home, LogOut, UserCircle } from "lucide-react";
 import Link from "next/link";
 
 import { LanguageMenu } from "@/components/layout/language-menu";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
 
@@ -35,7 +36,7 @@ export function Navbar() {
           </Link>
         </nav>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="hidden items-center gap-2 md:flex sm:gap-3">
           <LanguageMenu />
           {user ? (
             <>
@@ -64,6 +65,8 @@ export function Navbar() {
             </Link>
           )}
         </div>
+
+        <MobileNav />
       </div>
     </header>
   );

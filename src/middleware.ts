@@ -12,12 +12,21 @@ const protectedPrefixes = [
   "/onboarding"
 ];
 
+// Browse list pages (/rooms, /roommates) stay public for SEO, but opening a
+// specific detail page requires signing in. These prefixes protect only the
+// sub-routes (e.g. /rooms/<id>), never the bare list page itself.
+const protectedDetailPrefixes = ["/rooms", "/roommates", "/listings"];
+
 // Always reachable even while maintenance mode is on, so admins can sign in
 // and disable it, and so auth/API calls made by the app itself keep working.
 const maintenanceBypassPrefixes = ["/admin", "/api", "/sign-in", "/sign-up", "/reset-password", "/maintenance"];
 
 function isProtected(pathname: string) {
-  return protectedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  if (protectedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+    return true;
+  }
+  // Detail pages only: /rooms/<id> is protected, /rooms is not.
+  return protectedDetailPrefixes.some((prefix) => pathname.startsWith(`${prefix}/`));
 }
 
 function bypassesMaintenance(pathname: string) {

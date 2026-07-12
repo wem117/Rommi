@@ -7,11 +7,13 @@ import {
   ChevronRight,
   Home,
   MapPin,
+  Menu,
   MessageCircle,
   Search,
   Sparkles,
   Star,
-  Users
+  Users,
+  X
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -43,6 +45,7 @@ export default function HomePage() {
   const [searchCity, setSearchCity] = useState("");
   const [searchBudget, setSearchBudget] = useState("");
   const [searchType, setSearchType] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [testimonials, setTestimonials] = useState<Testimonial[]>(DEMO_TESTIMONIALS);
   const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [featuredListings, setFeaturedListings] = useState<Listing[]>(() => demoListings.slice(0, 6));
@@ -350,7 +353,7 @@ export default function HomePage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#faf6ef] text-foreground">
+    <main className="min-h-screen overflow-x-clip bg-[#faf6ef] text-foreground">
       <section className="relative overflow-hidden">
         <Image
           src={heroImage}
@@ -363,59 +366,99 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(17,16,12,0.62)_0%,rgba(17,16,12,0.35)_30%,rgba(17,16,12,0.72)_100%)]" />
 
         <div className="relative z-10 mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
-          <nav className="fixed left-0 right-0 top-0 z-30">
-            <div className="mx-auto mt-4 flex max-w-7xl items-center justify-between rounded-full border border-white/15 bg-[rgba(16,14,12,0.35)] px-4 py-3 shadow-xl backdrop-blur-md sm:px-6">
-              <Link href="/" className="flex items-center gap-3 text-white">
-                <span className="grid h-10 w-10 place-items-center rounded-2xl bg-primary text-white shadow-lg">
-                  <Home className="h-5 w-5" />
-                </span>
-                <span className="font-heading text-lg font-bold sm:text-xl">
-                  Room<span className="text-primary">i</span>
-                </span>
-              </Link>
-
-              <div className="hidden items-center gap-1 md:flex">
-                <NavLink href="/rooms">{t("nav.rooms")}</NavLink>
-                <NavLink href="/roommates">{t("nav.roommates")}</NavLink>
-                <NavLink href="/list-a-room/step-1">{t("nav.listRoom")}</NavLink>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="hidden sm:block">
-                  <LanguageMenu inverted />
-                </div>
-                <Link
-                  href="/sign-in"
-                  className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
-                >
-                  {t("nav.signIn")}
+          <nav className="fixed inset-x-0 top-0 z-30 px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto mt-4 max-w-7xl rounded-[1.75rem] border border-white/15 bg-[rgba(16,14,12,0.5)] shadow-xl backdrop-blur-md">
+              <div className="flex items-center justify-between gap-2 px-4 py-3 sm:px-6">
+                <Link href="/" className="flex items-center gap-2.5 text-white sm:gap-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-primary text-white shadow-lg sm:h-10 sm:w-10">
+                    <Home className="h-5 w-5" />
+                  </span>
+                  <span className="font-heading text-lg font-bold sm:text-xl">
+                    Room<span className="text-primary">i</span>
+                  </span>
                 </Link>
+
+                <div className="hidden items-center gap-1 md:flex">
+                  <NavLink href="/rooms">{t("nav.rooms")}</NavLink>
+                  <NavLink href="/roommates">{t("nav.roommates")}</NavLink>
+                  <NavLink href="/list-a-room/step-1">{t("nav.listRoom")}</NavLink>
+                </div>
+
+                {/* Desktop actions */}
+                <div className="hidden items-center gap-2 md:flex">
+                  <LanguageMenu inverted />
+                  <Link
+                    href="/sign-in"
+                    className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
+                  >
+                    {t("nav.signIn")}
+                  </Link>
+                </div>
+
+                {/* Mobile actions: language selector stays visible, links collapse into a menu */}
+                <div className="flex items-center gap-2 md:hidden">
+                  <LanguageMenu inverted />
+                  <button
+                    type="button"
+                    aria-label="Menu"
+                    aria-expanded={mobileMenuOpen}
+                    onClick={() => setMobileMenuOpen((open) => !open)}
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/15"
+                  >
+                    {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                  </button>
+                </div>
               </div>
+
+              {mobileMenuOpen ? (
+                <div className="border-t border-white/10 px-3 py-3 md:hidden">
+                  <div className="grid gap-1">
+                    <MobileNavLink href="/rooms" onClick={() => setMobileMenuOpen(false)}>
+                      {t("nav.rooms")}
+                    </MobileNavLink>
+                    <MobileNavLink href="/roommates" onClick={() => setMobileMenuOpen(false)}>
+                      {t("nav.roommates")}
+                    </MobileNavLink>
+                    <MobileNavLink href="/list-a-room/step-1" onClick={() => setMobileMenuOpen(false)}>
+                      {t("nav.listRoom")}
+                    </MobileNavLink>
+                    <Link
+                      href="/sign-in"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="mt-1 rounded-full bg-primary px-5 py-2.5 text-center text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
+                    >
+                      {t("nav.signIn")}
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </nav>
 
-          <div className="flex min-h-[700px] items-center justify-center py-24 sm:min-h-[760px] sm:py-28 lg:min-h-[820px]">
-            <div className="max-w-4xl text-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white/90 backdrop-blur-sm">
+          <div className="flex min-h-[560px] items-center justify-center py-20 sm:min-h-[760px] sm:py-28 lg:min-h-[820px]">
+            <div className="w-full max-w-4xl text-center">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-medium text-white/90 backdrop-blur-sm sm:text-sm">
                 <span className="h-2 w-2 rounded-full bg-[#f1a531]" />
                 {t("home.heroBadge")}
               </div>
 
-              <h1 className="mt-6 text-4xl font-bold leading-tight text-white sm:text-5xl lg:text-7xl">
+              <h1 className="mt-6 text-[2rem] font-bold leading-tight text-white sm:text-5xl lg:text-7xl">
                 {heroTitle ?? (
                   <>
                     {t("home.heroTitleLead")} <span className="text-primary">{t("home.heroTitleAccent")}</span>
                   </>
                 )}
               </h1>
-              <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-white/80 sm:text-lg">{heroDescription}</p>
+              <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-white/80 sm:mt-6 sm:text-lg sm:leading-8">
+                {heroDescription}
+              </p>
 
-              <div className="mt-10 rounded-[2rem] border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur-xl sm:p-3">
+              <div className="mt-8 rounded-[2rem] border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur-xl sm:mt-10 sm:p-3">
                 <div className="grid gap-2 md:grid-cols-[1.2fr_1fr_0.8fr_auto]">
                   {searchFields.map((field) => (
                     <div key={field.label} className="relative">
-                      <field.icon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/45" />
-                      <div className="[&_input]:pl-11 [&_select]:pl-11 [&_select]:appearance-none [&_input]:bg-white [&_select]:bg-white">
+                      <field.icon className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-foreground/45" />
+                      <div className="[&_input]:w-full [&_input]:bg-white [&_input]:pl-11 [&_select]:w-full [&_select]:appearance-none [&_select]:bg-white [&_select]:pl-11">
                         {field.element}
                       </div>
                     </div>
@@ -542,6 +585,26 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
     <Link
       href={href}
       className="rounded-full px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+    >
+      {children}
+    </Link>
+  );
+}
+
+function MobileNavLink({
+  href,
+  onClick,
+  children
+}: {
+  href: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className="rounded-2xl px-4 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/10"
     >
       {children}
     </Link>

@@ -43,6 +43,19 @@ function SignInContent() {
   const [bannerTone, setBannerTone] = useState<"info" | "success" | "error">("info");
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
 
+  // Surface errors handed back by the OAuth / password-recovery callback so a
+  // failed code exchange isn't silent.
+  useEffect(() => {
+    const authError = searchParams.get("error");
+    if (!authError) return;
+    setBannerTone("error");
+    setBannerMessage(
+      authError === "supabase_not_configured"
+        ? "Authentication isn't configured yet. Please try again later."
+        : t("auth.invalidResetLink")
+    );
+  }, [searchParams, t]);
+
   useEffect(() => {
     if (loading || !user) return;
 
@@ -119,14 +132,26 @@ function SignInContent() {
       return;
     }
 
+    if (!isSupabaseConfigured) {
+      setBannerTone("error");
+      setBannerMessage("Supabase keys are missing. Add them to .env.local before using auth.");
+      return;
+    }
+
+    setSubmitting(true);
+    setBannerMessage(null);
     try {
       await sendResetPassword(email.trim().toLowerCase());
       setBannerTone("success");
       setBannerMessage(t("auth.resetEmailSentBanner"));
       toast.success(t("auth.resetEmailSentToast"));
     } catch (error) {
+      // Surface the raw error for diagnosis; the UI shows a friendly mapping.
+      console.error("Password reset request failed", error);
       setBannerTone("error");
       setBannerMessage(friendlySupabaseError(error, t("auth.resetEmailFailed")));
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -185,7 +210,8 @@ function SignInContent() {
             <button
               type="button"
               onClick={() => void handlePasswordReset()}
-              className="text-sm font-semibold text-[#0f957d]"
+              disabled={submitting || googleLoading}
+              className="text-sm font-semibold text-[#0f957d] transition disabled:opacity-50"
             >
               {t("auth.forgotPassword")}
             </button>

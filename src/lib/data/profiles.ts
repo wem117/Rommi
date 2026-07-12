@@ -66,6 +66,8 @@ function toProfilePayload(profile: Partial<UserProfile>) {
  * at the database, see supabase-migration-contact-privacy.sql) and the
  * viewer-private favorites/viewed/contacted arrays. `select("*")` would be
  * rejected by PostgREST for anonymous visitors once those columns are revoked.
+ * Also excludes contacts_hidden: cards never render contacts, and naming it
+ * here would 42703 on databases where the contacts migration hasn't run yet.
  */
 const PUBLIC_PROFILE_COLUMNS = [
   "uid",
@@ -82,7 +84,6 @@ const PUBLIC_PROFILE_COLUMNS = [
   "looking_for_apartment",
   "photo_url",
   "bio",
-  "contacts_hidden",
   "role",
   "verified",
   "banned",

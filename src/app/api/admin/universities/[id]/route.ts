@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 
 import { apiErrorResponse } from "@/lib/api/error-response";
 import { requireAdminUser } from "@/lib/supabase/admin";
-import { slugify, universityUpdateSchema } from "@/lib/validations/university.schema";
+import {
+  isMissingOverrideColumnError,
+  slugify,
+  UNIVERSITY_OVERRIDE_COLUMNS,
+  universityUpdateSchema
+} from "@/lib/validations/university.schema";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -22,13 +27,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (input.active !== undefined) payload.active = input.active;
     if (input.featured !== undefined) payload.featured = input.featured;
     if (input.featuredPosition !== undefined) payload.featured_position = input.featuredPosition;
+    if (input.listingsCountOverride !== undefined) payload.listings_count_override = input.listingsCountOverride;
+    if (input.studentsCountOverride !== undefined) payload.students_count_override = input.studentsCountOverride;
 
-    const { data, error } = await supabase
-      .from("universities")
-      .update(payload)
-      .eq("id", id)
-      .select("*")
-      .single();
+    const runUpdate = (body: Record<string, unknown>) =>
+      supabase.from("universities").update(body).eq("id", id).select("*").single();
+
+    let { data, error } = await runUpdate(payload);
+    if (error && isMissingOverrideColumnError(error)) {
+      const stripped = { ...payload };
+      for (const column of UNIVERSITY_OVERRIDE_COLUMNS) delete stripped[column];
+      ({ data, error } = await runUpdate(stripped));
+    }
 
     if (error) throw error;
     return NextResponse.json({ university: data });

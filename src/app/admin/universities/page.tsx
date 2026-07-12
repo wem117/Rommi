@@ -34,9 +34,21 @@ type University = {
   active: boolean;
   featured: boolean;
   featured_position: number | null;
+  listings_count_override: number | null;
+  students_count_override: number | null;
 };
 
-const EMPTY_FORM = { name: "", slug: "", city: "", description: "", imageUrl: "", logoUrl: "", coverImageUrl: "" };
+const EMPTY_FORM = {
+  name: "",
+  slug: "",
+  city: "",
+  description: "",
+  imageUrl: "",
+  logoUrl: "",
+  coverImageUrl: "",
+  listingsCountOverride: "",
+  studentsCountOverride: ""
+};
 
 export default function AdminUniversitiesPage() {
   const [items, setItems] = useState<University[]>([]);
@@ -82,10 +94,21 @@ export default function AdminUniversitiesPage() {
     setSaving(true);
     try {
       const isEdit = Boolean(editingId);
+      // Empty digit field = no override (use the live count); otherwise a number.
+      const toOverride = (value: string) => {
+        if (value.trim() === "") return null;
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : null;
+      };
       const res = await fetch(isEdit ? `/api/admin/universities/${editingId}` : "/api/admin/universities", {
         method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, position: isEdit ? undefined : items.length })
+        body: JSON.stringify({
+          ...form,
+          listingsCountOverride: toOverride(form.listingsCountOverride),
+          studentsCountOverride: toOverride(form.studentsCountOverride),
+          position: isEdit ? undefined : items.length
+        })
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Save failed");
@@ -183,7 +206,9 @@ export default function AdminUniversitiesPage() {
       description: item.description,
       imageUrl: item.image_url ?? "",
       logoUrl: item.logo_url ?? "",
-      coverImageUrl: item.cover_image_url ?? ""
+      coverImageUrl: item.cover_image_url ?? "",
+      listingsCountOverride: item.listings_count_override?.toString() ?? "",
+      studentsCountOverride: item.students_count_override?.toString() ?? ""
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -250,6 +275,32 @@ export default function AdminUniversitiesPage() {
           <div className="space-y-1.5">
             <Label htmlFor="uni-cover">Cover image</Label>
             <AdminImageUpload value={form.coverImageUrl} onChange={(url) => setForm({ ...form, coverImageUrl: url })} placeholder="Cover image URL" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="uni-listings-count">Listings count (hub card)</Label>
+            <Input
+              id="uni-listings-count"
+              type="number"
+              min={0}
+              inputMode="numeric"
+              placeholder="Auto (live count)"
+              value={form.listingsCountOverride}
+              onChange={(e) => setForm({ ...form, listingsCountOverride: e.target.value })}
+            />
+            <p className="text-xs text-foreground/50">Leave empty to use the live listing count.</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="uni-students-count">Students count (hub card)</Label>
+            <Input
+              id="uni-students-count"
+              type="number"
+              min={0}
+              inputMode="numeric"
+              placeholder="Auto (live count)"
+              value={form.studentsCountOverride}
+              onChange={(e) => setForm({ ...form, studentsCountOverride: e.target.value })}
+            />
+            <p className="text-xs text-foreground/50">Leave empty to use the live student count.</p>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="uni-description">Description</Label>

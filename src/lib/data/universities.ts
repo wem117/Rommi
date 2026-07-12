@@ -30,6 +30,8 @@ type UniversityRow = {
   featured: boolean;
   position: number;
   featured_position: number | null;
+  listings_count_override?: number | null;
+  students_count_override?: number | null;
 };
 
 function mapRow(row: UniversityRow): PublicUniversity {
@@ -155,10 +157,11 @@ export async function getFeaturedUniversities(limit = 6): Promise<UniversityWith
     const listingCounts = tally(listings.data);
     const roommateCounts = tally(roommates.data);
 
+    // Admin override wins when set (not null/undefined); otherwise show the live count.
     return data.map((row) => ({
       ...mapRow(row),
-      listingsCount: listingCounts.get(row.name as string) ?? 0,
-      roommatesCount: roommateCounts.get(row.name as string) ?? 0
+      listingsCount: row.listings_count_override ?? listingCounts.get(row.name as string) ?? 0,
+      roommatesCount: row.students_count_override ?? roommateCounts.get(row.name as string) ?? 0
     }));
   } catch {
     return demoUniversities.slice(0, limit).map((u) => ({

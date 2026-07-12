@@ -38,7 +38,7 @@ export const demoProfiles: UserProfile[] = [
     updatedAt: now
   },
   {
-    uid: "demo-aizhan",
+    uid: "demo-kirill",
     email: "aizhan@example.com",
     fullName: "Aizhan",
     age: 21,

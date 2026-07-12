@@ -98,7 +98,7 @@ export default function HomePage() {
   const heroLocaleContent = settings?.homepageHero?.[locale];
   const heroTitle = heroLocaleContent?.title?.trim() || null;
   const heroDescription = heroLocaleContent?.subtitle?.trim() || t("home.heroDescription");
-  const heroImage = settings?.homepageHero?.imageUrl?.trim() || "/universities/main1.png";
+  const heroImage = settings?.homepageHero?.imageUrl?.trim() || "/universities/main1.jpg";
 
   // Admin-configurable, deterministic trust numbers (base + daily growth from a
   // start date). Same for every visitor, stable across refreshes, animated in.

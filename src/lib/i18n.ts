@@ -86,6 +86,7 @@ const translations = {
       loading: "Loading favorites..."
     },
     shared: {
+      signInToSave: "Sign in to save favorites",
       noPhotosAdded: "No photos added",
       reportButton: "Report",
       reportListing: "Report listing",
@@ -622,6 +623,7 @@ const translations = {
       loading: "Загружаем избранное..."
     },
     shared: {
+      signInToSave: "Войдите, чтобы сохранять избранное",
       noPhotosAdded: "Фото не добавлены",
       reportButton: "Пожаловаться",
       reportListing: "Пожаловаться на объявление",
@@ -1156,6 +1158,7 @@ const translations = {
       loading: "Таңдаулылар жүктелуде..."
     },
     shared: {
+      signInToSave: "Таңдаулыларды сақтау үшін кіріңіз",
       noPhotosAdded: "Фото қосылмаған",
       reportButton: "Шағымдану",
       reportListing: "Хабарландыруға шағымдану",

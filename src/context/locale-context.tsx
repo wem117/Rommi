@@ -17,9 +17,9 @@ interface LocaleContextValue {
 const LocaleContext = createContext<LocaleContextValue | undefined>(undefined);
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("en");
+  const [locale, setLocaleState] = useState<Locale>("ru");
 
-  // Locale priority: the user's saved choice wins; otherwise English is the
+  // Locale priority: the user's saved choice wins; otherwise Russian is the
   // default for every new visitor (the useState initial value above).
   useEffect(() => {
     const saved = window.localStorage.getItem("roomi:locale");

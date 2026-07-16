@@ -39,8 +39,10 @@ function toProfilePayload(profile: Partial<UserProfile>) {
   if (hasOwnProperty(profile, "telegram")) payload.telegram = profile.telegram ?? "";
   if (hasOwnProperty(profile, "phone")) payload.phone = profile.phone ?? "";
   if (hasOwnProperty(profile, "contactsHidden")) payload.contacts_hidden = profile.contactsHidden ?? false;
-  if (hasOwnProperty(profile, "role")) payload.role = profile.role ?? "user";
-  if (hasOwnProperty(profile, "verified")) payload.verified = profile.verified ?? false;
+  // NOTE: privileged columns (role, verified, banned, suspended, featured,
+  // roommate_status) are intentionally NOT written here. The browser client
+  // must never send them; they are set only by admin/moderation flows via the
+  // service-role client and locked at the DB (supabase-migration-privilege-columns.sql).
   if (hasOwnProperty(profile, "profileCompletion")) {
     payload.profile_completion = profile.profileCompletion ?? 0;
   }

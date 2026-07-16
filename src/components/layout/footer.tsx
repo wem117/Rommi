@@ -53,6 +53,7 @@ export function Footer() {
   ];
 
   const supportLinks = [
+    { label: t("footer.supportCenter"), href: "/support" },
     { label: t("footer.safety"), href: "/safety" },
     { label: t("footer.terms"), href: "/terms" },
     { label: t("footer.privacy"), href: "/privacy" }

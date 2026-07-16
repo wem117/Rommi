@@ -60,7 +60,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = getSupabaseBrowserClient();
     let cancelled = false;
 
-    async function loadProfile(nextUser: User | null) {
+    async function loadProfileData(userId: string) {
+      try {
+        const nextProfile = await getProfileById(userId);
+        if (!cancelled) setProfile(nextProfile);
+      } catch (error) {
+        console.error("Failed to load profile", error);
+        if (!cancelled) toast.error("Could not load your profile");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    // Apply an auth session to state. Identity (`user`) is set synchronously so
+    // the navbar reflects login/logout instantly with no refresh; the profile
+    // fetch is deferred to a macrotask because calling Supabase data APIs from
+    // inside onAuthStateChange (while it holds the auth lock) can deadlock.
+    function applySession(nextUser: User | null, deferProfile: boolean) {
       setUser(mapUser(nextUser));
       setProfile(null);
 
@@ -69,28 +85,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      try {
-        const nextProfile = await getProfileById(nextUser.id);
-        if (!cancelled) {
-          setProfile(nextProfile);
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error("Failed to load profile", error);
-        if (!cancelled) {
-          toast.error("Could not load your profile");
-          setLoading(false);
-        }
+      setLoading(true);
+      if (deferProfile) {
+        setTimeout(() => {
+          if (!cancelled) void loadProfileData(nextUser.id);
+        }, 0);
+      } else {
+        void loadProfileData(nextUser.id);
       }
     }
 
-    void supabase.auth.getUser().then(({ data }) => loadProfile(data.user ?? null));
+    // Initial read runs outside any auth-change callback, so no deferral needed.
+    void supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) applySession(data.user ?? null, false);
+    });
 
     const {
       data: { subscription }
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setLoading(true);
-      void loadProfile(session?.user ?? null);
+      if (!cancelled) applySession(session?.user ?? null, true);
     });
 
     return () => {

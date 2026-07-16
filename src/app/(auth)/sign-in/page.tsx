@@ -14,6 +14,7 @@ import { getProfileById } from "@/lib/data/profiles";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { sendResetPassword, signInWithEmail, signInWithGoogle } from "@/lib/supabase/auth";
 import { friendlySupabaseError } from "@/lib/utils/errors";
+import { safeRedirect } from "@/lib/utils/safe-redirect";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -34,7 +35,7 @@ function SignInContent() {
   const searchParams = useSearchParams();
   const { user, profile, loading } = useAuth();
   const { t } = useLocale();
-  const redirectTo = searchParams.get("redirect") || "/rooms";
+  const redirectTo = safeRedirect(searchParams.get("redirect"));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

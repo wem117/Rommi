@@ -127,9 +127,14 @@ export default function ListingDetailPage() {
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <ListingGallery photos={listing.photoUrls} title={listing.title} />
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-8">
-          <section className="rounded-2xl bg-white p-4 shadow-soft sm:rounded-[2rem] sm:p-8">
+      {/*
+        Three grid children so the single owner <aside> can sit between
+        Amenities and Location in the mobile stacking order (Airbnb-style),
+        while explicit lg: column/row placement keeps the desktop layout
+        unchanged: main content left, sticky owner sidebar right.
+      */}
+      <div className="mt-6 grid gap-6 sm:mt-8 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="rounded-2xl bg-white p-4 shadow-soft sm:rounded-[2rem] sm:p-8 lg:col-start-1 lg:row-start-1">
             <div className="flex flex-wrap gap-2">
               <span className="rounded-full bg-[#dff8f1] px-3 py-1.5 text-xs font-semibold text-[#0d8f7a] sm:px-4 sm:py-2 sm:text-sm">
                 {listingTypeLabels[listing.listingType]}
@@ -182,8 +187,108 @@ export default function ListingDetailPage() {
                 ))}
               </div>
             </div>
+          </section>
 
-            <div className="mt-6 sm:mt-8">
+          <aside className="space-y-4 lg:sticky lg:top-28 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-start">
+            <section className="rounded-2xl border border-[#eadfce] bg-white p-4 shadow-soft sm:rounded-[2rem] sm:p-6">
+              <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-[#9c7364]">
+                {t("listingDetail.currentRoommate")}
+              </h2>
+
+              <div className="mt-4 flex items-center gap-3 sm:mt-5 sm:gap-4">
+                <div className="relative h-14 w-14 overflow-hidden rounded-full bg-background sm:h-16 sm:w-16">
+                  {owner?.photoURL ? (
+                    <Image src={owner.photoURL} alt={owner.fullName} fill className="object-cover" sizes="64px" />
+                  ) : (
+                    <UserCircle className="h-full w-full text-primary" />
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold sm:text-2xl">{owner?.fullName ?? t("listingDetail.listingOwnerFallback")}</h3>
+                    <VerifiedBadge verified={owner?.verified} />
+                  </div>
+                  <p className="text-sm text-foreground/60 sm:text-lg">
+                    {owner?.age ? `${owner.age} ${t("listingDetail.yearsOld")}` : t("listingDetail.roomiMember")}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (user?.uid) void recordContactedListing(user.uid, listing.id);
+                  void handleMessage();
+                }}
+                disabled={messageLoading}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0f957d] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0d856f] disabled:opacity-60 sm:mt-6 sm:py-4 sm:text-lg"
+              >
+                <Mail className="h-5 w-5" />
+                {messageLoading ? t("listingDetail.openingChat") : t("listingDetail.messageOwner")}
+              </button>
+
+              {owner?.email ? (
+                <a
+                  href={`mailto:${owner.email}`}
+                  className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#eadfce] px-5 py-3 text-sm font-medium text-foreground/70 transition hover:bg-[#faf6ef]"
+                >
+                  {t("listingDetail.orEmailDirectly")}
+                </a>
+              ) : null}
+
+              {owner && (owner.telegram || owner.phone) && !owner.contactsHidden ? (
+                <div className="mt-3 flex justify-center">
+                  <ContactLinks telegram={owner.telegram} phone={owner.phone} contactsHidden={owner.contactsHidden} size="sm" />
+                </div>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => void toggleFavorite(listing.id)}
+                className={`mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-medium transition sm:mt-4 sm:py-4 sm:text-lg ${
+                  isFavorite(listing.id)
+                    ? "bg-primary text-white"
+                    : "bg-[#f7f1e7] text-foreground/75 hover:bg-[#efe5d9]"
+                }`}
+              >
+                <Heart className={`h-5 w-5 ${isFavorite(listing.id) ? "fill-current" : ""}`} />
+                {isFavorite(listing.id) ? t("listingDetail.saved") : t("listingDetail.saveListing")}
+              </button>
+
+              <div className="mt-4 border-t border-[#efe5d9] pt-4 text-sm text-foreground/70 sm:mt-6 sm:pt-6 sm:text-base">
+                <div className="flex items-center justify-between">
+                  <span>{t("listingDetail.listed")}</span>
+                  <span className="font-semibold text-foreground">{formatDate(listing.createdAt)}</span>
+                </div>
+              </div>
+            </section>
+
+            {user?.uid === listing.ownerId ? (
+              <Link
+                href={`/listings/${listing.id}/edit`}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-border bg-white px-5 py-3 text-sm font-semibold shadow-soft"
+              >
+                <Pencil className="h-4 w-4" />
+                {t("listingDetail.editListing")}
+              </Link>
+            ) : null}
+
+            <section className="rounded-2xl border border-[#eadfce] bg-white p-4 shadow-soft sm:rounded-[2rem] sm:p-6">
+              <h3 className="text-base font-bold sm:text-lg">{t("listingDetail.listingSummary")}</h3>
+              <p className="mt-2 text-sm leading-6 text-foreground/65 sm:mt-3 sm:leading-7">
+                {formatListingPrice(listing.monthlyRent, listing.depositRequired, listing.depositAmount)}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-foreground/65 sm:mt-3 sm:leading-7">
+                {listing.preferences.genderPreference === "any"
+                  ? t("listingDetail.anyGenderPreference")
+                  : `${t("listingDetail.preferredGenderPrefix")} ${listing.preferences.genderPreference}.`}
+              </p>
+            </section>
+          </aside>
+
+          <div className="space-y-6 sm:space-y-8 lg:col-start-1 lg:row-start-2">
+          <section className="rounded-2xl bg-white p-4 shadow-soft sm:rounded-[2rem] sm:p-8">
+            <div>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-bold sm:text-2xl">{t("listingDetail.locationTitle")}</h2>
                 <a
@@ -245,111 +350,6 @@ export default function ListingDetailPage() {
             </section>
           ) : null}
         </div>
-
-        <aside className="space-y-4 lg:sticky lg:top-28 lg:self-start">
-          <section className="rounded-[2rem] border border-[#eadfce] bg-white p-6 shadow-soft">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-[#9c7364]">
-              {t("listingDetail.currentRoommate")}
-            </h2>
-
-            <div className="mt-5 flex items-center gap-4">
-              <div className="relative h-16 w-16 overflow-hidden rounded-full bg-background">
-                {owner?.photoURL ? (
-                  <Image src={owner.photoURL} alt={owner.fullName} fill className="object-cover" sizes="64px" />
-                ) : (
-                  <UserCircle className="h-full w-full text-primary" />
-                )}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-2xl font-bold">{owner?.fullName ?? t("listingDetail.listingOwnerFallback")}</h3>
-                  <VerifiedBadge verified={owner?.verified} />
-                </div>
-                <p className="text-lg text-foreground/60">
-                  {owner?.age ? `${owner.age} ${t("listingDetail.yearsOld")}` : t("listingDetail.roomiMember")}
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (user?.uid) void recordContactedListing(user.uid, listing.id);
-                void handleMessage();
-              }}
-              disabled={messageLoading}
-              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0f957d] px-5 py-4 text-lg font-semibold text-white transition hover:bg-[#0d856f] disabled:opacity-60"
-            >
-              <Mail className="h-5 w-5" />
-              {messageLoading ? t("listingDetail.openingChat") : t("listingDetail.messageOwner")}
-            </button>
-
-            {owner?.email ? (
-              <a
-                href={`mailto:${owner.email}`}
-                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#eadfce] px-5 py-3 text-sm font-medium text-foreground/70 transition hover:bg-[#faf6ef]"
-              >
-                {t("listingDetail.orEmailDirectly")}
-              </a>
-            ) : null}
-
-            {owner && (owner.telegram || owner.phone) && !owner.contactsHidden ? (
-              <div className="mt-3 flex justify-center">
-                <ContactLinks telegram={owner.telegram} phone={owner.phone} contactsHidden={owner.contactsHidden} size="sm" />
-              </div>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={() => void toggleFavorite(listing.id)}
-              className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full px-5 py-4 text-lg font-medium transition ${
-                isFavorite(listing.id)
-                  ? "bg-primary text-white"
-                  : "bg-[#f7f1e7] text-foreground/75 hover:bg-[#efe5d9]"
-              }`}
-            >
-              <Heart className={`h-5 w-5 ${isFavorite(listing.id) ? "fill-current" : ""}`} />
-              {isFavorite(listing.id) ? t("listingDetail.saved") : t("listingDetail.saveListing")}
-            </button>
-
-            <div className="mt-6 border-t border-[#efe5d9] pt-6 text-base text-foreground/70">
-              <div className="flex items-center justify-between">
-                <span>{t("listingDetail.responseRate")}</span>
-                <span className="font-semibold text-foreground">98%</span>
-              </div>
-              <div className="mt-4 flex items-center justify-between">
-                <span>{t("listingDetail.responseTime")}</span>
-                <span className="font-semibold text-foreground">{t("listingDetail.withinTwoHours")}</span>
-              </div>
-              <div className="mt-4 flex items-center justify-between">
-                <span>{t("listingDetail.listed")}</span>
-                <span className="font-semibold text-foreground">{formatDate(listing.createdAt)}</span>
-              </div>
-            </div>
-          </section>
-
-          {user?.uid === listing.ownerId ? (
-            <Link
-              href={`/listings/${listing.id}/edit`}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-border bg-white px-5 py-3 text-sm font-semibold shadow-soft"
-            >
-              <Pencil className="h-4 w-4" />
-              {t("listingDetail.editListing")}
-            </Link>
-          ) : null}
-
-          <section className="rounded-[2rem] border border-[#eadfce] bg-white p-6 shadow-soft">
-            <h3 className="text-lg font-bold">{t("listingDetail.listingSummary")}</h3>
-            <p className="mt-3 text-sm leading-7 text-foreground/65">
-              {formatListingPrice(listing.monthlyRent, listing.depositRequired, listing.depositAmount)}
-            </p>
-            <p className="mt-3 text-sm leading-7 text-foreground/65">
-              {listing.preferences.genderPreference === "any"
-                ? t("listingDetail.anyGenderPreference")
-                : `${t("listingDetail.preferredGenderPrefix")} ${listing.preferences.genderPreference}.`}
-            </p>
-          </section>
-        </aside>
       </div>
     </main>
   );

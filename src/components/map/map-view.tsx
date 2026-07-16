@@ -18,21 +18,47 @@ export interface MapMarker {
   href?: string;
 }
 
-// Branded pin built as a divIcon so we never rely on Leaflet's default marker
-// image assets (which break under bundlers).
-function pinIcon(active: boolean) {
-  const fill = active ? "#0a8d6e" : "#0f957d";
-  const scale = active ? 1.15 : 1;
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
+}
+
+// Airbnb/Krisha-style marker: a price pill when the listing has a price,
+// otherwise a compact dot. Built as a divIcon so we never depend on Leaflet's
+// default marker image assets (which break under bundlers). The selected pill
+// inverts to the brand color and is lifted forward via zIndexOffset on the
+// Marker so overlapping labels stay legible.
+function priceIcon(marker: MapMarker, active: boolean) {
+  const label = marker.price?.trim();
+
+  if (!label) {
+    const size = active ? 20 : 16;
+    return L.divIcon({
+      className: "roomi-map-dot",
+      html: `<div style="width:${size}px;height:${size}px;border-radius:9999px;background:${
+        active ? "#0f957d" : "#ffffff"
+      };border:2px solid #0f957d;box-shadow:0 2px 6px rgba(31,22,10,.25);transition:all .15s"></div>`,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2]
+    });
+  }
+
+  // Deterministic sizing so anchoring is exact without measuring the DOM.
+  const width = Math.max(46, Math.round(label.length * 7.6) + 22);
+  const height = 26;
+  const bg = active ? "#0f957d" : "#ffffff";
+  const color = active ? "#ffffff" : "#16110f";
+  const border = active ? "#0f957d" : "#e4d9c8";
+
   return L.divIcon({
-    className: "roomi-map-pin",
-    html: `<div style="transform:translate(-50%,-100%) scale(${scale});transition:transform .15s">
-      <svg width="30" height="40" viewBox="0 0 30 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M15 0C6.7 0 0 6.7 0 15c0 10.5 13 23.6 13.6 24.2a2 2 0 0 0 2.8 0C17 38.6 30 25.5 30 15 30 6.7 23.3 0 15 0Z" fill="${fill}"/>
-        <circle cx="15" cy="15" r="6" fill="white"/>
-      </svg>
-    </div>`,
-    iconSize: [30, 40],
-    iconAnchor: [0, 0]
+    className: "roomi-price-pill",
+    html: `<div style="display:flex;align-items:center;justify-content:center;width:${width}px;height:${height}px;
+      background:${bg};color:${color};border:1px solid ${border};border-radius:9999px;
+      font:600 12px/1 Inter,system-ui,sans-serif;white-space:nowrap;
+      box-shadow:0 4px 12px rgba(31,22,10,${active ? ".28" : ".16"});transition:all .15s;cursor:pointer">${escapeHtml(
+        label
+      )}</div>`,
+    iconSize: [width, height],
+    iconAnchor: [width / 2, height / 2]
   });
 }
 
@@ -111,7 +137,9 @@ export default function MapView({
         <Marker
           key={marker.id}
           position={[marker.lat, marker.lng]}
-          icon={pinIcon(marker.id === highlightId)}
+          icon={priceIcon(marker, marker.id === highlightId)}
+          // Bring the selected label forward so it isn't hidden by neighbours.
+          zIndexOffset={marker.id === highlightId ? 1000 : 0}
           draggable={marker.id === draggableId}
           eventHandlers={{
             click: () => onMarkerClick?.(marker.id),

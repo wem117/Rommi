@@ -13,7 +13,7 @@ export default function PrivacyPage() {
     <LegalPage
       title="Privacy Policy"
       updated="July 2026"
-      intro="This Privacy Policy explains what personal data Roomi collects, why we collect it, and the choices you have. We aim to collect only what we need to run the Platform and to help you find a room or roommate safely."
+      intro="This Privacy Policy explains what personal data Roomi collects, why we collect it, and the choices you have. Roomi acts as the operator of your personal data and processes it in accordance with the Law of the Republic of Kazakhstan No. 94-V “On Personal Data and its Protection”. We aim to collect only what we need to run the Platform and to help you find a room or roommate safely."
       sections={[
         {
           heading: "1. Data we collect",
@@ -48,24 +48,50 @@ export default function PrivacyPage() {
           ]
         },
         {
-          heading: "5. Sharing",
+          heading: "5. Legal basis and consent",
           paragraphs: [
-            "We do not sell your personal data. We share data only with service providers that help us run the Platform (such as our hosting and database provider) and where required by the law of the Republic of Kazakhstan."
+            "We process your personal data on the basis of your consent (given when you create an account and publish a profile or listing), to perform our service to you, to comply with legal obligations, and for our legitimate interest in keeping the Platform safe. You may withdraw consent at any time by editing your profile or deleting your account, which may limit features that rely on that data."
           ]
         },
         {
-          heading: "6. Your choices and rights",
+          heading: "6. Cookies and local storage",
+          paragraphs: [
+            "Roomi uses strictly necessary cookies and browser local storage to keep you signed in, remember your language choice, and keep your last search filters. If analytics are enabled, aggregated, non-identifying usage statistics may be collected to improve the service. You can clear this data through your browser at any time."
+          ]
+        },
+        {
+          heading: "7. Sharing",
+          paragraphs: [
+            "We do not sell your personal data. We share data only with service providers that help us run the Platform (such as our authentication, database, and file-storage provider, Supabase) under appropriate confidentiality obligations, and where required by the law of the Republic of Kazakhstan or a lawful request from a competent authority."
+          ]
+        },
+        {
+          heading: "8. Data retention",
+          paragraphs: [
+            "We keep your personal data while your account is active. After you delete your account we remove or anonymise your personal data within a reasonable period, except where retention is required to comply with the law of the Republic of Kazakhstan, resolve disputes, or prevent fraud and abuse."
+          ]
+        },
+        {
+          heading: "9. Your rights",
+          paragraphs: ["Under the personal-data legislation of the Republic of Kazakhstan you have the right to:"],
           list: [
-            "You can view and edit your profile information at any time from your account.",
-            "You can request deletion of your account and associated personal data.",
-            "You can control your listings and remove them when they are no longer available.",
-            "You can change your interface language at any time; the choice is stored on your device."
+            "Access and correct your personal data — you can view and edit it at any time from your account.",
+            "Request deletion of your account and associated personal data.",
+            "Withdraw consent to processing and control what you publish, including removing listings.",
+            "Object to or restrict certain processing, and request information about how your data is handled.",
+            "Change your interface language at any time; the choice is stored on your device."
           ]
         },
         {
-          heading: "7. Changes and contact",
+          heading: "10. Children",
           paragraphs: [
-            "We may update this Policy as the Platform evolves; material changes will be reflected by the “Last updated” date above. For any privacy question or a data deletion request, contact us at the support address listed in the app."
+            "Roomi is intended for users aged 18 and over. We do not knowingly collect personal data from anyone under 18; if we learn that we have, we will delete it."
+          ]
+        },
+        {
+          heading: "11. Changes and contact",
+          paragraphs: [
+            "We may update this Policy as the Platform evolves; material changes will be reflected by the “Last updated” date above. For any privacy question, to exercise your rights, or to request data deletion, contact us through the Support page."
           ]
         }
       ]}

@@ -58,6 +58,21 @@ function demoAsPublicUniversities(): PublicUniversity[] {
   }));
 }
 
+/** Demo fallback for the home-page hub cards (single source for all fallback paths). */
+function demoAsUniversitiesWithStats(limit: number): UniversityWithStats[] {
+  return demoUniversities.slice(0, limit).map((u) => ({
+    id: u.name,
+    name: u.name,
+    slug: u.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    city: u.city,
+    description: "",
+    imageUrl: u.image,
+    logoUrl: "",
+    listingsCount: u.listings,
+    roommatesCount: 0
+  }));
+}
+
 /** All active universities, ordered for the /universities directory page. */
 export async function getActiveUniversities(): Promise<PublicUniversity[]> {
   if (!isSupabaseConfigured) return demoAsPublicUniversities();
@@ -82,17 +97,7 @@ export async function getActiveUniversities(): Promise<PublicUniversity[]> {
 /** Featured universities with live listing/roommate counts, for the home page hub cards. */
 export async function getFeaturedUniversities(limit = 6): Promise<UniversityWithStats[]> {
   if (!isSupabaseConfigured) {
-    return demoUniversities.slice(0, limit).map((u) => ({
-      id: u.name,
-      name: u.name,
-      slug: u.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-      city: u.city,
-      description: "",
-      imageUrl: u.image,
-      logoUrl: "",
-      listingsCount: u.listings,
-      roommatesCount: 0
-    }));
+    return demoAsUniversitiesWithStats(limit);
   }
 
   try {
@@ -120,17 +125,7 @@ export async function getFeaturedUniversities(limit = 6): Promise<UniversityWith
     }
 
     if (!data || data.length === 0) {
-      return demoUniversities.slice(0, limit).map((u) => ({
-        id: u.name,
-        name: u.name,
-        slug: u.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-        city: u.city,
-        description: "",
-        imageUrl: u.image,
-        logoUrl: "",
-        listingsCount: u.listings,
-        roommatesCount: 0
-      }));
+      return demoAsUniversitiesWithStats(limit);
     }
 
     // Two bulk queries instead of two count queries per university (N+1):
@@ -164,16 +159,6 @@ export async function getFeaturedUniversities(limit = 6): Promise<UniversityWith
       roommatesCount: row.students_count_override ?? roommateCounts.get(row.name as string) ?? 0
     }));
   } catch {
-    return demoUniversities.slice(0, limit).map((u) => ({
-      id: u.name,
-      name: u.name,
-      slug: u.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-      city: u.city,
-      description: "",
-      imageUrl: u.image,
-      logoUrl: "",
-      listingsCount: u.listings,
-      roommatesCount: 0
-    }));
+    return demoAsUniversitiesWithStats(limit);
   }
 }

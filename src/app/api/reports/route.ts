@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { apiErrorResponse } from "@/lib/api/error-response";
+import { consume, rateLimitResponse } from "@/lib/api/rate-limit";
 import { createReport } from "@/lib/data/reports";
 import { requireAdminUser } from "@/lib/supabase/admin";
 import { requireSessionUser } from "@/lib/supabase/session";
@@ -22,6 +23,11 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await requireSessionUser();
+
+    // Per-user throttle: 10 reports/minute stops spam loops while never
+    // blocking legitimate moderation reports.
+    if (!consume(`reports:${user.id}`, 10, 60_000)) return rateLimitResponse();
+
     const data = reportCreateSchema.parse(await request.json());
 
     await createReport({

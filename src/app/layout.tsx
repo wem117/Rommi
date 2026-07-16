@@ -88,10 +88,37 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const platform = await getPlatformSettingsServer();
+  const siteName = platform.siteName || siteConfig.name;
+
+  // Organization + WebSite structured data for rich results. Kept minimal and
+  // truthful: only identity fields we actually control.
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        name: siteName,
+        url: siteConfig.url,
+        logo: `${siteConfig.url}/icon`,
+        ...(platform.contactEmail ? { email: platform.contactEmail } : {})
+      },
+      {
+        "@type": "WebSite",
+        name: siteName,
+        url: siteConfig.url,
+        description: platform.seoDescription || siteConfig.description
+      }
+    ]
+  };
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${manrope.variable}`}>
+        <script
+          type="application/ld+json"
+          // Escape "<" so admin-editable strings can never close the script tag.
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}
+        />
         <Providers>{children}</Providers>
         <Toaster richColors position="top-center" />
         {platform.analyticsGaId ? (

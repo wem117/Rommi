@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { consume, rateLimitResponse } from "@/lib/api/rate-limit";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { supabaseConfig } from "@/lib/supabase/config";
 import { requireAdminUser } from "@/lib/supabase/admin";
@@ -37,6 +38,10 @@ export async function POST(request: Request) {
     // Admin-managed content (universities, testimonials, homepage assets) isn't
     // scoped to a single user's folder, so it requires admin access instead.
     const user = kind === ADMIN_UPLOAD_KIND ? (await requireAdminUser()).user : await requireSessionUser();
+
+    // Per-user throttle: 30 uploads/hour caps storage abuse without getting
+    // in the way of a listing with a full photo set.
+    if (!consume(`upload:${user.id}`, 30, 60 * 60_000)) return rateLimitResponse();
 
     if (!IMAGE_TYPES.includes(file.type as (typeof IMAGE_TYPES)[number])) {
       return NextResponse.json({ error: "Only JPG, JPEG, PNG, and WEBP images are allowed." }, { status: 400 });

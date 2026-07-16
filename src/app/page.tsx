@@ -134,7 +134,7 @@ export default function HomePage() {
       element: (
         <select aria-label={t("home.searchBudget")} value={searchBudget} onChange={(e) => setSearchBudget(e.target.value)}>
           <option value="">{t("home.searchBudget")}</option>
-          {[100000, 150000, 200000, 300000].map((amount) => (
+          {[25000, 40000, 50000, 75000, 100000, 150000, 200000, 300000].map((amount) => (
             <option key={amount} value={String(amount)}>
               {t("home.budgetUnder").replace("{amount}", amount.toLocaleString("en-US"))}
             </option>

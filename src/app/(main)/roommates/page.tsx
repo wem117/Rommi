@@ -14,7 +14,9 @@ import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
 import { useRoommates } from "@/hooks/use-roommates";
 import type { Gender } from "@/types/user";
 
-type BudgetFilter = "any" | "100000" | "150000" | "200000" | "250000";
+type BudgetFilter = "any" | "25000" | "40000" | "50000" | "75000" | "100000" | "150000" | "200000" | "300000";
+
+const BUDGET_PRESETS = [25000, 40000, 50000, 75000, 100000, 150000, 200000, 300000] as const;
 
 const ALL_CITIES = "All Cities";
 const cityOptions = [ALL_CITIES, ...CITIES];
@@ -40,10 +42,10 @@ function RoommatesPageContent() {
   ];
   const budgetOptions: Array<{ label: string; value: BudgetFilter }> = [
     { label: t("roommates.any"), value: "any" },
-    { label: "100,000 KZT", value: "100000" },
-    { label: "150,000 KZT", value: "150000" },
-    { label: "200,000 KZT", value: "200000" },
-    { label: "250,000 KZT", value: "250000" }
+    ...BUDGET_PRESETS.map((amount) => ({
+      label: `${amount.toLocaleString("en-US")} ₸`,
+      value: String(amount) as BudgetFilter
+    }))
   ];
 
   const filteredRoommates = useMemo(() => {

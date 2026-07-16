@@ -33,8 +33,10 @@ export function ListingCard({ listing }: { listing: Listing }) {
     listing.propertyType === "apartment" || listing.propertyType === "studio"
       ? propertyLabels[listing.propertyType]
       : listingTypeLabels[listing.listingType];
-  // "New" = created within the last 14 days (a real signal, not a rent guess).
-  const isNew = Date.now() - listing.createdAt.getTime() < 14 * 24 * 60 * 60 * 1000;
+  // "New" = created within the last 48 hours. Uses absolute epoch milliseconds
+  // (createdAt is a UTC instant), so it's timezone-safe and needs no job/cron —
+  // it simply stops being true 48h after creation on every render.
+  const isNew = Date.now() - listing.createdAt.getTime() < 48 * 60 * 60 * 1000;
 
   return (
     <Link

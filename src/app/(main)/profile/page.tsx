@@ -31,7 +31,7 @@ type TabId = (typeof tabs)[number]["id"];
 
 export default function ProfilePage() {
   const { user, profile, refreshProfile } = useAuth();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { conversations, loading: conversationsLoading } = useConversations();
   const { listings, loading: listingsLoading } = useListings();
   const {
@@ -208,7 +208,7 @@ export default function ProfilePage() {
                     label={t("profile.budget")}
                     value={`${formatCurrency(profile.minBudget)} - ${formatCurrency(profile.maxBudget)}`}
                   />
-                  <Info label={t("profile.moveIn")} value={formatDate(profile.preferredMoveInDate)} />
+                  <Info label={t("profile.moveIn")} value={formatDate(profile.preferredMoveInDate, locale)} />
                   <Info label={t("profile.gender")} value={profile.gender.replaceAll("_", " ")} />
                 </div>
 
@@ -431,6 +431,8 @@ function ChatCard({
   openChatLabel: string;
   noMessagesLabel: string;
 }) {
+  const { locale } = useLocale();
+
   return (
     <Link
       href={`/inbox/${conversation.id}`}
@@ -458,7 +460,7 @@ function ChatCard({
       </div>
 
       <div className="flex items-center gap-3 text-sm text-foreground/55">
-        <span>{formatDate(conversation.updatedAt)}</span>
+        <span>{formatDate(conversation.updatedAt, locale)}</span>
         <span className="inline-flex items-center gap-2 rounded-full bg-background px-3 py-1.5 font-medium text-foreground/70">
           <MessageCircle className="h-4 w-4 text-primary" />
           {openChatLabel}

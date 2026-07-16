@@ -1,9 +1,9 @@
+/**
+ * Prices and budgets always use full numeric formatting with thousands
+ * separators (e.g. "150,000 ₸") — never abbreviations like "150K".
+ */
 export function formatCurrency(value: number) {
-  if (value >= 1000) {
-    return `${Math.round(value / 1000)}K KZT`;
-  }
-
-  return `${new Intl.NumberFormat("kk-KZ").format(value)} KZT`;
+  return `${new Intl.NumberFormat("en-US").format(value)} ₸`;
 }
 
 export function formatMonthlyRent(value: number) {
@@ -12,15 +12,15 @@ export function formatMonthlyRent(value: number) {
 
 export function formatListingPrice(value: number, depositRequired?: boolean, depositAmount?: number) {
   if (!depositRequired || !depositAmount) {
-    return `${formatCurrency(value)}/month`;
+    return `${formatCurrency(value)}/mo`;
   }
 
-  return `${formatCurrency(value)}/month + ${formatCurrency(depositAmount)} deposit`;
+  return `${formatCurrency(value)}/mo + ${formatCurrency(depositAmount)}`;
 }
 
-export function formatDate(value: Date | null | undefined) {
-  if (!value) return "Date not set";
-  return new Intl.DateTimeFormat("en", {
+export function formatDate(value: Date | null | undefined, locale = "en") {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat(locale === "kz" ? "kk" : locale, {
     month: "short",
     day: "numeric",
     year: "numeric"

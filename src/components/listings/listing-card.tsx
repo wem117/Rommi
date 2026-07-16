@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 export function ListingCard({ listing }: { listing: Listing }) {
   const cover = listing.photoUrls[0];
   const { user } = useAuth();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const router = useRouter();
   const owner = demoProfiles.find((profile) => profile.uid === listing.ownerId);
   const propertyLabels: Record<Listing["propertyType"], string> = {
@@ -135,7 +135,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
           </span>
           <span className="ml-auto inline-flex items-center gap-1">
             <CalendarDays className="h-3.5 w-3.5" />
-            {formatDate(listing.availableFrom)}
+            {formatDate(listing.availableFrom, locale)}
           </span>
         </div>
 

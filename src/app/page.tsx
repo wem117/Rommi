@@ -134,10 +134,11 @@ export default function HomePage() {
       element: (
         <select aria-label={t("home.searchBudget")} value={searchBudget} onChange={(e) => setSearchBudget(e.target.value)}>
           <option value="">{t("home.searchBudget")}</option>
-          <option value="100000">Under 100K ₸</option>
-          <option value="150000">Under 150K ₸</option>
-          <option value="200000">Under 200K ₸</option>
-          <option value="300000">Under 300K ₸</option>
+          {[100000, 150000, 200000, 300000].map((amount) => (
+            <option key={amount} value={String(amount)}>
+              {t("home.budgetUnder").replace("{amount}", amount.toLocaleString("en-US"))}
+            </option>
+          ))}
         </select>
       )
     },
@@ -147,9 +148,9 @@ export default function HomePage() {
       element: (
         <select aria-label={t("home.searchType")} value={searchType} onChange={(e) => setSearchType(e.target.value)}>
           <option value="">{t("home.searchType")}</option>
-          <option value="private_room">Private Room</option>
-          <option value="shared_room">Shared Room</option>
-          <option value="entire_place">Studio</option>
+          <option value="private_room">{t("listing.types.privateRoom")}</option>
+          <option value="shared_room">{t("listing.types.sharedRoom")}</option>
+          <option value="entire_place">{t("listing.types.entirePlace")}</option>
         </select>
       )
     }

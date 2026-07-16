@@ -52,7 +52,7 @@ export default function ListingDetailPage() {
   const params = useParams<{ listingId: string }>();
   const router = useRouter();
   const { user } = useAuth();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const listingTypeLabels = {
     private_room: t("listingDetail.privateRoom"),
     shared_room: t("listingDetail.sharedRoom"),
@@ -167,7 +167,7 @@ export default function ListingDetailPage() {
             <div className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-4 xl:grid-cols-4">
               <InfoCard icon={<Home className="h-5 w-5" />} label={t("listingDetail.bedrooms")} value={`${listing.bedrooms}`} />
               <InfoCard label={t("listingDetail.bathrooms")} value={`${listing.bathrooms}`} />
-              <InfoCard icon={<CalendarDays className="h-5 w-5" />} label={t("listingDetail.available")} value={formatDate(listing.availableFrom)} />
+              <InfoCard icon={<CalendarDays className="h-5 w-5" />} label={t("listingDetail.available")} value={formatDate(listing.availableFrom, locale)} />
               <InfoCard label={t("listingDetail.type")} value={listingTypeLabels[listing.listingType]} />
             </div>
 
@@ -258,7 +258,7 @@ export default function ListingDetailPage() {
               <div className="mt-4 border-t border-[#efe5d9] pt-4 text-sm text-foreground/70 sm:mt-6 sm:pt-6 sm:text-base">
                 <div className="flex items-center justify-between">
                   <span>{t("listingDetail.listed")}</span>
-                  <span className="font-semibold text-foreground">{formatDate(listing.createdAt)}</span>
+                  <span className="font-semibold text-foreground">{formatDate(listing.createdAt, locale)}</span>
                 </div>
               </div>
             </section>

@@ -14,11 +14,13 @@ export type LegalSection = {
 export function LegalPage({
   title,
   updated,
+  updatedLabel = "Last updated",
   intro,
   sections
 }: {
   title: string;
   updated: string;
+  updatedLabel?: string;
   intro: string;
   sections: LegalSection[];
 }) {
@@ -26,7 +28,9 @@ export function LegalPage({
     <article>
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Roomi</p>
       <h1 className="mt-3 font-heading text-3xl font-bold text-foreground sm:text-4xl">{title}</h1>
-      <p className="mt-2 text-sm text-foreground/50">Last updated: {updated}</p>
+      <p className="mt-2 text-sm text-foreground/50">
+        {updatedLabel}: {updated}
+      </p>
       <p className="mt-6 text-base leading-7 text-foreground/70">{intro}</p>
 
       <div className="mt-10 space-y-8">

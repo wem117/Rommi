@@ -105,6 +105,39 @@ label {
   outline-offset: 2px;
 }
 
+/* Map marker + preview entrance animations (Google Maps AdvancedMarkers). The
+   appear animation lives on a wrapper so hover scale transforms on the pill
+   itself aren't overridden by the animation's fill mode. */
+@keyframes roomi-marker-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.roomi-marker-appear {
+  animation: roomi-marker-in 0.25s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+}
+
+@keyframes roomi-preview-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.roomi-preview-appear {
+  animation: roomi-preview-in 0.3s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+}
+
 /*
  * Sonner toaster overflow fix.
  * Sonner's own mobile stylesheet sets `width: 100%` on the position:fixed

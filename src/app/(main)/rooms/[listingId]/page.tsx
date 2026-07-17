@@ -281,7 +281,9 @@ export default function ListingDetailPage() {
               <p className="mt-2 text-sm leading-6 text-foreground/65 sm:mt-3 sm:leading-7">
                 {listing.preferences.genderPreference === "any"
                   ? t("listingDetail.anyGenderPreference")
-                  : `${t("listingDetail.preferredGenderPrefix")} ${listing.preferences.genderPreference}.`}
+                  : `${t("listingDetail.preferredGenderPrefix")} ${t(
+                      listing.preferences.genderPreference === "male" ? "listingForm.male" : "listingForm.female"
+                    )}`}
               </p>
             </section>
           </aside>

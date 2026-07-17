@@ -25,15 +25,19 @@ export function Navbar() {
         </Link>
 
         <nav className="hidden items-center gap-12 text-[1.05rem] font-medium text-foreground/80 md:flex">
-          <Link href="/rooms" className="transition hover:text-primary">
-            {t("nav.rooms")}
-          </Link>
-          <Link href="/roommates" className="transition hover:text-primary">
-            {t("nav.roommates")}
-          </Link>
-          <Link href="/list-a-room/step-1" className="transition hover:text-primary">
-            {t("nav.listRoom")}
-          </Link>
+          {[
+            { href: "/rooms", label: t("nav.rooms") },
+            { href: "/roommates", label: t("nav.roommates") },
+            { href: "/list-a-room/step-1", label: t("nav.listRoom") }
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="relative transition hover:text-primary after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:w-full after:origin-left after:scale-x-0 after:rounded-full after:bg-primary after:transition-transform after:duration-300 hover:after:scale-x-100"
+            >
+              {item.label}
+            </Link>
+          ))}
         </nav>
 
         <div className="hidden items-center gap-2 md:flex sm:gap-3">
@@ -50,7 +54,7 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={() => void signOut()}
-                className="inline-flex items-center gap-2 rounded-full bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 sm:px-5"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 hover:shadow-md active:scale-95 sm:px-5"
               >
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">{t("nav.signOut")}</span>
@@ -59,7 +63,7 @@ export function Navbar() {
           ) : (
             <Link
               href="/sign-in"
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 sm:px-6"
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 hover:shadow-md active:scale-95 sm:px-6"
             >
               {loading ? t("nav.loading") : t("nav.signIn")}
             </Link>

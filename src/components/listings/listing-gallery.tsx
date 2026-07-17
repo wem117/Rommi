@@ -1,5 +1,6 @@
 "use client";
 
+import { ImageOff } from "lucide-react";
 import Image from "next/image";
 
 import { useLocale } from "@/context/locale-context";
@@ -9,8 +10,11 @@ export function ListingGallery({ photos, title }: { photos: string[]; title: str
 
   if (!photos.length) {
     return (
-      <div className="grid aspect-[16/10] place-items-center rounded-2xl bg-white text-sm font-medium text-foreground/50 shadow-soft">
-        {t("shared.noPhotosAdded")}
+      <div className="flex h-48 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-gradient-to-br from-surface-muted to-card shadow-soft sm:h-64">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+          <ImageOff className="h-5 w-5 text-primary/60" />
+        </span>
+        <p className="text-sm font-medium text-foreground/50">{t("shared.noPhotosAdded")}</p>
       </div>
     );
   }

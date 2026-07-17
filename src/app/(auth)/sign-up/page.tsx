@@ -144,7 +144,7 @@ function SignUpContent() {
         type="button"
         onClick={() => void handleGoogle()}
         disabled={googleLoading || submitting}
-        className="flex w-full items-center justify-center gap-3 rounded-full border border-[#e6d8c6] bg-white px-5 py-5 text-xl font-semibold transition hover:border-[#12b000] disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-3 rounded-full border border-[#e6d8c6] bg-white px-5 py-5 text-xl font-semibold transition hover:border-primary hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
       >
         {googleLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Chrome className="h-5 w-5 text-[#db4437]" />}
         {t("auth.continueWithGoogle")}
@@ -156,7 +156,13 @@ function SignUpContent() {
         <div className="h-px flex-1 bg-[#eadfce]" />
       </div>
 
-      <div className="space-y-4">
+      <form
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleEmailSignUp();
+        }}
+      >
         <div>
           <label htmlFor="email" className="text-lg font-semibold">
             {t("auth.emailLabel")}
@@ -212,15 +218,14 @@ function SignUpContent() {
         </div>
 
         <button
-          type="button"
-          onClick={() => void handleEmailSignUp()}
+          type="submit"
           disabled={submitting || googleLoading}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0f957d] px-6 py-5 text-xl font-semibold text-white transition hover:bg-[#0d856f] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0f957d] px-6 py-5 text-xl font-semibold text-white shadow-md transition hover:bg-[#0d856f] hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
           {t("auth.createAccountButton")}
         </button>
-      </div>
+      </form>
     </AuthShell>
   );
 }

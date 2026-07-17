@@ -91,7 +91,7 @@ export function LanguageMenu({
                   {active ? (
                     <span
                       className={`grid h-8 w-8 place-items-center rounded-full ${
-                        inverted ? "bg-[#12b000] text-white" : "bg-[#12b000] text-white"
+                        inverted ? "bg-primary text-primary-foreground" : "bg-primary text-primary-foreground"
                       }`}
                     >
                       <Check className="h-4 w-4" />

@@ -32,12 +32,12 @@ export function FavoriteButton({ listingId }: { listingId: string }) {
       type="button"
       onClick={handleClick}
       disabled={saving}
-      className={`rounded-full p-2 shadow-soft transition ${
-        active ? "bg-primary text-white" : "bg-white text-foreground/70"
+      className={`rounded-full p-2 shadow-soft transition-all duration-200 hover:scale-110 hover:shadow-md active:scale-90 ${
+        active ? "bg-primary text-white" : "bg-white text-foreground/70 hover:text-destructive"
       } disabled:opacity-60`}
       aria-label={active ? t("shared.removeFavorite") : t("listingDetail.saveListing")}
     >
-      <Heart className={`h-4 w-4 ${active ? "fill-current" : ""}`} />
+      <Heart className={`h-4 w-4 transition-transform ${active ? "roomi-heart-pop fill-current" : ""}`} />
     </button>
   );
 }

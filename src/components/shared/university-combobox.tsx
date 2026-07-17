@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { useLocale } from "@/context/locale-context";
 import { UNIVERSITIES } from "@/lib/constants/universities";
 import { getActiveUniversities } from "@/lib/data/universities";
 
@@ -11,7 +12,7 @@ const FALLBACK_NAMES = UNIVERSITIES as readonly string[];
 export function UniversityCombobox({
   value,
   onChange,
-  placeholder = "Type to search universities...",
+  placeholder,
   id
 }: {
   value: string;
@@ -19,6 +20,8 @@ export function UniversityCombobox({
   placeholder?: string;
   id?: string;
 }) {
+  const { t } = useLocale();
+  const resolvedPlaceholder = placeholder ?? t("roommates.universitySearchPlaceholder");
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -104,7 +107,7 @@ export function UniversityCombobox({
         aria-autocomplete="list"
         aria-activedescendant={open && matches[activeIndex] ? `${listboxId}-${activeIndex}` : undefined}
         value={query}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         onFocus={() => setOpen(true)}
         onKeyDown={handleKeyDown}
         onChange={(event) => {

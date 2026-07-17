@@ -29,7 +29,7 @@ export function RoommateCard({
           {profile.photoURL ? (
             <Image src={profile.photoURL} alt={profile.fullName} fill className="object-cover" sizes="80px" />
           ) : (
-            <div className="grid h-full place-items-center text-xl font-bold text-[#12b000] sm:text-2xl">
+            <div className="grid h-full place-items-center text-xl font-bold text-primary sm:text-2xl">
               {profile.fullName.slice(0, 1).toUpperCase()}
             </div>
           )}
@@ -40,7 +40,7 @@ export function RoommateCard({
             <h3 className="truncate text-xl font-semibold leading-none text-[#16110f] sm:text-[1.85rem]">
               {profile.fullName}
             </h3>
-            {profile.verified ? <BadgeCheck className="h-5 w-5 shrink-0 fill-[#0f8d00] text-[#0f8d00]" /> : null}
+            {profile.verified ? <BadgeCheck className="h-5 w-5 shrink-0 fill-success text-success" /> : null}
           </div>
           <p className="mt-1 text-sm text-[#9a6e56] sm:mt-2 sm:text-[15px]">
             {profile.age} · {profile.occupation}
@@ -60,10 +60,12 @@ export function RoommateCard({
       ) : null}
 
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 rounded-[1.4rem] bg-[#f4ede3] px-4 py-2.5 text-sm text-[#9a6e56] sm:mt-5 sm:gap-3 sm:px-5 sm:py-4 sm:text-[15px]">
-        <span className="inline-flex items-center gap-2">
-          <Coins className="h-4 w-4 text-[#a87458]" />
-          {formatCurrency(profile.maxBudget)}
-        </span>
+        {profile.maxBudget > 0 ? (
+          <span className="inline-flex items-center gap-2">
+            <Coins className="h-4 w-4 text-[#a87458]" />
+            {formatCurrency(profile.maxBudget)}
+          </span>
+        ) : null}
         <span className="inline-flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-[#a87458]" />
           {formatMoveInDate(profile.preferredMoveInDate, t("roommateDetail.flexible"), locale)}
@@ -88,7 +90,7 @@ export function RoommateCard({
 
       <Link
         href={`/roommates/${profile.uid}`}
-        className="mt-4 inline-flex items-center justify-center rounded-full bg-[#12b000] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#109900] sm:mt-6 sm:py-3"
+        className="mt-4 inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 hover:shadow-md active:scale-95 sm:mt-6 sm:py-3"
       >
         {t("roommates.connect")}
       </Link>

@@ -48,13 +48,13 @@ export function AuthShell({
           </Link>
 
           <nav className="hidden items-center gap-12 text-[1.05rem] font-medium text-[#2e2622] md:flex">
-            <Link href="/rooms" className="transition hover:text-[#12b000]">
+            <Link href="/rooms" className="transition hover:text-primary">
               {t("nav.rooms")}
             </Link>
-            <Link href="/roommates" className="transition hover:text-[#12b000]">
+            <Link href="/roommates" className="transition hover:text-primary">
               {t("nav.roommates")}
             </Link>
-            <Link href="/list-a-room/step-1" className="transition hover:text-[#12b000]">
+            <Link href="/list-a-room/step-1" className="transition hover:text-primary">
               {t("nav.listRoom")}
             </Link>
           </nav>
@@ -98,8 +98,8 @@ export function AuthShell({
                 <span className="grid h-10 w-10 place-items-center rounded-full bg-[#d8faf0] text-[#0f957d] sm:h-14 sm:w-14">
                   <item.icon className="h-5 w-5 sm:h-6 sm:w-6" />
                 </span>
-                <h2 className="mt-3 text-lg font-bold leading-tight sm:mt-5 sm:text-[1.8rem]">{item.title}</h2>
-                <p className="mt-1 text-sm leading-6 text-[#9a6e56] sm:mt-2 sm:text-lg sm:leading-8">{item.subtitle}</p>
+                <h2 className="mt-3 break-words text-lg font-bold leading-tight sm:mt-5 sm:text-2xl">{item.title}</h2>
+                <p className="mt-1 text-sm leading-6 text-[#9a6e56] sm:mt-2 sm:text-base sm:leading-7">{item.subtitle}</p>
               </article>
             ))}
           </div>

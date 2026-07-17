@@ -123,6 +123,23 @@ label {
   animation: roomi-marker-in 0.25s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
 }
 
+/* Heart "pop" when a listing is favourited. */
+@keyframes roomi-heart-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.roomi-heart-pop {
+  animation: roomi-heart-pop 0.35s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
 @keyframes roomi-preview-in {
   from {
     opacity: 0;

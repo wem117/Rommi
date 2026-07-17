@@ -92,6 +92,7 @@ export default function OnboardingStepOnePage() {
           id="university"
           value={watch("university") ?? ""}
           onChange={(value) => setValue("university", value, { shouldValidate: true })}
+          placeholder={t("roommates.universitySearchPlaceholder")}
         />
         {errors.university ? <p className="mt-1 text-xs text-red-600">{errors.university.message}</p> : null}
       </div>

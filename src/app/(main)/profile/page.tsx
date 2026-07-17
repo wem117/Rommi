@@ -142,13 +142,14 @@ export default function ProfilePage() {
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-2xl font-bold sm:text-3xl">{profile.fullName}</h1>
-                <VerifiedBadge verified={profile.verified || user?.emailVerified} />
+                {/* "Verified" is an admin-granted trust mark; email confirmation alone must not show it. */}
+                <VerifiedBadge verified={profile.verified} />
               </div>
               <p className="mt-2 max-w-2xl text-foreground/65">{profile.bio || t("profile.noBio")}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <StatusBadge label={profile.university} />
                 <StatusBadge label={profile.occupation} />
-                <StatusBadge label={`${profile.age} years old`} />
+                <StatusBadge label={`${profile.age} ${t("roommateDetail.yearsOld")}`} />
                 <StatusBadge
                   label={profile.lookingForApartment ? t("profile.visible") : t("profile.hidden")}
                   active={profile.lookingForApartment}
@@ -209,7 +210,17 @@ export default function ProfilePage() {
                     value={`${formatCurrency(profile.minBudget)} - ${formatCurrency(profile.maxBudget)}`}
                   />
                   <Info label={t("profile.moveIn")} value={formatDate(profile.preferredMoveInDate, locale)} />
-                  <Info label={t("profile.gender")} value={profile.gender.replaceAll("_", " ")} />
+                  <Info
+                    label={t("profile.gender")}
+                    value={
+                      {
+                        male: t("listingForm.male"),
+                        female: t("listingForm.female"),
+                        other: t("roommates.other"),
+                        prefer_not_to_say: t("roommates.preferNotToSay")
+                      }[profile.gender] ?? profile.gender.replaceAll("_", " ")
+                    }
+                  />
                 </div>
 
                 <div className="mt-4 rounded-[1.5rem] border border-[#e8dccd] bg-[#f8f2e8] p-4 sm:p-5">
@@ -242,9 +253,44 @@ export default function ProfilePage() {
 
               <Panel title={t("profile.lifestylePreferences")}>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {Object.entries(profile.lifestyle).map(([key, value]) => (
-                    <Info key={key} label={formatLabel(key)} value={String(value).replaceAll("_", " ")} />
-                  ))}
+                  <Info
+                    label={t("onboarding.cleanlinessLabel")}
+                    value={t(
+                      profile.lifestyle.cleanliness === "very_clean"
+                        ? "onboarding.cleanlinessVeryClean"
+                        : profile.lifestyle.cleanliness === "moderate"
+                          ? "onboarding.cleanlinessModerate"
+                          : "onboarding.cleanlinessRelaxed"
+                    )}
+                  />
+                  <Info
+                    label={t("onboarding.sleepScheduleLabel")}
+                    value={t(
+                      profile.lifestyle.sleepSchedule === "early_bird"
+                        ? "onboarding.sleepEarlyBird"
+                        : profile.lifestyle.sleepSchedule === "night_owl"
+                          ? "onboarding.sleepNightOwl"
+                          : "onboarding.sleepBalanced"
+                    )}
+                  />
+                  <Info
+                    label={t("onboarding.guestsLabel")}
+                    value={t(
+                      profile.lifestyle.guests === "rarely"
+                        ? "onboarding.guestsRarely"
+                        : profile.lifestyle.guests === "often"
+                          ? "onboarding.guestsOften"
+                          : "onboarding.guestsSometimes"
+                    )}
+                  />
+                  <Info
+                    label={t("onboarding.smokingLabel")}
+                    value={profile.lifestyle.smoking ? t("listingForm.yes") : t("listingForm.no")}
+                  />
+                  <Info
+                    label={t("onboarding.petsLabel")}
+                    value={profile.lifestyle.pets ? t("listingForm.yes") : t("listingForm.no")}
+                  />
                 </div>
               </Panel>
             </div>
@@ -253,7 +299,7 @@ export default function ProfilePage() {
           {activeTab === "chats" ? (
             <div>
               {conversationsLoading ? (
-                <div className="rounded-2xl bg-background p-6 text-sm text-foreground/60">Loading conversations...</div>
+                <div className="rounded-2xl bg-background p-6 text-sm text-foreground/60">{t("chat.loadingConversations")}</div>
               ) : conversations.length === 0 ? (
                 <EmptyState title={t("profile.emptyChatsTitle")} text={t("profile.emptyChatsText")} />
               ) : (
@@ -586,6 +632,3 @@ function getHistoryListings(
     .filter((item): item is { listing: (typeof listings)[number]; contacted: boolean } => Boolean(item));
 }
 
-function formatLabel(value: string) {
-  return value.replace(/([A-Z])/g, " $1");
-}

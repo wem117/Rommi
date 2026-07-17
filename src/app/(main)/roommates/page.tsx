@@ -173,7 +173,7 @@ function RoommatesPageContent() {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#12b000] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#109900]"
+              className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 hover:shadow-md active:scale-95"
             >
               <RefreshCcw className="h-4 w-4" />
               {t("roommates.retry")}

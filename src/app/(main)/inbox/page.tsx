@@ -1,5 +1,6 @@
 "use client";
 
+import { MessageCircle } from "lucide-react";
 import { useState } from "react";
 
 import { ConversationList } from "@/components/chat/ConversationList";
@@ -21,8 +22,11 @@ export default function InboxPage() {
           {selected ? (
             <ChatWindow conversationId={selected} />
           ) : (
-            <div className="flex h-full items-center justify-center text-foreground/60">
-              {t("chat.selectConversationPrompt")}
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-foreground/60">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                <MessageCircle className="h-6 w-6 text-primary/60" />
+              </span>
+              <p className="max-w-xs text-center text-sm">{t("chat.selectConversationPrompt")}</p>
             </div>
           )}
         </div>

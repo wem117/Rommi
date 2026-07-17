@@ -142,9 +142,13 @@ export function ListingCard({ listing }: { listing: Listing }) {
         </div>
 
         <div className="mt-2.5 flex items-center justify-between gap-2 sm:mt-4">
-          <span className="rounded-full bg-background px-3 py-1 text-xs font-medium text-foreground/65">
-            {propertyLabels[listing.propertyType]}
-          </span>
+          {propertyLabels[listing.propertyType] ? (
+            <span className="rounded-full bg-background px-3 py-1 text-xs font-medium text-foreground/65">
+              {propertyLabels[listing.propertyType]}
+            </span>
+          ) : (
+            <span />
+          )}
           <button
             type="button"
             onClick={async (e) => {
@@ -162,7 +166,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
                 console.error(err);
               }
             }}
-            className="rounded-xl bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 sm:py-2"
+            className="rounded-xl bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 hover:shadow-md active:scale-95 sm:py-2"
           >
             {t("listing.message")}
           </button>

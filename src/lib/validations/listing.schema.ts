@@ -27,7 +27,10 @@ export const listingSchema = z
     genderPreference: z.enum(["any", "male", "female"]),
     smoking: z.enum(["no", "yes"]),
     pets: z.enum(["no_pets", "allowed"]),
-    photoUrls: z.array(z.string().url("Photo must be a valid URL")).max(10)
+    photoUrls: z
+      .array(z.string().url("Photo must be a valid URL"))
+      .min(1, "Add at least one photo of the room")
+      .max(10)
   })
   .refine((data) => !data.depositRequired || data.depositAmount > 0, {
     path: ["depositAmount"],

@@ -91,7 +91,7 @@ export const demoProfiles: UserProfile[] = [
     lookingForApartment: false,
     photoURL: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80",
     bio: "Demo administrator account.",
-    role: "admin",
+    role: "TimaEra",
     verified: true,
     profileCompletion: 100,
     favoriteListingIds: [],

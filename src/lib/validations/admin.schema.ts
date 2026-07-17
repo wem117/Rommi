@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { ADMIN_ROLE } from "@/lib/auth/admin-access";
+
 export const banUserSchema = z.object({
   userId: z.string().min(1),
   ban: z.boolean()
@@ -21,7 +23,7 @@ export const userUpdateSchema = z.object({
   university: z.string().trim().max(160).optional(),
   occupation: z.string().trim().max(120).optional(),
   bio: z.string().trim().max(1000).optional(),
-  role: z.enum(["user", "admin"]).optional()
+  role: z.enum(["user", ADMIN_ROLE]).optional()
 });
 
 export const listingActionSchema = z.object({

@@ -32,7 +32,8 @@ export interface UserProfile {
   telegram?: string;
   phone?: string;
   contactsHidden?: boolean;
-  role?: "user" | "admin";
+  // Admin role value is the ADMIN_ROLE constant (defense-in-depth, not "admin").
+  role?: "user" | "TimaEra";
   verified?: boolean;
   banned?: boolean;
   bannedAt?: Date | null;

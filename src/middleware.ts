@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { isAdminEmail } from "@/lib/auth/admin-access";
+import { ADMIN_ROLE, isAdminEmail } from "@/lib/auth/admin-access";
 
 const protectedPrefixes = [
   "/profile",
@@ -110,7 +110,7 @@ export async function middleware(request: NextRequest) {
     if (!isAdminEmail(user.email)) {
       const { data: profile } = await supabase.from("profiles").select("role").eq("uid", user.id).maybeSingle();
 
-      if (profile?.role !== "admin") {
+      if (profile?.role !== ADMIN_ROLE) {
         // RLS only lets a signed-in user read this row when their own email
         // is inside admin_emails, so a non-empty result confirms access.
         const { data: setting } = await supabase

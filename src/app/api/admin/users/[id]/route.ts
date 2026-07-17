@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { apiErrorResponse } from "@/lib/api/error-response";
+import { ADMIN_ROLE } from "@/lib/auth/admin-access";
 import { mapProfileRow } from "@/lib/supabase/mappers";
 import { deleteUserAccount, requireAdminUser } from "@/lib/supabase/admin";
 
@@ -11,7 +12,7 @@ const adminProfileUpdateSchema = z.object({
   university: z.string().trim().max(160).optional(),
   occupation: z.string().trim().max(120).optional(),
   bio: z.string().trim().max(1000).optional(),
-  role: z.enum(["user", "admin"]).optional(),
+  role: z.enum(["user", ADMIN_ROLE]).optional(),
   verified: z.boolean().optional(),
   banned: z.boolean().optional(),
   suspended: z.boolean().optional(),

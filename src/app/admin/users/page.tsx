@@ -14,6 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
+import { ADMIN_ROLE } from "@/lib/auth/admin-access";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -186,7 +187,9 @@ export default function AdminUsersPage() {
                     <p className="text-xs text-foreground/50">{user.email || user.uid}</p>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={user.role === "admin" ? "default" : "secondary"}>{user.role || "user"}</Badge>
+                    <Badge variant={user.role === ADMIN_ROLE ? "default" : "secondary"}>
+                      {user.role === ADMIN_ROLE ? "admin" : "user"}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">

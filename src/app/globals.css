@@ -123,6 +123,22 @@ label {
   animation: roomi-marker-in 0.25s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
 }
 
+/* Fullscreen gallery lightbox entrance. */
+@keyframes roomi-lightbox-in {
+  from {
+    opacity: 0;
+    transform: scale(1.015);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.roomi-lightbox-in {
+  animation: roomi-lightbox-in 0.25s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
 /* Heart "pop" when a listing is favourited. */
 @keyframes roomi-heart-pop {
   0% {

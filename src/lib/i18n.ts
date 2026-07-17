@@ -26,6 +26,17 @@ const translations = {
       menu: "Menu",
       closeMenu: "Close menu",
     },
+    gallery: {
+      showAllPhotos: "Show all photos",
+      photosLabel: "Photos",
+      openPhoto: "Open photo",
+      close: "Close gallery",
+      prevPhoto: "Previous photo",
+      nextPhoto: "Next photo",
+      zoomIn: "Zoom in",
+      zoomOut: "Zoom out",
+      goToPhoto: "Go to photo",
+    },
     footer: {
       tagline:
         "Kazakhstan's trusted roommate and housing platform for students and young professionals.",
@@ -189,7 +200,7 @@ const translations = {
       depositSuffix: "deposit",
       noDeposit: "No deposit required",
       aboutTitle: "About this place",
-      bedrooms: "Room Type",
+      bedrooms: "Room",
       bathrooms: "Bathrooms",
       available: "Available",
       type: "Type",
@@ -507,7 +518,7 @@ const translations = {
       address: "Full address",
       addressSearchPlaceholder: "Start typing an address...",
       addressDragHint: "Drag the pin to fine-tune the exact location.",
-      bedrooms: "Room Type",
+      bedrooms: "Room",
       bathrooms: "Bathrooms",
       amenities: "Amenities",
       genderPreference: "Gender preference",
@@ -566,6 +577,17 @@ const translations = {
       loading: "Загрузка",
       menu: "Меню",
       closeMenu: "Закрыть меню",
+    },
+    gallery: {
+      showAllPhotos: "Все фото",
+      photosLabel: "Фотографии",
+      openPhoto: "Открыть фото",
+      close: "Закрыть галерею",
+      prevPhoto: "Предыдущее фото",
+      nextPhoto: "Следующее фото",
+      zoomIn: "Приблизить",
+      zoomOut: "Уменьшить",
+      goToPhoto: "Перейти к фото",
     },
     footer: {
       tagline:
@@ -1105,6 +1127,17 @@ const translations = {
       loading: "Жүктелуде",
       menu: "Мәзір",
       closeMenu: "Мәзірді жабу",
+    },
+    gallery: {
+      showAllPhotos: "Барлық фото",
+      photosLabel: "Фотосуреттер",
+      openPhoto: "Фотосуретті ашу",
+      close: "Галереяны жабу",
+      prevPhoto: "Алдыңғы фото",
+      nextPhoto: "Келесі фото",
+      zoomIn: "Үлкейту",
+      zoomOut: "Кішірейту",
+      goToPhoto: "Фотосуретке өту",
     },
     footer: {
       tagline:

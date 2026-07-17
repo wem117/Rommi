@@ -31,7 +31,9 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
       { protocol: "https", hostname: "**.supabase.co" }
-    ]
+    ],
+    // 75 is the default; 90 is used by the fullscreen gallery lightbox.
+    qualities: [75, 90]
   },
   async headers() {
     return [

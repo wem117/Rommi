@@ -15,6 +15,7 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils/format";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -367,7 +368,7 @@ export default function AdminListingsPage() {
                       {listing.city} · Owner: {listing.ownerId}
                     </p>
                   </TableCell>
-                  <TableCell className="text-sm text-foreground/70">{listing.monthlyRent.toLocaleString()} ₸</TableCell>
+                  <TableCell className="text-sm text-foreground/70">{formatCurrency(listing.monthlyRent)}</TableCell>
                   <TableCell>
                     <Badge
                       variant={

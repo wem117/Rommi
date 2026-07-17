@@ -23,7 +23,7 @@ import { useLocale } from "@/context/locale-context";
 import { createConversation } from "@/hooks/use-conversations";
 import { getProfileById } from "@/lib/data/profiles";
 import { calculateCompatibilityScore, compatibilityTierKey } from "@/lib/utils/compatibility";
-import { formatCurrency } from "@/lib/utils/format";
+import { formatCurrency, formatDateShort } from "@/lib/utils/format";
 import type { UserProfile } from "@/types/user";
 
 const LIFESTYLE_LABEL_KEYS: Record<keyof UserProfile["lifestyle"], string> = {
@@ -217,7 +217,11 @@ export default function RoommateDetailPage() {
               <FactCard
                 icon={<CalendarDays className="h-4 w-4" />}
                 label={t("roommateDetail.moveDateLabel")}
-                value={formatMoveDate(profile.preferredMoveInDate, t("roommateDetail.flexible"), locale)}
+                value={
+                  profile.preferredMoveInDate
+                    ? formatDateShort(profile.preferredMoveInDate, locale)
+                    : t("roommateDetail.flexible")
+                }
               />
               <FactCard icon={<MapPin className="h-4 w-4" />} label={t("roommateDetail.cityLabel")} value={city || "—"} />
             </div>
@@ -285,13 +289,4 @@ function FactCard({ label, value, icon }: { label: string; value: string; icon?:
       <div className="mt-1 text-sm font-semibold leading-snug text-foreground sm:text-base">{value}</div>
     </div>
   );
-}
-
-function formatMoveDate(date: Date | null, flexibleLabel: string, locale: string) {
-  if (!date) return flexibleLabel;
-
-  return new Intl.DateTimeFormat(locale === "kz" ? "kk" : locale, {
-    month: "long",
-    day: "numeric"
-  }).format(date);
 }

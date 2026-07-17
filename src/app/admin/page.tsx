@@ -2,6 +2,7 @@ import { Flag, GraduationCap, Home as HomeIcon, LayoutGrid, ShieldAlert, Sparkle
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
+import { formatDate } from "@/lib/utils/format";
 import { requireAdminUser } from "@/lib/supabase/admin";
 
 type Stats = {
@@ -159,7 +160,7 @@ export default async function AdminPage() {
                     <Link href={item.href} className="block rounded-xl px-2 py-1.5 transition hover:bg-muted">
                       <div className="flex items-center justify-between gap-2">
                         <Badge variant="secondary">{item.label}</Badge>
-                        <span className="text-[11px] text-foreground/40">{new Date(item.at).toLocaleDateString()}</span>
+                        <span className="text-[11px] text-foreground/40">{formatDate(new Date(item.at))}</span>
                       </div>
                       <p className="mt-1 truncate text-sm text-foreground/70">{item.detail}</p>
                     </Link>

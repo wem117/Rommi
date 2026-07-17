@@ -15,6 +15,7 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { formatDate } from "@/lib/utils/format";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -355,7 +356,7 @@ export default function AdminReportsPage() {
                     </Badge>
                   </div>
                   {r.details ? <p className="mt-1 text-sm text-foreground/60">{r.details}</p> : null}
-                  <p className="mt-1 text-xs text-foreground/40">{r.createdAt.toLocaleDateString()}</p>
+                  <p className="mt-1 text-xs text-foreground/40">{formatDate(r.createdAt)}</p>
                 </li>
               ))}
             </ul>

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AdminImageUpload } from "@/components/admin/admin-image-upload";
+import { formatNumber } from "@/lib/utils/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -254,7 +255,7 @@ export default function AdminSettingsPage() {
               id="footer-text"
               value={platformDraft.footerText}
               onChange={(e) => setPlatformDraft({ ...platformDraft, footerText: e.target.value })}
-              placeholder={`© ${new Date().getFullYear()} Roomi. All rights reserved.`}
+              placeholder={`© ${new Date().getUTCFullYear()} Roomi. All rights reserved.`}
             />
           </div>
         </CardContent>
@@ -349,7 +350,7 @@ export default function AdminSettingsPage() {
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-semibold">{metric.label}</span>
                 <span className="text-xs text-foreground/50">
-                  today: {computeHomepageStats(statsDraft)[metric.key].toLocaleString()}
+                  today: {formatNumber(computeHomepageStats(statsDraft)[metric.key])}
                 </span>
               </div>
               <div className="mt-3 grid gap-3 sm:grid-cols-3">

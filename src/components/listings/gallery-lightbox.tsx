@@ -150,6 +150,11 @@ export function GalleryLightbox({
   }
 
   function onPointerDown(event: React.PointerEvent) {
+    // The arrow buttons live inside the stage. Capturing the pointer here would
+    // redirect their pointerup to the stage, so the browser would never fire the
+    // button's click — the arrows would silently do nothing. Skip swipe/pan when
+    // the press starts on a button so its click works normally.
+    if ((event.target as HTMLElement).closest("button")) return;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (pointers.current.size === 1) {

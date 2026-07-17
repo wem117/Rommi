@@ -30,6 +30,7 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { formatDate } from "@/lib/utils/format";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -496,18 +497,18 @@ export default function AdminRoommatesPage() {
           {activityUser ? (
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
               <dt className="text-foreground/50">Joined</dt>
-              <dd>{activityUser.createdAt.toLocaleDateString()}</dd>
+              <dd>{formatDate(activityUser.createdAt)}</dd>
               <dt className="text-foreground/50">Last updated</dt>
-              <dd>{activityUser.updatedAt.toLocaleDateString()}</dd>
+              <dd>{formatDate(activityUser.updatedAt)}</dd>
               <dt className="text-foreground/50">Verified</dt>
               <dd>{activityUser.verified ? "Yes" : "No"}</dd>
               <dt className="text-foreground/50">Banned</dt>
               <dd>
-                {activityUser.banned ? `Yes (${activityUser.bannedAt?.toLocaleDateString() ?? "—"})` : "No"}
+                {activityUser.banned ? `Yes (${formatDate(activityUser.bannedAt)})` : "No"}
               </dd>
               <dt className="text-foreground/50">Suspended</dt>
               <dd>
-                {activityUser.suspended ? `Yes (${activityUser.suspendedAt?.toLocaleDateString() ?? "—"})` : "No"}
+                {activityUser.suspended ? `Yes (${formatDate(activityUser.suspendedAt)})` : "No"}
               </dd>
               <dt className="text-foreground/50">Favorited listings</dt>
               <dd>{activityUser.favoriteListingIds?.length ?? 0}</dd>
@@ -548,7 +549,7 @@ export default function AdminRoommatesPage() {
                     <Badge variant={report.status === "resolved" ? "success" : "warning"}>{report.status}</Badge>
                   </div>
                   {report.details ? <p className="mt-1 text-sm text-foreground/60">{report.details}</p> : null}
-                  <p className="mt-1 text-xs text-foreground/40">{report.createdAt.toLocaleDateString()}</p>
+                  <p className="mt-1 text-xs text-foreground/40">{formatDate(report.createdAt)}</p>
                 </li>
               ))}
             </ul>

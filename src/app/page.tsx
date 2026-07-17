@@ -35,6 +35,7 @@ import { DEFAULT_HOMEPAGE_SECTIONS, getPublicSettings, type PublicSettings } fro
 import { getFeaturedRoommates } from "@/lib/data/profiles";
 import { DEMO_TESTIMONIALS, getActiveTestimonials, type Testimonial } from "@/lib/data/testimonials";
 import { getFeaturedUniversities, type UniversityWithStats } from "@/lib/data/universities";
+import { formatNumber } from "@/lib/utils/format";
 import { computeHomepageStats, DEFAULT_HOMEPAGE_STATS_CONFIG } from "@/lib/utils/homepage-stats";
 import type { Listing } from "@/types/listing";
 import type { UserProfile } from "@/types/user";
@@ -438,8 +439,12 @@ export default function HomePage() {
 
           <div className="flex min-h-[520px] items-center justify-center py-16 sm:min-h-[760px] sm:py-28 lg:min-h-[820px]">
             <div className="w-full max-w-4xl text-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-medium text-white/90 backdrop-blur-sm sm:text-sm">
-                <span className="h-2 w-2 rounded-full bg-[#f1a531]" />
+              <div className="inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-medium text-white/90 backdrop-blur-sm sm:text-sm">
+                {/* Live-status dot: green with a subtle glow + gentle pulse (SaaS style). */}
+                <span className="relative flex h-2 w-2 items-center justify-center">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-50" />
+                  <span className="relative h-2 w-2 rounded-full bg-success shadow-[0_0_8px_2px_hsl(var(--success)/0.55)]" />
+                </span>
                 {t("home.heroBadge")}
               </div>
 
@@ -481,7 +486,7 @@ export default function HomePage() {
                   <div key={stat.label} className="flex items-center gap-5 sm:gap-10">
                     <div className="text-center">
                       <p className="text-2xl font-bold sm:text-3xl">
-                        <CountUp value={stat.value} format={(n) => `${n.toLocaleString()}+`} />
+                        <CountUp value={stat.value} format={(n) => `${formatNumber(n)}+`} />
                       </p>
                       <p className="mt-1 text-xs text-white/70 sm:text-sm">{stat.label}</p>
                     </div>

@@ -1,6 +1,9 @@
+"use client";
+
 import { BedDouble, CalendarDays, GraduationCap, MapPin, ShowerHead, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 import { FavoriteButton } from "@/components/favorites/favorite-button";
 import { createConversation } from "@/hooks/use-conversations";
@@ -33,10 +36,14 @@ export function ListingCard({ listing }: { listing: Listing }) {
     listing.propertyType === "apartment" || listing.propertyType === "studio"
       ? propertyLabels[listing.propertyType]
       : listingTypeLabels[listing.listingType];
-  // "New" = created within the last 48 hours. Uses absolute epoch milliseconds
-  // (createdAt is a UTC instant), so it's timezone-safe and needs no job/cron —
-  // it simply stops being true 48h after creation on every render.
-  const isNew = Date.now() - listing.createdAt.getTime() < 48 * 60 * 60 * 1000;
+  // "New" = created within the last 48 hours. `Date.now()` differs between the
+  // server and the client, so reading it during render would risk a hydration
+  // mismatch on listings near the 48h boundary. We resolve "now" only after
+  // mount: the server and the first client render both show no badge (matching
+  // HTML), then the badge appears client-side for genuinely-new listings.
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => setNow(Date.now()), []);
+  const isNew = now !== null && now - listing.createdAt.getTime() < 48 * 60 * 60 * 1000;
 
   return (
     <Link

@@ -122,7 +122,9 @@ export function Footer() {
       </div>
 
       <div className="border-t border-border px-4 py-5 text-center text-xs text-foreground/50">
-        {platform.footerText || `© ${new Date().getFullYear()} ${platform.siteName || "Roomi"}. ${t("footer.rights")}`}
+        {/* getUTCFullYear so server (UTC) and client (local TZ) can't disagree
+            during the New-Year window — avoids a hydration mismatch. */}
+        {platform.footerText || `© ${new Date().getUTCFullYear()} ${platform.siteName || "Roomi"}. ${t("footer.rights")}`}
       </div>
     </footer>
   );

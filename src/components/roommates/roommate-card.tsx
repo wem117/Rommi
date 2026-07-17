@@ -1,13 +1,16 @@
+"use client";
+
 import { BadgeCheck, CalendarDays, Coins } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { FavoriteRoommateButton } from "@/components/favorites/favorite-roommate-button";
 import { CompatibilityBar } from "@/components/roommates/compatibility-bar";
 import { useLocale } from "@/context/locale-context";
 import { getUniversityCity } from "@/lib/constants/universities";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
-import { formatCurrency } from "@/lib/utils/format";
+import { formatCurrency, formatDateShort } from "@/lib/utils/format";
 import type { LifestylePreferences, UserProfile } from "@/types/user";
 
 export function RoommateCard({
@@ -18,12 +21,28 @@ export function RoommateCard({
   currentUser?: UserProfile | null;
 }) {
   const { t, locale } = useLocale();
+  const router = useRouter();
   const score = calculateCompatibilityScore(currentUser, profile);
   const lifestyleTags = getLifestyleTags(profile.lifestyle, t);
   const city = getUniversityCity(profile.university);
+  const href = `/roommates/${profile.uid}`;
 
+  // Whole card is clickable (router.push instead of an <a> wrapper, because the
+  // card contains interactive children — the favorite button and Connect link —
+  // which must not be nested inside an anchor). Keyboard: Enter/Space navigate.
   return (
-    <article className="rounded-3xl border border-[#eadfce] bg-white p-4 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl sm:rounded-[2rem] sm:p-6">
+    <article
+      role="link"
+      tabIndex={0}
+      aria-label={profile.fullName}
+      onClick={() => router.push(href)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          router.push(href);
+        }
+      }}
+      className="cursor-pointer rounded-3xl border border-[#eadfce] bg-white p-4 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:rounded-[2rem] sm:p-6">
       <div className="flex items-start gap-3 sm:gap-4">
         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-[#efe7dc] sm:h-20 sm:w-20">
           {profile.photoURL ? (
@@ -68,7 +87,9 @@ export function RoommateCard({
         ) : null}
         <span className="inline-flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-[#a87458]" />
-          {formatMoveInDate(profile.preferredMoveInDate, t("roommateDetail.flexible"), locale)}
+          {profile.preferredMoveInDate
+            ? formatDateShort(profile.preferredMoveInDate, locale)
+            : t("roommateDetail.flexible")}
         </span>
       </div>
 
@@ -89,22 +110,14 @@ export function RoommateCard({
       </p>
 
       <Link
-        href={`/roommates/${profile.uid}`}
+        href={href}
+        onClick={(event) => event.stopPropagation()}
         className="mt-4 inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 hover:shadow-md active:scale-95 sm:mt-6 sm:py-3"
       >
         {t("roommates.connect")}
       </Link>
     </article>
   );
-}
-
-function formatMoveInDate(date: Date | null, flexibleLabel: string, locale: string) {
-  if (!date) return flexibleLabel;
-
-  return new Intl.DateTimeFormat(locale === "kz" ? "kk" : locale, {
-    month: "short",
-    day: "numeric"
-  }).format(date);
 }
 
 function getLifestyleTags(lifestyle: LifestylePreferences, t: (key: string) => string) {

@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { formatNumber } from "@/lib/utils/format";
+
 /**
  * Animates a number toward `value` with an ease-out curve. Starts when the
  * element scrolls into view (or immediately if IntersectionObserver is
@@ -72,7 +74,9 @@ export function CountUp({
     return () => cancelAnimationFrame(raf);
   }, [inView, value, durationMs]);
 
-  const formatted = format ? format(display) : display.toLocaleString();
+  // Deterministic default grouping (not locale-default toLocaleString) so the
+  // SSR value and the first client render are identical.
+  const formatted = format ? format(display) : formatNumber(display);
   return (
     <span ref={ref} className={className}>
       {formatted}

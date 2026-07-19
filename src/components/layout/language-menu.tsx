@@ -6,8 +6,15 @@ import { useEffect, useRef, useState } from "react";
 import { useLocale } from "@/context/locale-context";
 import { localeOptions } from "@/lib/i18n";
 
-export function LanguageMenu({ inverted = false }: { inverted?: boolean }) {
-  const { locale, setLocale, t } = useLocale();
+export function LanguageMenu({
+  inverted = false,
+  direction = "down"
+}: {
+  inverted?: boolean;
+  /** "up" opens the panel above the trigger — for footers/drawer bottoms. */
+  direction?: "down" | "up";
+}) {
+  const { locale, setLocale } = useLocale();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const current = localeOptions.find((option) => option.value === locale) ?? localeOptions[0];
@@ -34,7 +41,7 @@ export function LanguageMenu({ inverted = false }: { inverted?: boolean }) {
             : "border-[#e6d8c6] bg-white text-[#2e2622] hover:bg-[#f8f2e8]"
         }`}
         aria-expanded={open}
-        aria-label={t("nav.chooseLanguage")}
+
       >
         <Languages className="h-4 w-4" />
         <span>{current.code}</span>
@@ -43,18 +50,14 @@ export function LanguageMenu({ inverted = false }: { inverted?: boolean }) {
 
       {open ? (
         <div
-          className={`absolute right-0 top-[calc(100%+0.75rem)] z-40 w-72 rounded-[1.5rem] border p-3 shadow-2xl backdrop-blur ${
+          className={`absolute right-0 z-40 w-72 max-w-[calc(100vw-2rem)] rounded-[1.5rem] border p-3 shadow-2xl backdrop-blur ${
+            direction === "up" ? "bottom-[calc(100%+0.75rem)]" : "top-[calc(100%+0.75rem)]"
+          } ${
             inverted
               ? "border-white/10 bg-[rgba(17,16,12,0.9)] text-white"
               : "border-[#eadfce] bg-[#fffdf9] text-[#16110f]"
           }`}
         >
-          <div className="px-2 pb-3">
-            <div className="text-sm font-bold">{t("nav.chooseLanguage")}</div>
-            <p className={`mt-1 text-xs leading-5 ${inverted ? "text-white/70" : "text-[#6f6257]"}`}>
-              {t("nav.languageDescription")}
-            </p>
-          </div>
 
           <div className="grid gap-2">
             {localeOptions.map((option) => {
@@ -88,7 +91,7 @@ export function LanguageMenu({ inverted = false }: { inverted?: boolean }) {
                   {active ? (
                     <span
                       className={`grid h-8 w-8 place-items-center rounded-full ${
-                        inverted ? "bg-[#12b000] text-white" : "bg-[#12b000] text-white"
+                        inverted ? "bg-primary text-primary-foreground" : "bg-primary text-primary-foreground"
                       }`}
                     >
                       <Check className="h-4 w-4" />

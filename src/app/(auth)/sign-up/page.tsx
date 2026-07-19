@@ -9,10 +9,12 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { SkeletonAuth } from "@/components/SkeletonAuth";
 import { StatusBanner } from "@/components/StatusBanner";
 import { useAuth } from "@/context/auth-context";
+import { useLocale } from "@/context/locale-context";
 import { getProfileById } from "@/lib/data/profiles";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { signInWithGoogle, signUpWithEmail } from "@/lib/supabase/auth";
 import { friendlySupabaseError } from "@/lib/utils/errors";
+import { safeRedirect } from "@/lib/utils/safe-redirect";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -32,7 +34,8 @@ function SignUpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, profile, loading } = useAuth();
-  const redirectTo = searchParams.get("redirect") || "/rooms";
+  const { t } = useLocale();
+  const redirectTo = safeRedirect(searchParams.get("redirect"));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -60,19 +63,19 @@ function SignUpContent() {
   async function handleEmailSignUp() {
     if (!emailPattern.test(email.trim())) {
       setBannerTone("error");
-      setBannerMessage("Enter a valid email address first.");
+      setBannerMessage(t("auth.invalidEmail"));
       return;
     }
 
     if (password.trim().length < 6) {
       setBannerTone("error");
-      setBannerMessage("Password must be at least 6 characters long.");
+      setBannerMessage(t("auth.passwordTooShort"));
       return;
     }
 
     if (password !== confirmPassword) {
       setBannerTone("error");
-      setBannerMessage("Passwords do not match.");
+      setBannerMessage(t("auth.passwordsDontMatch"));
       return;
     }
 
@@ -90,17 +93,17 @@ function SignUpContent() {
 
       if (!authResult.user) {
         setBannerTone("success");
-        setBannerMessage("Check your email to confirm your account, then sign in.");
-        toast.success("Check your email to confirm your account");
+        setBannerMessage(t("auth.confirmEmailBanner"));
+        toast.success(t("auth.confirmEmailToast"));
         return;
       }
 
       const destination = await resolveDestination(authResult.user.id, redirectTo);
-      toast.success("Account created");
+      toast.success(t("auth.accountCreatedToast"));
       router.replace(destination);
     } catch (error) {
       setBannerTone("error");
-      setBannerMessage(friendlySupabaseError(error, "Could not create your account."));
+      setBannerMessage(friendlySupabaseError(error, t("auth.signUpFailed")));
     } finally {
       setSubmitting(false);
     }
@@ -120,20 +123,20 @@ function SignUpContent() {
       await signInWithGoogle(redirectTo);
     } catch (error) {
       setBannerTone("error");
-      setBannerMessage(friendlySupabaseError(error, "Google sign-up failed."));
+      setBannerMessage(friendlySupabaseError(error, t("auth.googleSignUpFailed")));
       setGoogleLoading(false);
     }
   }
 
   return (
     <AuthShell
-      heading="Create your account"
-      subtitle="Use Google or set an email and password to get started."
+      heading={t("auth.signUpHeading")}
+      subtitle={t("auth.signUpSubtitle")}
       topCtaHref={`/sign-in${redirectTo !== "/rooms" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`}
-      topCtaLabel="Sign In"
-      footerPrompt="Already have an account?"
+      topCtaLabel={t("nav.signIn")}
+      footerPrompt={t("auth.haveAccount")}
       footerLinkHref={`/sign-in${redirectTo !== "/rooms" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`}
-      footerLinkLabel="Sign in"
+      footerLinkLabel={t("auth.signInLink")}
     >
       <StatusBanner tone={bannerTone} message={bannerMessage} />
 
@@ -141,22 +144,28 @@ function SignUpContent() {
         type="button"
         onClick={() => void handleGoogle()}
         disabled={googleLoading || submitting}
-        className="flex w-full items-center justify-center gap-3 rounded-full border border-[#e6d8c6] bg-white px-5 py-5 text-xl font-semibold transition hover:border-[#12b000] disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-3 rounded-full border border-[#e6d8c6] bg-white px-5 py-5 text-xl font-semibold transition hover:border-primary hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
       >
         {googleLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Chrome className="h-5 w-5 text-[#db4437]" />}
-        Continue with Google
+        {t("auth.continueWithGoogle")}
       </button>
 
       <div className="my-7 flex items-center gap-4 text-base text-[#9a6e56]">
         <div className="h-px flex-1 bg-[#eadfce]" />
-        or
+        {t("auth.or")}
         <div className="h-px flex-1 bg-[#eadfce]" />
       </div>
 
-      <div className="space-y-4">
+      <form
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleEmailSignUp();
+        }}
+      >
         <div>
           <label htmlFor="email" className="text-lg font-semibold">
-            Email address
+            {t("auth.emailLabel")}
           </label>
           <div className="mt-3 flex items-center gap-3 rounded-[1.4rem] bg-[#f7f1e7] px-5 py-4">
             <Mail className="h-5 w-5 text-[#b18469]" />
@@ -164,7 +173,7 @@ function SignUpContent() {
               id="email"
               type="email"
               autoComplete="email"
-              placeholder="you@example.com"
+              placeholder={t("auth.emailPlaceholder")}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               className="w-full bg-transparent text-lg outline-none placeholder:text-[#b18469]"
@@ -174,7 +183,7 @@ function SignUpContent() {
 
         <div>
           <label htmlFor="password" className="text-lg font-semibold">
-            Create a password
+            {t("auth.createPasswordLabel")}
           </label>
           <div className="mt-3 flex items-center gap-3 rounded-[1.4rem] bg-[#f7f1e7] px-5 py-4">
             <LockKeyhole className="h-5 w-5 text-[#b18469]" />
@@ -182,7 +191,7 @@ function SignUpContent() {
               id="password"
               type="password"
               autoComplete="new-password"
-              placeholder="At least 6 characters"
+              placeholder={t("auth.passwordHintPlaceholder")}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="w-full bg-transparent text-lg outline-none placeholder:text-[#b18469]"
@@ -192,7 +201,7 @@ function SignUpContent() {
 
         <div>
           <label htmlFor="confirmPassword" className="text-lg font-semibold">
-            Confirm password
+            {t("auth.confirmPasswordLabel")}
           </label>
           <div className="mt-3 flex items-center gap-3 rounded-[1.4rem] bg-[#f7f1e7] px-5 py-4">
             <LockKeyhole className="h-5 w-5 text-[#b18469]" />
@@ -200,7 +209,7 @@ function SignUpContent() {
               id="confirmPassword"
               type="password"
               autoComplete="new-password"
-              placeholder="Re-enter your password"
+              placeholder={t("auth.reenterPasswordPlaceholder")}
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               className="w-full bg-transparent text-lg outline-none placeholder:text-[#b18469]"
@@ -209,15 +218,14 @@ function SignUpContent() {
         </div>
 
         <button
-          type="button"
-          onClick={() => void handleEmailSignUp()}
+          type="submit"
           disabled={submitting || googleLoading}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0f957d] px-6 py-5 text-xl font-semibold text-white transition hover:bg-[#0d856f] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0f957d] px-6 py-5 text-xl font-semibold text-white shadow-md transition hover:bg-[#0d856f] hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-          Create Account
+          {t("auth.createAccountButton")}
         </button>
-      </div>
+      </form>
     </AuthShell>
   );
 }

@@ -1,4 +1,5 @@
 import { demoListings } from "@/lib/data/demo";
+import { getUniversityCity } from "@/lib/constants/universities";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { mapListingRow } from "@/lib/supabase/mappers";
@@ -7,9 +8,14 @@ import type { Listing } from "@/types/listing";
 
 export interface ListingFiltersInput {
   city?: string;
+  university?: string;
   listingType?: Listing["listingType"] | "";
+  propertyType?: Listing["propertyType"] | "";
   minRent?: number | "";
   maxRent?: number | "";
+  genderPreference?: Listing["preferences"]["genderPreference"] | "";
+  smoking?: Listing["preferences"]["smoking"] | "";
+  pets?: Listing["preferences"]["pets"] | "";
   search?: string;
   sort?: "newest" | "rent_asc" | "rent_desc";
 }
@@ -20,16 +26,36 @@ function filterListings(listings: Listing[], filters: ListingFiltersInput = {}) 
   let next = listings.filter((listing) => {
     const hidden = "removed" in listing && Boolean((listing as Listing & { removed?: boolean }).removed);
     const matchesCity = !filters.city || listing.city === filters.city;
+    const matchesUniversity =
+      !filters.university ||
+      listing.university === filters.university ||
+      (!listing.university && listing.city === getUniversityCity(filters.university));
     const matchesType = !filters.listingType || listing.listingType === filters.listingType;
+    const matchesPropertyType = !filters.propertyType || listing.propertyType === filters.propertyType;
     const matchesMin = !filters.minRent || listing.monthlyRent >= Number(filters.minRent);
     const matchesMax = !filters.maxRent || listing.monthlyRent <= Number(filters.maxRent);
+    const matchesGender = !filters.genderPreference || listing.preferences.genderPreference === filters.genderPreference;
+    const matchesSmoking = !filters.smoking || listing.preferences.smoking === filters.smoking;
+    const matchesPets = !filters.pets || listing.preferences.pets === filters.pets;
       const matchesSearch =
         !query ||
         [listing.title, listing.description, listing.city, listing.district, listing.address]
           .filter((value): value is string => Boolean(value))
           .some((value) => value.toLowerCase().includes(query));
 
-    return !hidden && matchesCity && matchesType && matchesMin && matchesMax && matchesSearch;
+    return (
+      !hidden &&
+      matchesCity &&
+      matchesUniversity &&
+      matchesType &&
+      matchesPropertyType &&
+      matchesMin &&
+      matchesMax &&
+      matchesGender &&
+      matchesSmoking &&
+      matchesPets &&
+      matchesSearch
+    );
   });
 
   if (filters.sort === "rent_asc") {
@@ -51,7 +77,7 @@ export async function getListings(filters: ListingFiltersInput = {}, page = 1, p
     return { listings: paged, hasMore: start + pageSize < filtered.length };
   }
 
-  const supabase = getSupabaseBrowserClient() as any;
+  const supabase = getSupabaseBrowserClient();
   function buildQuery(includeRemovedFilter: boolean) {
     let query = supabase.from("listings").select("*", { count: "exact" });
 
@@ -60,7 +86,29 @@ export async function getListings(filters: ListingFiltersInput = {}, page = 1, p
     }
 
     if (filters.city) query = query.eq("city", filters.city);
+    if (filters.university) {
+      const fallbackCity = getUniversityCity(filters.university);
+      query = query.or(`university.eq.${filters.university},and(university.is.null,city.eq.${fallbackCity}),and(university.eq.,city.eq.${fallbackCity})`);
+    }
     if (filters.listingType) query = query.eq("listing_type", filters.listingType);
+    if (filters.propertyType) query = query.eq("property_type", filters.propertyType);
+    if (filters.genderPreference) query = query.eq("preferences->>genderPreference", filters.genderPreference);
+    if (filters.smoking) query = query.eq("preferences->>smoking", filters.smoking);
+    if (filters.pets) query = query.eq("preferences->>pets", filters.pets);
+    if (filters.minRent !== undefined && filters.minRent !== "") {
+      query = query.gte("monthly_rent", Number(filters.minRent));
+    }
+    if (filters.maxRent !== undefined && filters.maxRent !== "") {
+      query = query.lte("monthly_rent", Number(filters.maxRent));
+    }
+
+    const search = filters.search?.trim().replace(/[%,()]/g, " ").trim();
+    if (search) {
+      const pattern = `%${search}%`;
+      query = query.or(
+        `title.ilike.${pattern},description.ilike.${pattern},city.ilike.${pattern},district.ilike.${pattern},address.ilike.${pattern}`
+      );
+    }
 
     if (filters.sort === "rent_asc") query = query.order("monthly_rent", { ascending: true });
     else if (filters.sort === "rent_desc") query = query.order("monthly_rent", { ascending: false });
@@ -70,7 +118,7 @@ export async function getListings(filters: ListingFiltersInput = {}, page = 1, p
   }
 
   const from = (page - 1) * pageSize;
-  const to = from + pageSize + 8;
+  const to = from + pageSize - 1;
   let { data, count, error } = await buildQuery(true).range(from, to);
 
   if (error && /removed/i.test(String(error.message ?? ""))) {
@@ -80,16 +128,44 @@ export async function getListings(filters: ListingFiltersInput = {}, page = 1, p
     error = retried.error;
   }
 
+  // With Supabase configured we never silently substitute demo data — a
+  // missing table is a deployment problem to surface, not to mask.
   if (error && isMissingSupabaseTable(error, "listings")) {
-    const filtered = filterListings(demoListings, filters);
-    const start = (page - 1) * pageSize;
-    const paged = filtered.slice(start, start + pageSize);
-    return { listings: paged, hasMore: start + pageSize < filtered.length };
+    console.warn("listings table is missing — run the database migrations.");
+    return { listings: [], hasMore: false };
   }
 
   if (error) throw error;
-  const filtered = filterListings((data ?? []).map(mapListingRow), filters).slice(0, pageSize);
-  return { listings: filtered, hasMore: (count ?? 0) > page * pageSize };
+  const listings = (data ?? []).map(mapListingRow);
+  return { listings, hasMore: (count ?? 0) > page * pageSize };
+}
+
+/**
+ * Admin-curated listings for the home page. Demo data is used ONLY when
+ * Supabase isn't configured; with Supabase configured, an empty or failed
+ * result returns [] (the caller hides the section) — never fake listings.
+ */
+export async function getFeaturedListings(limit = 6): Promise<Listing[]> {
+  if (!isSupabaseConfigured) {
+    return demoListings.filter((listing) => !listing.removed).slice(0, limit);
+  }
+
+  try {
+    const supabase = getSupabaseBrowserClient();
+    const { data, error } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("featured", true)
+      .eq("removed", false)
+      .order("featured_position", { ascending: true })
+      .limit(limit);
+
+    if (error) throw error;
+    return (data ?? []).map(mapListingRow);
+  } catch (error) {
+    console.warn("Failed to load featured listings", error);
+    return [];
+  }
 }
 
 export async function getListingById(listingId: string) {
@@ -97,11 +173,12 @@ export async function getListingById(listingId: string) {
     return demoListings.find((listing) => listing.id === listingId) ?? null;
   }
 
-  const supabase = getSupabaseBrowserClient() as any;
-  const { data, error } = await supabase.from("listings").select("*").eq("id", listingId).single();
+  const supabase = getSupabaseBrowserClient();
+  const { data, error } = await supabase.from("listings").select("*").eq("id", listingId).maybeSingle();
 
   if (error && isMissingSupabaseTable(error, "listings")) {
-    return demoListings.find((listing) => listing.id === listingId) ?? null;
+    console.warn("listings table is missing — run the database migrations.");
+    return null;
   }
 
   if (error) throw error;

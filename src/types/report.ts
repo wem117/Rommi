@@ -9,6 +9,7 @@ export interface Report {
   reason: string;
   details?: string;
   status: ReportStatus;
+  adminNote?: string;
   createdAt: Date;
   updatedAt: Date;
 }

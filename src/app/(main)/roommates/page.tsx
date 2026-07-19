@@ -1,24 +1,34 @@
 "use client";
 
 import { RefreshCcw } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useMemo, useState } from "react";
 
 import { RoommateCard } from "@/components/roommates/roommate-card";
+import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
+import { CITIES } from "@/lib/constants/cities";
+import { getUniversityCity } from "@/lib/constants/universities";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
 import { useRoommates } from "@/hooks/use-roommates";
-import type { Gender, UserProfile } from "@/types/user";
+import type { Gender } from "@/types/user";
 
-type BudgetFilter = "any" | "100000" | "150000" | "200000" | "250000";
+type BudgetFilter = "any" | "25000" | "40000" | "50000" | "75000" | "100000" | "150000" | "200000" | "300000";
 
-const cityOptions = ["All Cities", "Almaty", "Astana", "Shymkent", "Karaganda", "Aktobe", "Taraz"];
+const BUDGET_PRESETS = [25000, 40000, 50000, 75000, 100000, 150000, 200000, 300000] as const;
 
-export default function RoommatesPage() {
+const ALL_CITIES = "All Cities";
+const cityOptions = [ALL_CITIES, ...CITIES];
+
+function RoommatesPageContent() {
+  const searchParams = useSearchParams();
+  const universityParam = searchParams.get("university");
   const { profile } = useAuth();
   const { t } = useLocale();
   const { roommates, loading, error } = useRoommates();
-  const [city, setCity] = useState("All Cities");
+  const [city, setCity] = useState(ALL_CITIES);
+  const [university, setUniversity] = useState(universityParam ?? "");
   const [gender, setGender] = useState<Gender | "all">("all");
   const [minAge, setMinAge] = useState("18");
   const [maxAge, setMaxAge] = useState("30");
@@ -32,10 +42,10 @@ export default function RoommatesPage() {
   ];
   const budgetOptions: Array<{ label: string; value: BudgetFilter }> = [
     { label: t("roommates.any"), value: "any" },
-    { label: "100,000 KZT", value: "100000" },
-    { label: "150,000 KZT", value: "150000" },
-    { label: "200,000 KZT", value: "200000" },
-    { label: "250,000 KZT", value: "250000" }
+    ...BUDGET_PRESETS.map((amount) => ({
+      label: `${amount.toLocaleString("en-US")} ₸`,
+      value: String(amount) as BudgetFilter
+    }))
   ];
 
   const filteredRoommates = useMemo(() => {
@@ -43,16 +53,22 @@ export default function RoommatesPage() {
     const parsedMaxAge = Number(maxAge) || 30;
     const parsedBudget = maxBudget === "any" ? null : Number(maxBudget);
 
+    const universityQuery = university.trim().toLowerCase();
+
     return roommates
       .filter((roommate) => {
-        const roommateCity = getUniversityCity(roommate);
-        const matchesCity = city === "All Cities" || roommateCity === city;
+        const roommateCity = getUniversityCity(roommate.university);
+        const matchesCity = city === ALL_CITIES || roommateCity === city;
+        const matchesUniversity =
+          !universityQuery || (roommate.university ?? "").toLowerCase().includes(universityQuery);
         const matchesGender = gender === "all" || roommate.gender === gender;
         const matchesMinAge = roommate.age >= parsedMinAge;
         const matchesMaxAge = roommate.age <= parsedMaxAge;
         const matchesBudget = parsedBudget === null || roommate.maxBudget <= parsedBudget;
 
-        return matchesCity && matchesGender && matchesMinAge && matchesMaxAge && matchesBudget;
+        return (
+          matchesCity && matchesUniversity && matchesGender && matchesMinAge && matchesMaxAge && matchesBudget
+        );
       })
       .sort((first, second) => {
         if (!profile) return second.createdAt.getTime() - first.createdAt.getTime();
@@ -61,28 +77,36 @@ export default function RoommatesPage() {
           calculateCompatibilityScore(profile, second) - calculateCompatibilityScore(profile, first)
         );
       });
-  }, [city, gender, maxAge, maxBudget, minAge, profile, roommates]);
+  }, [city, university, gender, maxAge, maxBudget, minAge, profile, roommates]);
 
   return (
     <main className="min-h-[70vh] bg-[#fbf8f3]">
       <section className="border-y border-[#eadfce] bg-[#f5efe5]">
-        <div className="mx-auto max-w-[1180px] px-4 py-12 sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-bold tracking-tight text-[#16110f] sm:text-5xl">
+        <div className="mx-auto max-w-[1180px] px-4 py-6 sm:px-6 sm:py-12 lg:px-8">
+          <h1 className="text-3xl font-bold tracking-tight text-[#16110f] sm:text-5xl">
             {t("roommates.title")}
           </h1>
-          <p className="mt-4 max-w-3xl text-lg text-[#9a6e56]">
+          <p className="mt-2 max-w-3xl text-base text-[#9a6e56] sm:mt-4 sm:text-lg">
             {t("roommates.description")}
           </p>
 
-          <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:mt-10 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
             <Field label={t("roommates.city")}>
               <select value={city} onChange={(event) => setCity(event.target.value)}>
                 {cityOptions.map((option) => (
                   <option key={option} value={option}>
-                    {option === "All Cities" ? t("roommates.allCities") : option}
+                    {option === ALL_CITIES ? t("roommates.allCities") : option}
                   </option>
                 ))}
               </select>
+            </Field>
+
+            <Field label={t("roommates.university")} className="col-span-2 md:col-span-1">
+              <UniversityCombobox
+                value={university}
+                onChange={setUniversity}
+                placeholder={t("roommates.universitySearchPlaceholder")}
+              />
             </Field>
 
             <Field label={t("roommates.gender")}>
@@ -124,19 +148,19 @@ export default function RoommatesPage() {
             </Field>
           </div>
 
-          <p className="mt-6 text-sm font-medium text-[#9a6e56]">
+          <p className="mt-4 text-sm font-medium text-[#9a6e56] sm:mt-6">
             <span className="font-semibold text-[#1b1715]">{filteredRoommates.length}</span> {t("roommates.found")}
           </p>
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1180px] px-4 py-12 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-[1180px] px-4 py-5 sm:px-6 sm:py-12 lg:px-8">
         {loading ? (
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
             {Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
-                className="h-[430px] animate-pulse rounded-[2rem] border border-[#ece1d3] bg-white shadow-soft"
+                className="h-[340px] animate-pulse rounded-3xl border border-[#ece1d3] bg-white shadow-soft sm:h-[430px] sm:rounded-[2rem]"
               />
             ))}
           </div>
@@ -149,7 +173,7 @@ export default function RoommatesPage() {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#12b000] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#109900]"
+              className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 hover:shadow-md active:scale-95"
             >
               <RefreshCcw className="h-4 w-4" />
               {t("roommates.retry")}
@@ -158,8 +182,8 @@ export default function RoommatesPage() {
         ) : null}
 
         {!loading && !error && filteredRoommates.length === 0 ? (
-          <div className="rounded-[2rem] border border-[#ece1d3] bg-white p-10 text-center shadow-soft">
-            <h2 className="text-2xl font-bold text-[#16110f]">{t("roommates.emptyTitle")}</h2>
+          <div className="rounded-3xl border border-[#ece1d3] bg-white p-6 text-center shadow-soft sm:rounded-[2rem] sm:p-10">
+            <h2 className="text-xl font-bold text-[#16110f] sm:text-2xl">{t("roommates.emptyTitle")}</h2>
             <p className="mt-3 text-sm text-foreground/60">
               {t("roommates.emptyText")}
             </p>
@@ -167,7 +191,7 @@ export default function RoommatesPage() {
         ) : null}
 
         {!loading && !error && filteredRoommates.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
             {filteredRoommates.map((roommate) => (
               <RoommateCard key={roommate.uid} profile={roommate} currentUser={profile} />
             ))}
@@ -178,25 +202,29 @@ export default function RoommatesPage() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+export default function RoommatesPage() {
   return (
-    <label>
-      <span className="mb-3 block text-sm font-semibold uppercase tracking-[0.12em] text-[#a87458]">
+    <Suspense fallback={null}>
+      <RoommatesPageContent />
+    </Suspense>
+  );
+}
+
+function Field({
+  label,
+  children,
+  className = ""
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={className}>
+      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-[#a87458] sm:mb-3 sm:text-sm">
         {label}
       </span>
       {children}
     </label>
   );
-}
-
-function getUniversityCity(profile: UserProfile) {
-  const value = profile.university.toLowerCase();
-
-  if (value.includes("nazarbayev") || value.includes("astana")) return "Astana";
-  if (value.includes("sdu")) return "Almaty";
-  if (value.includes("kimep")) return "Almaty";
-  if (value.includes("kaznu")) return "Almaty";
-  if (value.includes("kbtu")) return "Almaty";
-
-  return "Almaty";
 }

@@ -1,22 +1,23 @@
+/**
+ * Cities used in search/filter dropdowns. Ordered by size/relevance, and kept
+ * aligned with the cities that have universities (see constants/universities.ts).
+ */
 export const CITIES = [
   "Almaty",
   "Astana",
   "Shymkent",
-  "Aktau",
-  "Aktobe",
-  "Atyrau",
-  "Kokshetau",
   "Karaganda",
-  "Konaev",
-  "Kostanay",
-  "Kyzylorda",
-  "Oral",
-  "Oskemen",
-  "Pavlodar",
-  "Petropavl",
-  "Semey",
-  "Taldykorgan",
+  "Aktobe",
   "Taraz",
+  "Pavlodar",
+  "Semey",
+  "Oskemen",
+  "Atyrau",
+  "Kostanay",
+  "Kokshetau",
+  "Petropavlovsk",
   "Turkistan",
-  "Zhezkazgan"
+  "Oral",
+  "Kyzylorda",
+  "Taldykorgan"
 ] as const;

@@ -150,7 +150,9 @@ Expected paths:
 
 1. Create the Supabase project.
 2. Fill `.env.local` with the values listed above.
-3. Create the tables and storage bucket.
-4. Add Google Auth in Supabase if you want Google sign-in.
-5. Run `npm install`.
-6. Start the app with `npm run dev`.
+3. Run `supabase-schema.sql` in the Supabase SQL editor.
+4. Create the storage bucket.
+5. Run `supabase-policies.sql` in the Supabase SQL editor.
+6. Add Google Auth in Supabase if you want Google sign-in.
+7. Run `npm install`.
+8. Start the app with `npm run dev`.

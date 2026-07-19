@@ -2,18 +2,28 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
+import { AddressAutocomplete } from "@/components/map/address-autocomplete";
 import { PhotoUploader } from "@/components/listings/photo-uploader";
+import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
 import { CITIES } from "@/lib/constants/cities";
+import { FALLBACK_PROPERTY_CATEGORIES, getActivePropertyCategories, type PropertyCategory } from "@/lib/data/categories";
 import { listingSchema, type ListingInput } from "@/lib/validations/listing.schema";
 import type { Listing } from "@/types/listing";
 
 type ListingFormValues = z.input<typeof listingSchema>;
+
+const PROPERTY_TYPE_LABEL_KEYS: Record<string, string> = {
+  apartment: "listing.types.apartment",
+  house: "listing.types.house",
+  dorm: "listing.types.dorm",
+  studio: "listing.types.studio"
+};
 
 const amenities = [
   "WiFi",
@@ -44,6 +54,9 @@ export function listingToInput(listing: Listing): ListingInput {
     city: listing.city,
     district: listing.district ?? "",
     address: listing.address,
+    university: listing.university ?? "",
+    lat: listing.lat,
+    lng: listing.lng,
     bedrooms: listing.bedrooms,
     bathrooms: listing.bathrooms,
     availableFrom: dateInputValue(listing.availableFrom),
@@ -68,6 +81,16 @@ export function ListingForm({
 }) {
   const { user } = useAuth();
   const { t } = useLocale();
+  const [propertyCategories, setPropertyCategories] = useState<PropertyCategory[]>(
+    FALLBACK_PROPERTY_CATEGORIES.filter((c) => c.slug in PROPERTY_TYPE_LABEL_KEYS)
+  );
+
+  useEffect(() => {
+    void getActivePropertyCategories().then((categories) =>
+      setPropertyCategories(categories.filter((c) => c.slug in PROPERTY_TYPE_LABEL_KEYS))
+    );
+  }, []);
+
   const defaultValues = useMemo<ListingFormValues>(
     () =>
       initialListing
@@ -83,6 +106,9 @@ export function ListingForm({
             city: "",
             district: "",
             address: "",
+            university: "",
+            lat: null,
+            lng: null,
             bedrooms: 1,
             bathrooms: 1,
             availableFrom: dateInputValue(new Date()),
@@ -126,10 +152,11 @@ export function ListingForm({
         <div>
           <label htmlFor="propertyType">{t("listingForm.propertyType")}</label>
           <select id="propertyType" {...register("propertyType")}>
-            <option value="apartment">{t("listing.types.apartment")}</option>
-            <option value="house">{t("listing.types.house")}</option>
-            <option value="dorm">{t("listing.types.dorm")}</option>
-            <option value="studio">{t("listing.types.studio")}</option>
+            {propertyCategories.map((category) => (
+              <option key={category.id} value={category.slug}>
+                {t(PROPERTY_TYPE_LABEL_KEYS[category.slug]) || category.name}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -218,9 +245,31 @@ export function ListingForm({
           <input id="district" {...register("district")} />
         </div>
 
+        <div>
+          <label htmlFor="university">{t("shared.nearestUniversity")}</label>
+          <UniversityCombobox
+            id="university"
+            value={watch("university") ?? ""}
+            onChange={(value) => setValue("university", value, { shouldValidate: true })}
+            placeholder={t("shared.universitySearchPlaceholder")}
+          />
+          {errors.university ? <p className="mt-1 text-xs text-red-600">{errors.university.message}</p> : null}
+        </div>
+
         <div className="md:col-span-2">
           <label htmlFor="address">{t("listingForm.address")}</label>
-          <input id="address" {...register("address")} />
+          <AddressAutocomplete
+            address={watch("address") ?? ""}
+            onAddressChange={(value) => setValue("address", value, { shouldValidate: true })}
+            lat={watch("lat") ?? null}
+            lng={watch("lng") ?? null}
+            onCoordsChange={(nextLat, nextLng) => {
+              setValue("lat", nextLat, { shouldValidate: true });
+              setValue("lng", nextLng, { shouldValidate: true });
+            }}
+            placeholder={t("listingForm.addressSearchPlaceholder")}
+            dragHint={t("listingForm.addressDragHint")}
+          />
           {errors.address ? <p className="mt-1 text-xs text-red-600">{errors.address.message}</p> : null}
         </div>
 
@@ -243,7 +292,7 @@ export function ListingForm({
           {amenities.map((amenity) => (
             <label key={amenity} className="flex items-center gap-2 rounded-2xl border border-border bg-white px-3 py-2">
               <input type="checkbox" value={amenity} {...register("amenities")} className="h-4 w-4 rounded" />
-              <span>{amenity}</span>
+              <span>{t(`amenities.${amenity}`)}</span>
             </label>
           ))}
         </div>
@@ -276,7 +325,7 @@ export function ListingForm({
 
       <div>
         {user ? (
-          <PhotoUploader ownerId={user.uid} value={photoUrls} onChange={(urls) => setValue("photoUrls", urls)} />
+          <PhotoUploader value={photoUrls} onChange={(urls) => setValue("photoUrls", urls)} />
         ) : null}
         {errors.photoUrls ? <p className="mt-1 text-xs text-red-600">{errors.photoUrls.message}</p> : null}
       </div>

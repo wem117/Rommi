@@ -4,10 +4,12 @@ import { Heart } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { useLocale } from "@/context/locale-context";
 import { useFavorites } from "@/hooks/use-favorites";
 
 export function FavoriteButton({ listingId }: { listingId: string }) {
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { t } = useLocale();
   const [saving, setSaving] = useState(false);
   const active = isFavorite(listingId);
 
@@ -19,7 +21,7 @@ export function FavoriteButton({ listingId }: { listingId: string }) {
       await toggleFavorite(listingId);
     } catch (error) {
       console.error(error);
-      toast.error("Could not update favorites");
+      toast.error(t("shared.favoritesUpdateFailed"));
     } finally {
       setSaving(false);
     }
@@ -30,12 +32,12 @@ export function FavoriteButton({ listingId }: { listingId: string }) {
       type="button"
       onClick={handleClick}
       disabled={saving}
-      className={`rounded-full p-2 shadow-soft transition ${
-        active ? "bg-primary text-white" : "bg-white text-foreground/70"
+      className={`rounded-full p-2 shadow-soft transition-all duration-200 hover:scale-110 hover:shadow-md active:scale-90 ${
+        active ? "bg-primary text-white" : "bg-white text-foreground/70 hover:text-destructive"
       } disabled:opacity-60`}
-      aria-label={active ? "Remove favorite" : "Save listing"}
+      aria-label={active ? t("shared.removeFavorite") : t("listingDetail.saveListing")}
     >
-      <Heart className={`h-4 w-4 ${active ? "fill-current" : ""}`} />
+      <Heart className={`h-4 w-4 transition-transform ${active ? "roomi-heart-pop fill-current" : ""}`} />
     </button>
   );
 }

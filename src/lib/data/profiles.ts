@@ -36,8 +36,13 @@ function toProfilePayload(profile: Partial<UserProfile>) {
   }
   if (hasOwnProperty(profile, "photoURL")) payload.photo_url = profile.photoURL ?? null;
   if (hasOwnProperty(profile, "bio")) payload.bio = profile.bio ?? "";
-  if (hasOwnProperty(profile, "role")) payload.role = profile.role ?? "user";
-  if (hasOwnProperty(profile, "verified")) payload.verified = profile.verified ?? false;
+  if (hasOwnProperty(profile, "telegram")) payload.telegram = profile.telegram ?? "";
+  if (hasOwnProperty(profile, "phone")) payload.phone = profile.phone ?? "";
+  if (hasOwnProperty(profile, "contactsHidden")) payload.contacts_hidden = profile.contactsHidden ?? false;
+  // NOTE: privileged columns (role, verified, banned, suspended, featured,
+  // roommate_status) are intentionally NOT written here. The browser client
+  // must never send them; they are set only by admin/moderation flows via the
+  // service-role client and locked at the DB (supabase-migration-privilege-columns.sql).
   if (hasOwnProperty(profile, "profileCompletion")) {
     payload.profile_completion = profile.profileCompletion ?? 0;
   }
@@ -57,13 +62,49 @@ function toProfilePayload(profile: Partial<UserProfile>) {
   return payload;
 }
 
+/**
+ * Columns safe to expose on public browse surfaces (roommate cards, featured
+ * rows). Excludes contacts (email/telegram/phone — revoked from the anon role
+ * at the database, see supabase-migration-contact-privacy.sql) and the
+ * viewer-private favorites/viewed/contacted arrays. `select("*")` would be
+ * rejected by PostgREST for anonymous visitors once those columns are revoked.
+ * Also excludes contacts_hidden: cards never render contacts, and naming it
+ * here would 42703 on databases where the contacts migration hasn't run yet.
+ */
+const PUBLIC_PROFILE_COLUMNS = [
+  "uid",
+  "full_name",
+  "age",
+  "gender",
+  "university",
+  "occupation",
+  "min_budget",
+  "max_budget",
+  "preferred_move_in_date",
+  "lifestyle",
+  "onboarding_complete",
+  "looking_for_apartment",
+  "photo_url",
+  "bio",
+  "role",
+  "verified",
+  "banned",
+  "suspended",
+  "profile_completion",
+  "roommate_status",
+  "featured",
+  "featured_position",
+  "created_at",
+  "updated_at"
+].join(", ");
+
 export async function getProfileById(uid: string) {
   if (!isSupabaseConfigured) {
     return demoProfiles.find((profile) => profile.uid === uid) ?? null;
   }
 
-  const supabase = getSupabaseBrowserClient() as any;
-  const { data, error } = await supabase.from("profiles").select("*").eq("uid", uid).single();
+  const supabase = getSupabaseBrowserClient();
+  const { data, error } = await supabase.from("profiles").select("*").eq("uid", uid).maybeSingle();
   if (error) throw error;
   return data ? mapProfileRow(data) : null;
 }
@@ -78,23 +119,52 @@ export async function getRoommateProfiles(currentUid?: string | null) {
     );
   }
 
-  const supabase = getSupabaseBrowserClient() as any;
+  const supabase = getSupabaseBrowserClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("*")
+    .select(PUBLIC_PROFILE_COLUMNS)
     .eq("onboarding_complete", true)
     .eq("looking_for_apartment", true)
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(150);
 
   if (error) throw error;
-  return (data ?? []).map(mapProfileRow).filter((profile: UserProfile) => profile.uid !== currentUid);
+  return (data ?? [])
+    .map((row) => mapProfileRow(row as unknown as Record<string, unknown>))
+    .filter((profile: UserProfile) => profile.uid !== currentUid);
+}
+
+/** Admin-curated roommates for the home page. Falls back to demo profiles when none are featured. */
+export async function getFeaturedRoommates(limit = 6) {
+  if (!isSupabaseConfigured) {
+    return demoProfiles.filter((profile) => profile.onboardingComplete && profile.lookingForApartment).slice(0, limit);
+  }
+
+  const supabase = getSupabaseBrowserClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(PUBLIC_PROFILE_COLUMNS)
+    .eq("featured", true)
+    .eq("banned", false)
+    .eq("onboarding_complete", true)
+    .eq("looking_for_apartment", true)
+    .order("featured_position", { ascending: true })
+    .limit(limit);
+
+  // With Supabase configured, never substitute demo profiles: empty or failed
+  // results return [] and the caller hides the section.
+  if (error) {
+    console.warn("Failed to load featured roommates", error);
+    return [];
+  }
+
+  return (data ?? []).map((row) => mapProfileRow(row as unknown as Record<string, unknown>));
 }
 
 export async function upsertProfile(profile: Partial<UserProfile> & Pick<UserProfile, "uid">) {
   if (!isSupabaseConfigured) return;
 
-  const supabase = getSupabaseBrowserClient() as any;
+  const supabase = getSupabaseBrowserClient();
   const payload = {
     ...toProfilePayload(profile),
     created_at: profile.createdAt?.toISOString() ?? new Date().toISOString()
@@ -107,7 +177,7 @@ export async function upsertProfile(profile: Partial<UserProfile> & Pick<UserPro
 export async function updateProfile(profile: Partial<UserProfile> & Pick<UserProfile, "uid">) {
   if (!isSupabaseConfigured) return;
 
-  const supabase = getSupabaseBrowserClient() as any;
+  const supabase = getSupabaseBrowserClient();
   const { error } = await supabase.from("profiles").update(toProfilePayload(profile)).eq("uid", profile.uid);
   if (error) throw error;
 }

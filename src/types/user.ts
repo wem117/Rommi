@@ -29,13 +29,24 @@ export interface UserProfile {
   lookingForApartment: boolean;
   photoURL?: string | null;
   bio?: string;
-  role?: "user" | "admin";
+  telegram?: string;
+  phone?: string;
+  contactsHidden?: boolean;
+  // Admin role value is the ADMIN_ROLE constant (defense-in-depth, not "admin").
+  role?: "user" | "TimaEra";
   verified?: boolean;
+  banned?: boolean;
+  bannedAt?: Date | null;
+  suspended?: boolean;
+  suspendedAt?: Date | null;
   profileCompletion?: number;
   favoriteListingIds?: string[];
   favoriteRoommateIds?: string[];
   viewedListingIds?: string[];
   contactedListingIds?: string[];
+  roommateStatus?: "pending" | "approved" | "rejected";
+  featured?: boolean;
+  featuredPosition?: number | null;
   createdAt: Date;
   updatedAt: Date;
 }

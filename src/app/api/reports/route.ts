@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 
+import { apiErrorResponse } from "@/lib/api/error-response";
+import { consume, rateLimitResponse } from "@/lib/api/rate-limit";
 import { createReport } from "@/lib/data/reports";
 import { requireAdminUser } from "@/lib/supabase/admin";
 import { requireSessionUser } from "@/lib/supabase/session";
+import { mapReportRow } from "@/lib/supabase/mappers";
 import { reportCreateSchema, reportUpdateSchema } from "@/lib/validations/admin.schema";
 
 export async function GET() {
@@ -11,16 +14,20 @@ export async function GET() {
     const { data, error } = await supabase.from("reports").select("*").order("created_at", { ascending: false });
 
     if (error) throw error;
-    return NextResponse.json({ reports: data ?? [] });
-  } catch (error: any) {
-    const status = error?.message === "Forbidden" ? 403 : 400;
-    return NextResponse.json({ error: error?.message ?? String(error) }, { status });
+    return NextResponse.json({ reports: (data ?? []).map(mapReportRow) });
+  } catch (error) {
+    return apiErrorResponse(error);
   }
 }
 
 export async function POST(request: Request) {
   try {
     const user = await requireSessionUser();
+
+    // Per-user throttle: 10 reports/minute stops spam loops while never
+    // blocking legitimate moderation reports.
+    if (!consume(`reports:${user.id}`, 10, 60_000)) return rateLimitResponse();
+
     const data = reportCreateSchema.parse(await request.json());
 
     await createReport({
@@ -32,9 +39,9 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Create report failed", error);
-    return NextResponse.json({ error: error?.message ?? String(error) }, { status: 400 });
+    return apiErrorResponse(error);
   }
 }
 
@@ -50,9 +57,23 @@ export async function PATCH(request: Request) {
 
     if (error) throw error;
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Update report failed", error);
-    const status = error?.message === "Forbidden" ? 403 : 400;
-    return NextResponse.json({ error: error?.message ?? String(error) }, { status });
+    return apiErrorResponse(error);
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { supabase } = await requireAdminUser();
+    const { searchParams } = new URL(request.url);
+    const reportId = searchParams.get("id");
+    if (!reportId) throw new Error("Missing report id");
+
+    const { error } = await supabase.from("reports").delete().eq("id", reportId);
+    if (error) throw error;
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return apiErrorResponse(error);
   }
 }

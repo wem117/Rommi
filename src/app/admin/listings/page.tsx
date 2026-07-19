@@ -1,8 +1,12 @@
 "use client";
 
-import { Archive, ArchiveRestore, ArrowDown, ArrowUp, Eye, EyeOff, Loader2, Pencil, Star, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowDown, ArrowUp, Eye, EyeOff, Loader2, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+
+import { AdminPhotoList } from "@/components/admin/admin-photo-list";
+import { UniversityCombobox } from "@/components/shared/university-combobox";
+import { CITIES } from "@/lib/constants/cities";
 
 import {
   AlertDialog,
@@ -37,6 +41,27 @@ const EDIT_EMPTY = {
   lng: "" as string
 };
 
+const CREATE_EMPTY = {
+  title: "",
+  description: "",
+  monthlyRent: 0,
+  depositRequired: false,
+  depositAmount: 0,
+  city: "Almaty",
+  district: "",
+  address: "",
+  university: "",
+  propertyType: "apartment" as "apartment" | "house" | "dorm" | "studio",
+  listingType: "private_room" as "private_room" | "shared_room" | "entire_place",
+  bedrooms: 1,
+  bathrooms: 1,
+  availableFrom: "",
+  genderPreference: "any" as "any" | "male" | "female",
+  smoking: "no" as "no" | "yes",
+  pets: "no_pets" as "no_pets" | "allowed",
+  photoUrls: [] as string[]
+};
+
 type StatusFilter = "all" | "pending" | "approved" | "rejected" | "archived" | "hidden";
 
 export default function AdminListingsPage() {
@@ -47,6 +72,10 @@ export default function AdminListingsPage() {
   const [editForm, setEditForm] = useState(EDIT_EMPTY);
   const [saving, setSaving] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState(CREATE_EMPTY);
+  const [creating, setCreating] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -213,6 +242,31 @@ export default function AdminListingsPage() {
     }
   }
 
+  function startCreate() {
+    setCreateForm({ ...CREATE_EMPTY, availableFrom: new Date().toISOString().slice(0, 10) });
+    setCreateOpen(true);
+  }
+
+  async function createNew() {
+    setCreating(true);
+    try {
+      const res = await fetch("/api/admin/listings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...createForm, amenities: [], lat: null, lng: null })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Create failed");
+      toast.success("Listing created");
+      setCreateOpen(false);
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Create failed");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   async function remove(id: string) {
     try {
       const res = await fetch(`/api/admin/listings/${id}`, { method: "DELETE" });
@@ -267,8 +321,16 @@ export default function AdminListingsPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-      <h1 className="text-2xl font-bold sm:text-3xl">Listings</h1>
-      <p className="mt-1 text-sm text-foreground/60">Moderate room listings and curate which ones are featured.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold sm:text-3xl">Listings</h1>
+          <p className="mt-1 text-sm text-foreground/60">Moderate room listings and curate which ones are featured.</p>
+        </div>
+        <Button onClick={startCreate}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          New listing
+        </Button>
+      </div>
 
       {featured.length > 0 ? (
         <section className="mt-6 rounded-2xl border border-border bg-card p-4 shadow-soft">
@@ -444,6 +506,239 @@ export default function AdminListingsPage() {
           </Table>
         )}
       </div>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>New listing</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="create-title">Title</Label>
+              <Input
+                id="create-title"
+                value={createForm.title}
+                placeholder="At least 8 characters"
+                onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="create-description">Description</Label>
+              <Textarea
+                id="create-description"
+                rows={3}
+                placeholder="At least 30 characters"
+                value={createForm.description}
+                onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Property type</Label>
+                <Select
+                  value={createForm.propertyType}
+                  onValueChange={(v) => setCreateForm({ ...createForm, propertyType: v as typeof createForm.propertyType })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="apartment">Apartment</SelectItem>
+                    <SelectItem value="house">House</SelectItem>
+                    <SelectItem value="dorm">Dorm</SelectItem>
+                    <SelectItem value="studio">Studio</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Listing type</Label>
+                <Select
+                  value={createForm.listingType}
+                  onValueChange={(v) => setCreateForm({ ...createForm, listingType: v as typeof createForm.listingType })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="private_room">Private room</SelectItem>
+                    <SelectItem value="shared_room">Shared room</SelectItem>
+                    <SelectItem value="entire_place">Entire place</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="create-rent">Monthly rent (₸)</Label>
+                <Input
+                  id="create-rent"
+                  type="number"
+                  min={0}
+                  value={createForm.monthlyRent}
+                  onChange={(e) => setCreateForm({ ...createForm, monthlyRent: Number(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="create-available">Available from</Label>
+                <Input
+                  id="create-available"
+                  type="date"
+                  value={createForm.availableFrom}
+                  onChange={(e) => setCreateForm({ ...createForm, availableFrom: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="create-deposit"
+                checked={createForm.depositRequired}
+                onCheckedChange={(checked) => setCreateForm({ ...createForm, depositRequired: checked === true })}
+              />
+              <Label htmlFor="create-deposit">Deposit required</Label>
+              {createForm.depositRequired ? (
+                <Input
+                  type="number"
+                  min={0}
+                  aria-label="Deposit amount (₸)"
+                  className="ml-2 w-36"
+                  value={createForm.depositAmount}
+                  onChange={(e) => setCreateForm({ ...createForm, depositAmount: Number(e.target.value) })}
+                />
+              ) : null}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>City</Label>
+                <Select value={createForm.city} onValueChange={(v) => setCreateForm({ ...createForm, city: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CITIES.map((city) => (
+                      <SelectItem key={city} value={city}>
+                        {city}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="create-district">District</Label>
+                <Input
+                  id="create-district"
+                  value={createForm.district}
+                  onChange={(e) => setCreateForm({ ...createForm, district: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="create-address">Address</Label>
+              <Input
+                id="create-address"
+                value={createForm.address}
+                onChange={(e) => setCreateForm({ ...createForm, address: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="create-university">Nearest university</Label>
+              <UniversityCombobox
+                id="create-university"
+                value={createForm.university}
+                onChange={(value) => setCreateForm({ ...createForm, university: value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="create-bedrooms">Bedrooms</Label>
+                <Input
+                  id="create-bedrooms"
+                  type="number"
+                  min={0}
+                  max={20}
+                  value={createForm.bedrooms}
+                  onChange={(e) => setCreateForm({ ...createForm, bedrooms: Number(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="create-bathrooms">Bathrooms</Label>
+                <Input
+                  id="create-bathrooms"
+                  type="number"
+                  min={0}
+                  max={20}
+                  value={createForm.bathrooms}
+                  onChange={(e) => setCreateForm({ ...createForm, bathrooms: Number(e.target.value) })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label>Roommate gender</Label>
+                <Select
+                  value={createForm.genderPreference}
+                  onValueChange={(v) => setCreateForm({ ...createForm, genderPreference: v as typeof createForm.genderPreference })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any</SelectItem>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Smoking</Label>
+                <Select
+                  value={createForm.smoking}
+                  onValueChange={(v) => setCreateForm({ ...createForm, smoking: v as typeof createForm.smoking })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no">No</SelectItem>
+                    <SelectItem value="yes">Yes</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Pets</Label>
+                <Select
+                  value={createForm.pets}
+                  onValueChange={(v) => setCreateForm({ ...createForm, pets: v as typeof createForm.pets })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no_pets">No pets</SelectItem>
+                    <SelectItem value="allowed">Allowed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Photos (at least 1)</Label>
+              <AdminPhotoList
+                value={createForm.photoUrls}
+                onChange={(urls) => setCreateForm({ ...createForm, photoUrls: urls })}
+                onUploadingChange={setPhotoUploading}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={createNew} disabled={creating || photoUploading}>
+              {creating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+              {photoUploading ? "Uploading photo…" : "Create listing"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={Boolean(editing)} onOpenChange={(open) => !open && setEditing(null)}>
         <DialogContent>

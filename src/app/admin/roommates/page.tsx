@@ -10,6 +10,7 @@ import {
   MoreVertical,
   Pencil,
   Phone,
+  Plus,
   RotateCcw,
   ShieldBan,
   ShieldCheck,
@@ -40,14 +41,35 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AdminImageUpload } from "@/components/admin/admin-image-upload";
+import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import type { Report } from "@/types/report";
 import type { UserProfile } from "@/types/user";
 
 const EDIT_EMPTY = { fullName: "", university: "", occupation: "", bio: "" };
+
+const CREATE_EMPTY = {
+  fullName: "",
+  age: 20,
+  gender: "prefer_not_to_say" as "male" | "female" | "other" | "prefer_not_to_say",
+  university: "",
+  occupation: "Student",
+  maxBudget: 100000,
+  bio: "",
+  photoURL: "",
+  lifestyle: {
+    smoking: "no" as const,
+    pets: "no_preference" as const,
+    cleanliness: "moderate" as "relaxed" | "moderate" | "very_clean",
+    sleepSchedule: "balanced" as "early_bird" | "balanced" | "night_owl",
+    guests: "sometimes" as "rarely" | "sometimes" | "often"
+  }
+};
 
 export default function AdminRoommatesPage() {
   const [items, setItems] = useState<UserProfile[]>([]);
@@ -58,6 +80,9 @@ export default function AdminRoommatesPage() {
   const [editForm, setEditForm] = useState(EDIT_EMPTY);
   const [saving, setSaving] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState(CREATE_EMPTY);
+  const [creating, setCreating] = useState(false);
   const [activityUser, setActivityUser] = useState<UserProfile | null>(null);
   const [reportsUser, setReportsUser] = useState<UserProfile | null>(null);
   const [reports, setReports] = useState<Report[] | null>(null);
@@ -260,12 +285,41 @@ export default function AdminRoommatesPage() {
     }
   }
 
+  async function createNew() {
+    setCreating(true);
+    try {
+      const res = await fetch("/api/admin/roommates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(createForm)
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Create failed");
+      toast.success("Roommate profile created");
+      setCreateOpen(false);
+      setCreateForm(CREATE_EMPTY);
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Create failed");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-      <h1 className="text-2xl font-bold sm:text-3xl">Roommates</h1>
-      <p className="mt-1 text-sm text-foreground/60">
-        Moderate roommate profiles shown on the public Roommates page, and curate which ones are featured.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold sm:text-3xl">Roommates</h1>
+          <p className="mt-1 text-sm text-foreground/60">
+            Moderate roommate profiles shown on the public Roommates page, and curate which ones are featured.
+          </p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          New roommate
+        </Button>
+      </div>
 
       {featured.length > 0 ? (
         <section className="mt-6 rounded-2xl border border-border bg-card p-4 shadow-soft">
@@ -433,6 +487,173 @@ export default function AdminRoommatesPage() {
           </Table>
         )}
       </div>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>New roommate profile</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="rc-name">Full name</Label>
+              <Input
+                id="rc-name"
+                value={createForm.fullName}
+                onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="rc-age">Age</Label>
+                <Input
+                  id="rc-age"
+                  type="number"
+                  min={16}
+                  max={80}
+                  value={createForm.age}
+                  onChange={(e) => setCreateForm({ ...createForm, age: Number(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Gender</Label>
+                <Select
+                  value={createForm.gender}
+                  onValueChange={(v) => setCreateForm({ ...createForm, gender: v as typeof createForm.gender })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rc-university">University</Label>
+              <UniversityCombobox
+                id="rc-university"
+                value={createForm.university}
+                onChange={(value) => setCreateForm({ ...createForm, university: value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="rc-occupation">Occupation</Label>
+                <Input
+                  id="rc-occupation"
+                  value={createForm.occupation}
+                  onChange={(e) => setCreateForm({ ...createForm, occupation: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="rc-budget">Max budget (₸)</Label>
+                <Input
+                  id="rc-budget"
+                  type="number"
+                  min={0}
+                  value={createForm.maxBudget}
+                  onChange={(e) => setCreateForm({ ...createForm, maxBudget: Number(e.target.value) })}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rc-bio">Bio</Label>
+              <Textarea
+                id="rc-bio"
+                rows={3}
+                value={createForm.bio}
+                onChange={(e) => setCreateForm({ ...createForm, bio: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Photo</Label>
+              <AdminImageUpload
+                value={createForm.photoURL}
+                onChange={(url) => setCreateForm({ ...createForm, photoURL: url })}
+                placeholder="Photo URL (optional)"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label>Cleanliness</Label>
+                <Select
+                  value={createForm.lifestyle.cleanliness}
+                  onValueChange={(v) =>
+                    setCreateForm({
+                      ...createForm,
+                      lifestyle: { ...createForm.lifestyle, cleanliness: v as typeof createForm.lifestyle.cleanliness }
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="relaxed">Relaxed</SelectItem>
+                    <SelectItem value="moderate">Moderate</SelectItem>
+                    <SelectItem value="very_clean">Very clean</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Sleep</Label>
+                <Select
+                  value={createForm.lifestyle.sleepSchedule}
+                  onValueChange={(v) =>
+                    setCreateForm({
+                      ...createForm,
+                      lifestyle: { ...createForm.lifestyle, sleepSchedule: v as typeof createForm.lifestyle.sleepSchedule }
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="early_bird">Early bird</SelectItem>
+                    <SelectItem value="balanced">Balanced</SelectItem>
+                    <SelectItem value="night_owl">Night owl</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Guests</Label>
+                <Select
+                  value={createForm.lifestyle.guests}
+                  onValueChange={(v) =>
+                    setCreateForm({
+                      ...createForm,
+                      lifestyle: { ...createForm.lifestyle, guests: v as typeof createForm.lifestyle.guests }
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="rarely">Rarely</SelectItem>
+                    <SelectItem value="sometimes">Sometimes</SelectItem>
+                    <SelectItem value="often">Often</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={createNew} disabled={creating}>
+              {creating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+              Create profile
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={Boolean(editing)} onOpenChange={(open) => !open && setEditing(null)}>
         <DialogContent>

@@ -59,7 +59,8 @@ export function RoommateCard({
             <h3 className="truncate text-xl font-semibold leading-none text-[#16110f] sm:text-[1.85rem]">
               {profile.fullName}
             </h3>
-            {profile.verified ? <BadgeCheck className="h-5 w-5 shrink-0 fill-success text-success" /> : null}
+            {/* fill green + white check strokes; same-color fill/stroke rendered as a solid blob */}
+            {profile.verified ? <BadgeCheck className="h-5 w-5 shrink-0 fill-success text-white" /> : null}
           </div>
           <p className="mt-1 text-sm text-[#9a6e56] sm:mt-2 sm:text-[15px]">
             {profile.age} · {profile.occupation}

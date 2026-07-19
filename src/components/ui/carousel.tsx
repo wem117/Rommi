@@ -106,7 +106,11 @@ export function Carousel({
   }
 
   return (
-    <div className={`relative ${className}`}>
+    // min-w-0/max-w-full: a grid/flex parent must always be able to shrink the
+    // carousel to the available width — without this, `min-width: auto` sizes
+    // the column to the track's min-content width and the page overflows on
+    // mobile (the slides are shrink-0, so their content drives min-content).
+    <div className={`relative min-w-0 max-w-full ${className}`}>
       <div
         ref={trackRef}
         role="region"

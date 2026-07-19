@@ -1,6 +1,6 @@
 "use client";
 
-import { BedDouble, CalendarDays, GraduationCap, MapPin, ShowerHead, Sparkles } from "lucide-react";
+import { BedDouble, CalendarDays, GraduationCap, ImageOff, MapPin, ShowerHead, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -10,6 +10,7 @@ import { createConversation } from "@/hooks/use-conversations";
 import { useLocale } from "@/context/locale-context";
 import { demoProfiles } from "@/lib/data/demo";
 import { recordContactedListing } from "@/lib/data/profiles";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { formatDate, formatListingPrice } from "@/lib/utils/format";
 import type { Listing } from "@/types/listing";
 import { useAuth } from "@/context/auth-context";
@@ -20,7 +21,9 @@ export function ListingCard({ listing }: { listing: Listing }) {
   const { user } = useAuth();
   const { t, locale } = useLocale();
   const router = useRouter();
-  const owner = demoProfiles.find((profile) => profile.uid === listing.ownerId);
+  // The inline "current roommate" block is demo-mode-only: demoProfiles must
+  // never be shown against real Supabase listings.
+  const owner = isSupabaseConfigured ? null : demoProfiles.find((profile) => profile.uid === listing.ownerId);
   const propertyLabels: Record<Listing["propertyType"], string> = {
     apartment: t("listing.types.apartment"),
     house: t("listing.types.house"),
@@ -60,8 +63,12 @@ export function ListingCard({ listing }: { listing: Listing }) {
             sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-sm font-medium text-foreground/45">
-            {t("listing.noPhoto")}
+          // Designed placeholder for photo-less listings — never a broken image.
+          <div className="flex h-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-surface-muted to-card">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+              <ImageOff className="h-4 w-4 text-primary/60" />
+            </span>
+            <span className="text-sm font-medium text-foreground/45">{t("listing.noPhoto")}</span>
           </div>
         )}
 

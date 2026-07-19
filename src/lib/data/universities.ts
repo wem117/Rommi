@@ -1,7 +1,6 @@
 import { demoUniversities } from "@/lib/data/demo";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { isMissingSupabaseTable } from "@/lib/utils/errors";
 
 export interface PublicUniversity {
   id: string;
@@ -86,11 +85,12 @@ export async function getActiveUniversities(): Promise<PublicUniversity[]> {
       .order("position", { ascending: true });
 
     if (error) throw error;
-    if (!data || data.length === 0) return demoAsPublicUniversities();
-    return data.map(mapRow);
+    // With Supabase configured, an empty/failed result returns [] — callers
+    // (e.g. the university combobox) have their own static-constant fallback.
+    return (data ?? []).map(mapRow);
   } catch (error) {
-    if (isMissingSupabaseTable(error, "universities")) return demoAsPublicUniversities();
-    return demoAsPublicUniversities();
+    console.warn("Failed to load universities", error);
+    return [];
   }
 }
 
@@ -125,7 +125,8 @@ export async function getFeaturedUniversities(limit = 6): Promise<UniversityWith
     }
 
     if (!data || data.length === 0) {
-      return demoAsUniversitiesWithStats(limit);
+      // Never fabricate university hub cards when Supabase is configured.
+      return [];
     }
 
     // Two bulk queries instead of two count queries per university (N+1):
@@ -158,7 +159,8 @@ export async function getFeaturedUniversities(limit = 6): Promise<UniversityWith
       listingsCount: row.listings_count_override ?? listingCounts.get(row.name as string) ?? 0,
       roommatesCount: row.students_count_override ?? roommateCounts.get(row.name as string) ?? 0
     }));
-  } catch {
-    return demoAsUniversitiesWithStats(limit);
+  } catch (error) {
+    console.warn("Failed to load featured universities", error);
+    return [];
   }
 }

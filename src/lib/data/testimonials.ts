@@ -83,9 +83,11 @@ export async function getActiveTestimonials(): Promise<Testimonial[]> {
       .order("position", { ascending: true });
 
     if (error) throw error;
-    if (!data || data.length === 0) return DEMO_TESTIMONIALS;
-    return data.map(mapTestimonialRow);
-  } catch {
-    return DEMO_TESTIMONIALS;
+    // With Supabase configured, an empty testimonials table means "show none" —
+    // never demo quotes attributed to fake people.
+    return (data ?? []).map(mapTestimonialRow);
+  } catch (error) {
+    console.warn("Failed to load testimonials", error);
+    return [];
   }
 }

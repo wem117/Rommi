@@ -371,7 +371,7 @@ const translations = {
       highlightVerifiedTitle: "Verified Profiles",
       highlightVerifiedSubtitle: "ID-verified users",
       highlightMatchingTitle: "Smart Matching",
-      highlightMatchingSubtitle: "94% match accuracy",
+      highlightMatchingSubtitle: "Compatibility-based matching",
       highlightSetupTitle: "Quick Setup",
       highlightSetupSubtitle: "Under 5 min"
     },
@@ -919,7 +919,7 @@ const translations = {
       highlightVerifiedTitle: "Проверенные профили",
       highlightVerifiedSubtitle: "Только проверенные пользователи",
       highlightMatchingTitle: "Умный подбор",
-      highlightMatchingSubtitle: "94% точность подбора",
+      highlightMatchingSubtitle: "Подбор по совместимости",
       highlightSetupTitle: "Быстрая настройка",
       highlightSetupSubtitle: "Менее 5 минут"
     },
@@ -1466,7 +1466,7 @@ const translations = {
       highlightVerifiedTitle: "Тексерілген профильдер",
       highlightVerifiedSubtitle: "Тек расталған пайдаланушылар",
       highlightMatchingTitle: "Ақылды сәйкестендіру",
-      highlightMatchingSubtitle: "94% сәйкестік дәлдігі",
+      highlightMatchingSubtitle: "Үйлесімділік бойынша іріктеу",
       highlightSetupTitle: "Жылдам баптау",
       highlightSetupSubtitle: "5 минуттан аз"
     },

@@ -128,11 +128,11 @@ export async function getListings(filters: ListingFiltersInput = {}, page = 1, p
     error = retried.error;
   }
 
+  // With Supabase configured we never silently substitute demo data — a
+  // missing table is a deployment problem to surface, not to mask.
   if (error && isMissingSupabaseTable(error, "listings")) {
-    const filtered = filterListings(demoListings, filters);
-    const start = (page - 1) * pageSize;
-    const paged = filtered.slice(start, start + pageSize);
-    return { listings: paged, hasMore: start + pageSize < filtered.length };
+    console.warn("listings table is missing — run the database migrations.");
+    return { listings: [], hasMore: false };
   }
 
   if (error) throw error;
@@ -140,7 +140,11 @@ export async function getListings(filters: ListingFiltersInput = {}, page = 1, p
   return { listings, hasMore: (count ?? 0) > page * pageSize };
 }
 
-/** Admin-curated listings for the home page. Falls back to demo listings when none are featured. */
+/**
+ * Admin-curated listings for the home page. Demo data is used ONLY when
+ * Supabase isn't configured; with Supabase configured, an empty or failed
+ * result returns [] (the caller hides the section) — never fake listings.
+ */
 export async function getFeaturedListings(limit = 6): Promise<Listing[]> {
   if (!isSupabaseConfigured) {
     return demoListings.filter((listing) => !listing.removed).slice(0, limit);
@@ -157,10 +161,10 @@ export async function getFeaturedListings(limit = 6): Promise<Listing[]> {
       .limit(limit);
 
     if (error) throw error;
-    if (!data || data.length === 0) return demoListings.filter((listing) => !listing.removed).slice(0, limit);
-    return data.map(mapListingRow);
-  } catch {
-    return demoListings.filter((listing) => !listing.removed).slice(0, limit);
+    return (data ?? []).map(mapListingRow);
+  } catch (error) {
+    console.warn("Failed to load featured listings", error);
+    return [];
   }
 }
 
@@ -173,7 +177,8 @@ export async function getListingById(listingId: string) {
   const { data, error } = await supabase.from("listings").select("*").eq("id", listingId).maybeSingle();
 
   if (error && isMissingSupabaseTable(error, "listings")) {
-    return demoListings.find((listing) => listing.id === listingId) ?? null;
+    console.warn("listings table is missing — run the database migrations.");
+    return null;
   }
 
   if (error) throw error;

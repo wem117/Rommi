@@ -95,15 +95,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // Tracks the applied user so repeated auth events for the same session are
+    // ignored (see below).
+    let lastUserId: string | null = null;
+
     // Initial read runs outside any auth-change callback, so no deferral needed.
     void supabase.auth.getUser().then(({ data }) => {
-      if (!cancelled) applySession(data.user ?? null, false);
+      if (!cancelled) {
+        lastUserId = data.user?.id ?? null;
+        applySession(data.user ?? null, false);
+      }
     });
 
+    // Supabase re-emits auth events (TOKEN_REFRESHED, and SIGNED_IN on tab
+    // focus / INITIAL_SESSION) for the SAME user. Re-applying those would reset
+    // the profile to null and refetch it on every tab switch — a visible flash
+    // and a wasted request. Only react when the signed-in user actually
+    // changes; USER_UPDATED still refreshes profile data for the same user.
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!cancelled) applySession(session?.user ?? null, true);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      if (event === "TOKEN_REFRESHED") return;
+      const nextUserId = session?.user?.id ?? null;
+      if (nextUserId === lastUserId && event !== "USER_UPDATED") return;
+      lastUserId = nextUserId;
+      applySession(session?.user ?? null, true);
     });
 
     return () => {

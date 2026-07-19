@@ -151,11 +151,14 @@ export async function getFeaturedRoommates(limit = 6) {
     .order("featured_position", { ascending: true })
     .limit(limit);
 
-  if (error || !data || data.length === 0) {
-    return demoProfiles.filter((profile) => profile.onboardingComplete && profile.lookingForApartment).slice(0, limit);
+  // With Supabase configured, never substitute demo profiles: empty or failed
+  // results return [] and the caller hides the section.
+  if (error) {
+    console.warn("Failed to load featured roommates", error);
+    return [];
   }
 
-  return data.map((row) => mapProfileRow(row as unknown as Record<string, unknown>));
+  return (data ?? []).map((row) => mapProfileRow(row as unknown as Record<string, unknown>));
 }
 
 export async function upsertProfile(profile: Partial<UserProfile> & Pick<UserProfile, "uid">) {

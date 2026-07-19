@@ -6,12 +6,14 @@ import {
   CheckCircle2,
   ChevronRight,
   Home,
+  LogOut,
   MapPin,
   Menu,
   MessageCircle,
   Search,
   Sparkles,
   Star,
+  UserCircle,
   Users,
   X
 } from "lucide-react";
@@ -24,16 +26,16 @@ import { CountUp } from "@/components/count-up";
 import { Reveal } from "@/components/reveal";
 import { Footer } from "@/components/layout/footer";
 import { LanguageMenu } from "@/components/layout/language-menu";
+import { useAuth } from "@/context/auth-context";
 import { ListingCard } from "@/components/listings/listing-card";
 import { RoommateCard } from "@/components/roommates/roommate-card";
 import { Carousel } from "@/components/ui/carousel";
 import { useLocale } from "@/context/locale-context";
 import { CITIES } from "@/lib/constants/cities";
-import { demoListings, demoProfiles } from "@/lib/data/demo";
 import { getFeaturedListings } from "@/lib/data/listings";
 import { DEFAULT_HOMEPAGE_SECTIONS, getPublicSettings, type PublicSettings } from "@/lib/data/public-settings";
 import { getFeaturedRoommates } from "@/lib/data/profiles";
-import { DEMO_TESTIMONIALS, getActiveTestimonials, type Testimonial } from "@/lib/data/testimonials";
+import { getActiveTestimonials, type Testimonial } from "@/lib/data/testimonials";
 import { getFeaturedUniversities, type UniversityWithStats } from "@/lib/data/universities";
 import { formatNumber } from "@/lib/utils/format";
 import { computeHomepageStats, DEFAULT_HOMEPAGE_STATS_CONFIG } from "@/lib/utils/homepage-stats";
@@ -42,15 +44,19 @@ import type { UserProfile } from "@/types/user";
 
 export default function HomePage() {
   const { locale, t } = useLocale();
+  const { user, signOut } = useAuth();
   const router = useRouter();
   const [searchCity, setSearchCity] = useState("");
   const [searchBudget, setSearchBudget] = useState("");
   const [searchType, setSearchType] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [testimonials, setTestimonials] = useState<Testimonial[]>(DEMO_TESTIMONIALS);
+  // All content states start EMPTY — never demo data. The data services return
+  // demo content only when Supabase is unconfigured; with Supabase configured,
+  // empty results keep these empty and the sections below stay hidden.
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [settings, setSettings] = useState<PublicSettings | null>(null);
-  const [featuredListings, setFeaturedListings] = useState<Listing[]>(() => demoListings.slice(0, 6));
-  const [featuredRoommates, setFeaturedRoommates] = useState<UserProfile[]>(() => demoProfiles.slice(0, 6));
+  const [featuredListings, setFeaturedListings] = useState<Listing[]>([]);
+  const [featuredRoommates, setFeaturedRoommates] = useState<UserProfile[]>([]);
   const [featuredUniversities, setFeaturedUniversities] = useState<UniversityWithStats[]>([]);
 
   useEffect(() => {
@@ -111,7 +117,7 @@ export default function HomePage() {
   ];
 
   const steps = getSteps(locale);
-  const platformStats = getPlatformStats(locale);
+  const platformStats = getPlatformStats(locale, heroStats);
   const faqs = getFaqs(locale);
   const roommateHighlights = getRoommateHighlights(locale);
   const searchFields = [
@@ -161,7 +167,8 @@ export default function HomePage() {
   // the "How it works" / final CTA bands stay structurally fixed since they
   // carry primary navigation and the closing conversion CTA.
   const sectionRenderers: Record<string, ReactNode> = {
-    featured_listings: (
+    // Sections with no real content render nothing (null is skipped below).
+    featured_listings: featuredListings.length === 0 ? null : (
       <section key="featured_listings" className="bg-[#fbf7f0] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
@@ -191,7 +198,7 @@ export default function HomePage() {
         </div>
       </section>
     ),
-    universities: (
+    universities: featuredUniversities.length === 0 ? null : (
       <section key="universities" className="bg-[#fffdf9] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -242,7 +249,7 @@ export default function HomePage() {
         </div>
       </section>
     ),
-    featured_roommates: (
+    featured_roommates: featuredRoommates.length === 0 ? null : (
       <section key="featured_roommates" className="bg-primary px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto grid max-w-6xl gap-6 sm:gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div className="text-white">
@@ -279,7 +286,7 @@ export default function HomePage() {
         </div>
       </section>
     ),
-    testimonials: (
+    testimonials: testimonials.length === 0 ? null : (
       <section key="testimonials" className="bg-[#fffdf9] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-5xl">
           <SectionHeader badge={t("home.testimonialBadge")} title={t("home.testimonialTitle")} centered />
@@ -386,15 +393,36 @@ export default function HomePage() {
                   <NavLink href="/list-a-room/step-1">{t("nav.listRoom")}</NavLink>
                 </div>
 
-                {/* Desktop actions */}
+                {/* Desktop actions — must reflect auth state immediately after
+                    login (OAuth and email both redirect here). */}
                 <div className="hidden items-center gap-2 md:flex">
                   <LanguageMenu inverted />
-                  <Link
-                    href="/sign-in"
-                    className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
-                  >
-                    {t("nav.signIn")}
-                  </Link>
+                  {user ? (
+                    <>
+                      <Link
+                        href="/profile"
+                        className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"
+                      >
+                        <UserCircle className="h-4 w-4" />
+                        {t("nav.myAccount")}
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => void signOut()}
+                        className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        {t("nav.signOut")}
+                      </button>
+                    </>
+                  ) : (
+                    <Link
+                      href="/sign-in"
+                      className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
+                    >
+                      {t("nav.signIn")}
+                    </Link>
+                  )}
                 </div>
 
                 {/* Mobile actions: language selector stays visible, links collapse into a menu */}
@@ -424,13 +452,35 @@ export default function HomePage() {
                     <MobileNavLink href="/list-a-room/step-1" onClick={() => setMobileMenuOpen(false)}>
                       {t("nav.listRoom")}
                     </MobileNavLink>
-                    <Link
-                      href="/sign-in"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="mt-1 rounded-full bg-primary px-5 py-2.5 text-center text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
-                    >
-                      {t("nav.signIn")}
-                    </Link>
+                    {user ? (
+                      <>
+                        <Link
+                          href="/profile"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="mt-1 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-white/20"
+                        >
+                          {t("nav.myAccount")}
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            void signOut();
+                          }}
+                          className="mt-1 rounded-full bg-primary px-5 py-2.5 text-center text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
+                        >
+                          {t("nav.signOut")}
+                        </button>
+                      </>
+                    ) : (
+                      <Link
+                        href="/sign-in"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="mt-1 rounded-full bg-primary px-5 py-2.5 text-center text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
+                      >
+                        {t("nav.signIn")}
+                      </Link>
+                    )}
                   </div>
                 </div>
               ) : null}
@@ -744,29 +794,39 @@ function getSteps(locale: "en" | "ru" | "kz") {
   ];
 }
 
-function getPlatformStats(locale: "en" | "ru" | "kz") {
+/**
+ * Platform stat tiles. Numeric values come from the admin-configured stats
+ * engine (Admin → Settings → Homepage statistics) — the same source as the
+ * hero counters — never hardcoded fake metrics. "100% free" is a factual
+ * product claim, not a fabricated measurement.
+ */
+function getPlatformStats(locale: "en" | "ru" | "kz", stats: { listings: number; students: number; matches: number }) {
+  const listings = `${formatNumber(stats.listings)}+`;
+  const students = `${formatNumber(stats.students)}+`;
+  const matches = `${formatNumber(stats.matches)}+`;
+
   if (locale === "ru") {
     return [
-      { value: "3.5K+", label: "Активные объявления" },
-      { value: "94%", label: "Точность совпадений" },
-      { value: "24h", label: "Средний ответ" },
+      { value: listings, label: "Активные объявления" },
+      { value: students, label: "Активные студенты" },
+      { value: matches, label: "Успешные совпадения" },
       { value: "100%", label: "Бесплатно" }
     ];
   }
 
   if (locale === "kz") {
     return [
-      { value: "3.5K+", label: "Белсенді хабарландыру" },
-      { value: "94%", label: "Сәйкестік дәлдігі" },
-      { value: "24h", label: "Орташа жауап уақыты" },
+      { value: listings, label: "Белсенді хабарландыру" },
+      { value: students, label: "Белсенді студенттер" },
+      { value: matches, label: "Сәтті сәйкестіктер" },
       { value: "100%", label: "Тегін қолдану" }
     ];
   }
 
   return [
-    { value: "3.5K+", label: "Active Listings" },
-    { value: "94%", label: "Match Accuracy" },
-    { value: "24h", label: "Avg Response Time" },
+    { value: listings, label: "Active Listings" },
+    { value: students, label: "Active Students" },
+    { value: matches, label: "Successful Matches" },
     { value: "100%", label: "Free to Use" }
   ];
 }

@@ -15,47 +15,24 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 
 import type { MapMarker } from "@/components/map/map-view";
 
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
-}
-
-// Airbnb/Krisha-style marker: a price pill when the listing has a price,
-// otherwise a compact dot. Built as a divIcon so we never depend on Leaflet's
-// default marker image assets (which break under bundlers). The selected pill
-// inverts to the brand color and is lifted forward via zIndexOffset on the
-// Marker so overlapping labels stay legible.
-function priceIcon(marker: MapMarker, active: boolean) {
-  const label = marker.price?.trim();
-
-  if (!label) {
-    const size = active ? 20 : 16;
-    return L.divIcon({
-      className: "roomi-map-dot",
-      html: `<div style="width:${size}px;height:${size}px;border-radius:9999px;background:${
-        active ? "#0f957d" : "#ffffff"
-      };border:2px solid #0f957d;box-shadow:0 2px 6px rgba(31,22,10,.25);transition:all .15s"></div>`,
-      iconSize: [size, size],
-      iconAnchor: [size / 2, size / 2]
-    });
-  }
-
-  // Deterministic sizing so anchoring is exact without measuring the DOM.
-  const width = Math.max(46, Math.round(label.length * 7.6) + 22);
-  const height = 26;
-  const bg = active ? "#0f957d" : "#ffffff";
-  const color = active ? "#ffffff" : "#16110f";
-  const border = active ? "#0f957d" : "#e4d9c8";
-
+// Standard red location pin (classic Google-Maps-style teardrop) for every
+// listing — no floating price badges. Built as an inline-SVG divIcon so we
+// never depend on Leaflet's default marker image assets (which break under
+// bundlers). Anchored at the pin tip; the selected pin renders larger and is
+// lifted forward via zIndexOffset on the Marker.
+function pinIcon(active: boolean) {
+  const size = active ? 44 : 34;
   return L.divIcon({
-    className: "roomi-price-pill",
-    html: `<div style="display:flex;align-items:center;justify-content:center;width:${width}px;height:${height}px;
-      background:${bg};color:${color};border:1px solid ${border};border-radius:9999px;
-      font:600 12px/1 Inter,system-ui,sans-serif;white-space:nowrap;
-      box-shadow:0 4px 12px rgba(31,22,10,${active ? ".28" : ".16"});transition:all .15s;cursor:pointer">${escapeHtml(
-        label
-      )}</div>`,
-    iconSize: [width, height],
-    iconAnchor: [width / 2, height / 2]
+    className: "roomi-map-pin",
+    html: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true"
+      style="display:block;filter:drop-shadow(0 2px 4px rgba(31,22,10,.35));transition:all .15s;cursor:pointer">
+      <path fill="#EA4335" stroke="#ffffff" stroke-width="1"
+        d="M12 1.5C7.86 1.5 4.5 4.86 4.5 9c0 5.6 7.5 13.5 7.5 13.5S19.5 14.6 19.5 9c0-4.14-3.36-7.5-7.5-7.5z"/>
+      <circle cx="12" cy="9" r="2.8" fill="#ffffff"/>
+    </svg>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size],
+    popupAnchor: [0, -size]
   });
 }
 
@@ -134,7 +111,7 @@ export default function MapView({
         <Marker
           key={marker.id}
           position={[marker.lat, marker.lng]}
-          icon={priceIcon(marker, marker.id === highlightId)}
+          icon={pinIcon(marker.id === highlightId)}
           // Bring the selected label forward so it isn't hidden by neighbours.
           zIndexOffset={marker.id === highlightId ? 1000 : 0}
           draggable={marker.id === draggableId}

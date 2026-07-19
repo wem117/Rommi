@@ -4,7 +4,6 @@ import { MarkerClusterer } from "@googlemaps/markerclusterer";
 import type { Marker } from "@googlemaps/markerclusterer";
 import {
   AdvancedMarker,
-  AdvancedMarkerAnchorPoint,
   APIProvider,
   Map as GoogleMap,
   useMap,
@@ -43,35 +42,6 @@ interface MapViewProps {
   openLabel?: string;
   onMarkerClick?: (id: string) => void;
   onMarkerDragEnd?: (lat: number, lng: number) => void;
-}
-
-/** Airbnb-style price pill rendered inside an AdvancedMarker. */
-function PricePill({ label, active }: { label?: string; active: boolean }) {
-  if (!label) {
-    return (
-      <div className="roomi-marker-appear">
-        <div
-          className={`rounded-full border-2 border-primary shadow-md transition-all duration-200 ease-out ${
-            active ? "h-5 w-5 bg-primary" : "h-4 w-4 bg-card hover:scale-125"
-          }`}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="roomi-marker-appear">
-      <div
-        className={`select-none whitespace-nowrap rounded-full border px-3 py-1.5 text-[13px] font-semibold leading-none tracking-tight shadow-md transition-all duration-200 ease-out ${
-          active
-            ? "scale-110 border-primary bg-primary text-primary-foreground shadow-lg"
-            : "border-border bg-card text-foreground hover:scale-110 hover:border-primary/50 hover:shadow-lg"
-        }`}
-      >
-        {label}
-      </div>
-    </div>
-  );
 }
 
 /** Teal count bubble used by the clusterer. */
@@ -154,10 +124,11 @@ function ClusteredMarkers({
       {markers.map((marker) => {
         const active = marker.id === highlightId;
         return (
+          // No children → Google's standard red pin, anchored at its tip.
+          // Clicking opens the listing preview card (handled by onSelect).
           <AdvancedMarker
             key={marker.id}
             position={{ lat: marker.lat, lng: marker.lng }}
-            anchorPoint={AdvancedMarkerAnchorPoint.CENTER}
             zIndex={active ? 1000 : undefined}
             draggable={marker.id === draggableId}
             ref={(ref) => setMarkerRef(ref, marker.id)}
@@ -166,9 +137,7 @@ function ClusteredMarkers({
               const pos = event.latLng;
               if (pos) onMarkerDragEnd?.(pos.lat(), pos.lng());
             }}
-          >
-            <PricePill label={marker.price?.trim()} active={active} />
-          </AdvancedMarker>
+          />
         );
       })}
     </>

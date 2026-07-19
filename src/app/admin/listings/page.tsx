@@ -720,7 +720,7 @@ export default function AdminListingsPage() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Photos (at least 1)</Label>
+              <Label>Photos (optional)</Label>
               <AdminPhotoList
                 value={createForm.photoUrls}
                 onChange={(urls) => setCreateForm({ ...createForm, photoUrls: urls })}

@@ -13,6 +13,7 @@ import { useLocale } from "@/context/locale-context";
 import { getProfileById } from "@/lib/data/profiles";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { sendResetPassword, signInWithEmail, signInWithGoogle } from "@/lib/supabase/auth";
+import { resolvePostAuthDestination } from "@/lib/utils/auth-destination";
 import { friendlySupabaseError } from "@/lib/utils/errors";
 import { safeRedirect } from "@/lib/utils/safe-redirect";
 
@@ -20,14 +21,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function resolveDestination(uid: string, redirectTo: string) {
   const profile = await getProfileById(uid);
-
-  if (!profile?.onboardingComplete) {
-    return "/onboarding/step-1";
-  }
-
-  return redirectTo.startsWith("/sign-in") || redirectTo.startsWith("/sign-up") || redirectTo.startsWith("/onboarding")
-    ? "/rooms"
-    : redirectTo;
+  return resolvePostAuthDestination(Boolean(profile?.onboardingComplete), redirectTo);
 }
 
 function SignInContent() {
@@ -59,17 +53,7 @@ function SignInContent() {
 
   useEffect(() => {
     if (loading || !user) return;
-
-    if (!profile?.onboardingComplete) {
-      router.replace("/onboarding/step-1");
-      return;
-    }
-
-    router.replace(
-      redirectTo.startsWith("/sign-in") || redirectTo.startsWith("/sign-up") || redirectTo.startsWith("/onboarding")
-        ? "/rooms"
-        : redirectTo
-    );
+    router.replace(resolvePostAuthDestination(Boolean(profile?.onboardingComplete), redirectTo));
   }, [loading, profile?.onboardingComplete, redirectTo, router, user]);
 
   async function handleEmailSignIn() {
@@ -172,30 +156,30 @@ function SignInContent() {
         type="button"
         onClick={() => void handleGoogle()}
         disabled={googleLoading || submitting}
-        className="flex w-full items-center justify-center gap-3 rounded-full border border-[#e6d8c6] bg-white px-5 py-5 text-xl font-semibold transition hover:border-primary hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2.5 rounded-full border border-[#e6d8c6] bg-white px-4 py-3.5 text-base font-semibold transition hover:border-primary hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 sm:gap-3 sm:px-5 sm:py-5 sm:text-xl"
       >
         {googleLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Chrome className="h-5 w-5 text-[#db4437]" />}
         {t("auth.continueWithGoogle")}
       </button>
 
-      <div className="my-7 flex items-center gap-4 text-base text-[#9a6e56]">
+      <div className="my-5 flex items-center gap-3 text-sm text-[#9a6e56] sm:my-7 sm:gap-4 sm:text-base">
         <div className="h-px flex-1 bg-[#eadfce]" />
         {t("auth.or")}
         <div className="h-px flex-1 bg-[#eadfce]" />
       </div>
 
       <form
-        className="space-y-4"
+        className="space-y-3 sm:space-y-4"
         onSubmit={(event) => {
           event.preventDefault();
           void handleEmailSignIn();
         }}
       >
         <div>
-          <label htmlFor="email" className="text-lg font-semibold">
+          <label htmlFor="email" className="text-sm font-semibold sm:text-lg">
             {t("auth.emailLabel")}
           </label>
-          <div className="mt-3 flex items-center gap-3 rounded-[1.4rem] bg-[#f7f1e7] px-5 py-4">
+          <div className="mt-1.5 flex items-center gap-2.5 rounded-2xl bg-[#f7f1e7] px-4 py-3 sm:mt-3 sm:gap-3 sm:rounded-[1.4rem] sm:px-5 sm:py-4">
             <Mail className="h-5 w-5 text-[#b18469]" />
             <input
               id="email"
@@ -204,26 +188,26 @@ function SignInContent() {
               placeholder={t("auth.emailPlaceholder")}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="w-full bg-transparent text-lg outline-none placeholder:text-[#b18469]"
+              className="w-full bg-transparent text-base outline-none placeholder:text-[#b18469] sm:text-lg"
             />
           </div>
         </div>
 
         <div>
           <div className="flex items-center justify-between gap-3">
-            <label htmlFor="password" className="text-lg font-semibold">
+            <label htmlFor="password" className="text-sm font-semibold sm:text-lg">
               {t("auth.passwordLabel")}
             </label>
             <button
               type="button"
               onClick={() => void handlePasswordReset()}
               disabled={submitting || googleLoading}
-              className="text-sm font-semibold text-[#0f957d] transition disabled:opacity-50"
+              className="text-xs font-semibold text-[#0f957d] transition disabled:opacity-50 sm:text-sm"
             >
               {t("auth.forgotPassword")}
             </button>
           </div>
-          <div className="mt-3 rounded-[1.4rem] bg-[#f7f1e7] px-5 py-4">
+          <div className="mt-1.5 rounded-2xl bg-[#f7f1e7] px-4 py-3 sm:mt-3 sm:rounded-[1.4rem] sm:px-5 sm:py-4">
             <input
               id="password"
               type="password"
@@ -231,7 +215,7 @@ function SignInContent() {
               placeholder={t("auth.passwordPlaceholder")}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full bg-transparent text-lg outline-none placeholder:text-[#b18469]"
+              className="w-full bg-transparent text-base outline-none placeholder:text-[#b18469] sm:text-lg"
             />
           </div>
         </div>
@@ -239,7 +223,7 @@ function SignInContent() {
         <button
           type="submit"
           disabled={submitting || googleLoading}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0f957d] px-6 py-5 text-xl font-semibold text-white shadow-md transition hover:bg-[#0d856f] hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0f957d] px-5 py-3.5 text-base font-semibold text-white shadow-md transition hover:bg-[#0d856f] hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 sm:px-6 sm:py-5 sm:text-xl"
         >
           {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
           {t("auth.signInButton")}

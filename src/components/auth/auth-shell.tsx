@@ -37,12 +37,12 @@ export function AuthShell({
   return (
     <main className="min-h-screen bg-[#faf6ef] text-[#16110f]">
       <header className="border-b border-[#eadfce] bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-5 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-3">
-            <span className="grid h-12 w-12 place-items-center rounded-full bg-[#0f957d] text-white">
-              <Home className="h-5 w-5" />
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-3 py-4 sm:px-6 sm:py-5 lg:px-8">
+          <Link href="/" className="flex items-center gap-2 sm:gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#0f957d] text-white sm:h-12 sm:w-12">
+              <Home className="h-4 w-4 sm:h-5 sm:w-5" />
             </span>
-            <span className="text-[2rem] font-bold leading-none">
+            <span className="text-xl font-bold leading-none sm:text-[2rem]">
               Room<span className="text-primary">i</span>
             </span>
           </Link>
@@ -59,11 +59,11 @@ export function AuthShell({
             </Link>
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             <LanguageMenu />
             <Link
               href={topCtaHref}
-              className="inline-flex items-center gap-2 rounded-full bg-[#0f957d] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#0d856f]"
+              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[#0f957d] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#0d856f] sm:gap-2 sm:px-6 sm:py-3 sm:text-sm"
             >
               {topCtaLabel}
             </Link>
@@ -71,7 +71,7 @@ export function AuthShell({
         </div>
       </header>
 
-      <div className="mx-auto grid min-h-[calc(100vh-5.5rem)] max-w-7xl gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-8">
+      <div className="mx-auto grid min-h-[calc(100vh-5.5rem)] max-w-7xl gap-6 px-4 py-6 sm:gap-10 sm:px-6 sm:py-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-8">
         <section className="order-2 rounded-3xl border border-white/60 bg-[linear-gradient(180deg,#fffdf9_0%,#f6efe5_100%)] p-5 shadow-[0_24px_60px_rgba(58,33,10,0.08)] sm:rounded-[2.5rem] sm:p-8 lg:order-1 lg:p-12">
           <Link href="/" className="inline-flex items-center gap-3 sm:gap-4">
             <span className="grid h-12 w-12 place-items-center rounded-full bg-[#0f957d] text-white shadow-lg sm:h-16 sm:w-16">
@@ -105,15 +105,15 @@ export function AuthShell({
           </div>
         </section>
 
-        <section className="order-1 rounded-3xl border border-[#eadfce] bg-white p-5 shadow-[0_24px_60px_rgba(58,33,10,0.08)] sm:rounded-[2.5rem] sm:p-8 lg:order-2 lg:p-10">
-          <div className="mb-6 text-center sm:mb-8">
-            <h2 className="text-2xl font-bold sm:text-4xl">{heading}</h2>
-            <p className="mt-2 text-sm text-[#9a6e56] sm:mt-4 sm:text-lg">{subtitle}</p>
+        <section className="order-1 rounded-3xl border border-[#eadfce] bg-white p-4 shadow-[0_24px_60px_rgba(58,33,10,0.08)] sm:rounded-[2.5rem] sm:p-8 lg:order-2 lg:p-10">
+          <div className="mb-4 text-center sm:mb-8">
+            <h2 className="text-xl font-bold sm:text-4xl">{heading}</h2>
+            <p className="mt-1.5 text-xs text-[#9a6e56] sm:mt-4 sm:text-lg">{subtitle}</p>
           </div>
 
           {children}
 
-          <p className="mt-8 text-center text-base leading-7 text-[#9a6e56]">
+          <p className="mt-6 text-center text-xs leading-5 text-[#9a6e56] sm:mt-8 sm:text-base sm:leading-7">
             {t("auth.termsAgreement")}{" "}
             <Link href="/terms" className="font-semibold text-primary hover:underline">
               {t("footer.terms")}
@@ -124,15 +124,15 @@ export function AuthShell({
             </Link>
           </p>
 
-          <div className="mt-6 text-center text-base text-[#9a6e56]">
+          <div className="mt-4 text-center text-sm text-[#9a6e56] sm:mt-6 sm:text-base">
             {footerPrompt}{" "}
             <Link href={footerLinkHref} className="font-semibold text-[#0f957d]">
               {footerLinkLabel}
             </Link>
           </div>
 
-          <div className="mt-8 text-center">
-            <Link href="/rooms" className="inline-flex items-center gap-2 text-lg font-medium text-[#9a6e56] transition hover:text-[#0f957d]">
+          <div className="mt-6 text-center sm:mt-8">
+            <Link href="/rooms" className="inline-flex items-center gap-2 text-sm font-medium text-[#9a6e56] transition hover:text-[#0f957d] sm:text-lg">
               {t("auth.browseListingsFirst")}
               <ChevronRight className="h-4 w-4" />
             </Link>

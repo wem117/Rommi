@@ -35,7 +35,7 @@ export function LanguageMenu({
       <button
         type="button"
         onClick={() => setOpen((currentOpen) => !currentOpen)}
-        className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-semibold shadow-sm transition ${
+        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm transition sm:gap-2 sm:px-3.5 sm:py-2 sm:text-sm ${
           inverted
             ? "border-white/15 bg-white/10 text-white hover:bg-white/15"
             : "border-[#e6d8c6] bg-white text-[#2e2622] hover:bg-[#f8f2e8]"

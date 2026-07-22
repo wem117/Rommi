@@ -49,7 +49,7 @@ export async function ensureConversation({
 
   // Atomic get-or-create keyed on the sorted participant set + listing, so two
   // users opening the same chat at once converge on ONE conversation row
-  // (supabase-migration-atomic-mutations.sql). Falls back to the legacy
+  // (supabase/migrations/20240101001400_atomic_mutations.sql). Falls back to the legacy
   // select-then-insert only when the RPC hasn't been applied.
   const { data: rpcId, error: rpcError } = await supabase.rpc("get_or_create_conversation", {
     p_participant_ids: participantIds,

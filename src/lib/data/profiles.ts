@@ -45,7 +45,7 @@ function toProfilePayload(profile: Partial<UserProfile>) {
   // NOTE: privileged columns (role, verified, banned, suspended, featured,
   // roommate_status) are intentionally NOT written here. The browser client
   // must never send them; they are set only by admin/moderation flows via the
-  // service-role client and locked at the DB (supabase-migration-privilege-columns.sql).
+  // service-role client and locked at the DB (supabase/migrations/20240101000400_privilege_columns.sql).
   if (hasOwnProperty(profile, "profileCompletion")) {
     payload.profile_completion = profile.profileCompletion ?? 0;
   }
@@ -68,7 +68,7 @@ function toProfilePayload(profile: Partial<UserProfile>) {
 /**
  * Columns safe to expose on public browse surfaces (roommate cards, featured
  * rows). Excludes contacts (email/telegram/phone — revoked from the anon role
- * at the database, see supabase-migration-contact-privacy.sql) and the
+ * at the database, see supabase/migrations/20240101000300_contact_privacy.sql) and the
  * viewer-private favorites/viewed/contacted arrays. `select("*")` would be
  * rejected by PostgREST for anonymous visitors once those columns are revoked.
  * Also excludes contacts_hidden: cards never render contacts, and naming it
@@ -186,7 +186,7 @@ export async function updateProfile(profile: Partial<UserProfile> & Pick<UserPro
 }
 
 // Legacy read-modify-write fallbacks — used only when the atomic RPCs
-// (supabase-migration-atomic-mutations.sql) haven't been applied yet. They carry
+// (supabase/migrations/20240101001400_atomic_mutations.sql) haven't been applied yet. They carry
 // the original lost-update race and exist purely for backward compatibility.
 async function toggleFavoriteListingLegacy(uid: string, listingId: string, active: boolean) {
   const profile = await getProfileById(uid);

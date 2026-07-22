@@ -61,14 +61,18 @@ cp .env.example .env.local
 
 ### 3. Set up the database
 
-In the Supabase SQL editor, run in order:
+Migrations live in [`supabase/migrations`](./supabase/migrations) and apply in
+timestamp order via the Supabase CLI:
 
-1. `supabase-schema.sql` — tables
-2. `supabase-policies.sql` — Row Level Security policies
-3. `supabase-migration-university-search-map.sql` — university search support
+```bash
+supabase link --project-ref <your-project-ref>
+supabase db push
+```
 
-See [`SUPABASE_MIGRATION.md`](./SUPABASE_MIGRATION.md) and
-[`README_SUPABASE.md`](./README_SUPABASE.md) for details.
+Every migration is idempotent, so re-running is safe. See
+[`supabase/migrations/README.md`](./supabase/migrations/README.md) for the full
+ordered list, and [`SUPABASE_MIGRATION.md`](./SUPABASE_MIGRATION.md) /
+[`README_SUPABASE.md`](./README_SUPABASE.md) for credentials and background.
 
 ### 4. Run
 

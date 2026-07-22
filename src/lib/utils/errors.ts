@@ -69,7 +69,7 @@ export function friendlySupabaseError(error: unknown, fallback = "Something went
   }
 
   if (/could not find the table 'public\./i.test(message)) {
-    return "Your Supabase schema is incomplete. Run supabase-schema.sql and supabase-policies.sql in the SQL editor, then refresh.";
+    return "Your Supabase schema is incomplete. Apply the migrations in supabase/migrations (supabase db push), then refresh.";
   }
 
   if (/failed to fetch|networkerror|network request failed|load failed/i.test(message)) {

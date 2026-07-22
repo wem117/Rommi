@@ -4,7 +4,7 @@
  * Defense-in-depth ONLY — this is a non-obvious literal instead of "admin" so
  * that a leaked/guessed self-write can't simply set role to the word "admin".
  * It is NOT the primary control: the authoritative protection is the
- * `guard_privileged_columns` trigger (supabase-migration-privileged-column-guard.sql),
+ * `guard_privileged_columns` trigger (supabase/migrations/20240101000700_privileged_column_guard.sql),
  * which prevents any non-service-role caller from writing `profiles.role` at all.
  * Never rely on the obscurity of this value for security.
  */

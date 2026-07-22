@@ -65,6 +65,20 @@ export function friendlySupabaseError(error: unknown, fallback = "Something went
     return "That email and password combination was not recognized.";
   }
 
+  // Password-reset / email-delivery specific cases (surfaced so the cause is
+  // actionable instead of a generic "could not send").
+  if (/for security purposes|only request this after|rate limit|too many requests|429/i.test(message)) {
+    return "Too many attempts. Please wait a minute before requesting another email.";
+  }
+
+  if (/error sending|sending.*email|smtp|email.*not.*(sent|delivered)|confirmation email|recovery email/i.test(message)) {
+    return "We couldn't send the email. Email delivery may not be configured yet — please contact support.";
+  }
+
+  if (/redirect.*(not allowed|invalid)|invalid.*redirect|url.*not allowed/i.test(message)) {
+    return "This link's redirect URL isn't allowed. An admin must add it to Supabase Auth → URL Configuration.";
+  }
+
   if (/email not confirmed/i.test(message)) {
     return "Please confirm your email before signing in.";
   }

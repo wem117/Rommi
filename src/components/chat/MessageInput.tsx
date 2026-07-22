@@ -4,10 +4,13 @@ import { useRef, useState } from "react";
 import { Send, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 
+import { useLocale } from "@/context/locale-context";
+
 export function MessageInput({ onSend }: { onSend: (payload: { text?: string; imageFile?: File }) => Promise<void> }) {
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const { t } = useLocale();
 
   async function submit(e?: React.FormEvent) {
     e?.preventDefault();
@@ -18,7 +21,7 @@ export function MessageInput({ onSend }: { onSend: (payload: { text?: string; im
       setFile(undefined);
     } catch (err) {
       console.error(err);
-      toast.error("Could not send message");
+      toast.error(t("chat.sendFailed"));
     }
   }
 
@@ -29,9 +32,9 @@ export function MessageInput({ onSend }: { onSend: (payload: { text?: string; im
           <ImageIcon className="h-4 w-4" />
           <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0])} />
         </label>
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Write a message" className="w-full rounded-md border border-border px-3 py-2" />
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t("chat.writeMessagePlaceholder")} className="w-full rounded-md border border-border px-3 py-2" />
       </div>
-      <button type="submit" aria-label="Send" className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-white">
+      <button type="submit" aria-label={t("chat.sendLabel")} className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-white">
         <Send className="h-4 w-4" />
       </button>
     </form>

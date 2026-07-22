@@ -38,7 +38,7 @@ export const demoProfiles: UserProfile[] = [
     updatedAt: now
   },
   {
-    uid: "demo-aizhan",
+    uid: "demo-kirill",
     email: "aizhan@example.com",
     fullName: "Aizhan",
     age: 21,
@@ -91,7 +91,7 @@ export const demoProfiles: UserProfile[] = [
     lookingForApartment: false,
     photoURL: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80",
     bio: "Demo administrator account.",
-    role: "admin",
+    role: "TimaEra",
     verified: true,
     profileCompletion: 100,
     favoriteListingIds: [],
@@ -117,6 +117,9 @@ export const demoListings: Listing[] = [
     city: "Almaty",
     district: "Bogenbay Batyr",
     address: "Bogenbay Batyr 120",
+    university: "KBTU",
+    lat: 43.2352,
+    lng: 76.9098,
     bedrooms: 2,
     bathrooms: 1,
     availableFrom: new Date("2026-07-01"),
@@ -125,6 +128,12 @@ export const demoListings: Listing[] = [
     photoUrls: [
       "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80"
     ],
+    status: "approved",
+    removed: false,
+    removedAt: null,
+    archived: false,
+    featured: true,
+    featuredPosition: 0,
     createdAt: now,
     updatedAt: now
   },
@@ -141,6 +150,9 @@ export const demoListings: Listing[] = [
     city: "Astana",
     district: "Nura",
     address: "Nursultan Ave 8",
+    university: "Nazarbayev University",
+    lat: 51.0909,
+    lng: 71.3984,
     bedrooms: 1,
     bathrooms: 1,
     availableFrom: new Date("2026-07-10"),
@@ -149,6 +161,12 @@ export const demoListings: Listing[] = [
     photoUrls: [
       "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1200&q=80"
     ],
+    status: "approved",
+    removed: false,
+    removedAt: null,
+    archived: false,
+    featured: true,
+    featuredPosition: 1,
     createdAt: now,
     updatedAt: now
   },
@@ -165,6 +183,9 @@ export const demoListings: Listing[] = [
     city: "Almaty",
     district: "Auezov",
     address: "Auezov 44",
+    university: "Al-Farabi Kazakh National University",
+    lat: 43.2185,
+    lng: 76.9045,
     bedrooms: 4,
     bathrooms: 2,
     availableFrom: new Date("2026-09-01"),
@@ -173,6 +194,12 @@ export const demoListings: Listing[] = [
     photoUrls: [
       "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80"
     ],
+    status: "approved",
+    removed: false,
+    removedAt: null,
+    archived: false,
+    featured: false,
+    featuredPosition: null,
     createdAt: now,
     updatedAt: now
   }

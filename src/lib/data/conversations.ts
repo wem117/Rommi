@@ -3,14 +3,14 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { mapConversationRow, mapMessageRow } from "@/lib/supabase/mappers";
 import { isMissingSupabaseTable } from "@/lib/utils/errors";
-import type { Conversation, Message } from "@/types/chat";
+import type { Conversation } from "@/types/chat";
 
 export async function getConversationsForUser(uid: string) {
   if (!isSupabaseConfigured) {
     return demoConversations.filter((conversation) => conversation.participantIds.includes(uid));
   }
 
-  const supabase = getSupabaseBrowserClient() as any;
+  const supabase = getSupabaseBrowserClient();
   const { data, error } = await supabase
     .from("conversations")
     .select("*")
@@ -45,7 +45,7 @@ export async function ensureConversation({
     return existing?.id ?? demoConversations[0]?.id ?? "conversation-1";
   }
 
-  const supabase = getSupabaseBrowserClient() as any;
+  const supabase = getSupabaseBrowserClient();
   const { data: existingRows, error: lookupError } = await supabase
     .from("conversations")
     .select("*")
@@ -98,7 +98,7 @@ export async function getMessagesForConversation(conversationId: string) {
     return demoMessages.filter((message) => message.conversationId === conversationId);
   }
 
-  const supabase = getSupabaseBrowserClient() as any;
+  const supabase = getSupabaseBrowserClient();
   const { data, error } = await supabase
     .from("messages")
     .select("*")
@@ -126,7 +126,7 @@ export async function sendConversationMessage({
 }) {
   if (!isSupabaseConfigured) return;
 
-  const supabase = getSupabaseBrowserClient() as any;
+  const supabase = getSupabaseBrowserClient();
   const { error } = await supabase.from("messages").insert({
     conversation_id: conversationId,
     sender_id: senderId,
@@ -141,8 +141,12 @@ export async function sendConversationMessage({
 
   if (error) throw error;
 
-  const conversation = await supabase.from("conversations").select("*").eq("id", conversationId).single();
-  const unreadCounts = ((conversation.data as Conversation | null)?.unreadCounts ?? {}) as Record<string, number>;
+  const { data: conversationRow } = await supabase
+    .from("conversations")
+    .select("*")
+    .eq("id", conversationId)
+    .maybeSingle();
+  const unreadCounts = (conversationRow ? mapConversationRow(conversationRow).unreadCounts : null) ?? {};
   const nextUnreadCounts = Object.fromEntries(
     Object.entries(unreadCounts).map(([id, count]) => [id, id === senderId ? 0 : count + 1])
   );
@@ -158,10 +162,10 @@ export async function sendConversationMessage({
     .eq("id", conversationId);
 }
 
-export async function markConversationAsRead(conversationId: string, userId: string, messages: Message[]) {
+export async function markConversationAsRead(conversationId: string, userId: string) {
   if (!isSupabaseConfigured) return;
 
-  const supabase = getSupabaseBrowserClient() as any;
+  const supabase = getSupabaseBrowserClient();
   const { data } = await supabase.from("conversations").select("unread_counts").eq("id", conversationId).single();
   const unreadCounts = ((data?.unread_counts as Record<string, number> | null) ?? {});
   unreadCounts[userId] = 0;

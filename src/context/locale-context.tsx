@@ -4,6 +4,10 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 
 import { type Locale, translate } from "@/lib/i18n";
 
+function isLocale(value: string | undefined | null): value is Locale {
+  return value === "en" || value === "ru" || value === "kz";
+}
+
 interface LocaleContextValue {
   locale: Locale;
   setLocale: (locale: Locale) => void;
@@ -13,11 +17,13 @@ interface LocaleContextValue {
 const LocaleContext = createContext<LocaleContextValue | undefined>(undefined);
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("en");
+  const [locale, setLocaleState] = useState<Locale>("ru");
 
+  // Locale priority: the user's saved choice wins; otherwise Russian is the
+  // default for every new visitor (the useState initial value above).
   useEffect(() => {
-    const saved = window.localStorage.getItem("roommate-kz:locale");
-    if (saved === "en" || saved === "ru" || saved === "kz") {
+    const saved = window.localStorage.getItem("roomi:locale");
+    if (isLocale(saved)) {
       setLocaleState(saved);
     }
   }, []);
@@ -28,7 +34,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   function setLocale(locale: Locale) {
     setLocaleState(locale);
-    window.localStorage.setItem("roommate-kz:locale", locale);
+    window.localStorage.setItem("roomi:locale", locale);
   }
 
   const value = useMemo(

@@ -10,6 +10,8 @@ export interface ListingPreferences {
   pets: PetsRule;
 }
 
+export type ModerationStatus = "pending" | "approved" | "rejected";
+
 export interface Listing {
   id: string;
   ownerId: string;
@@ -23,12 +25,21 @@ export interface Listing {
   city: string;
   district?: string;
   address: string;
+  university: string;
+  lat: number | null;
+  lng: number | null;
   bedrooms: number;
   bathrooms: number;
   availableFrom: Date;
   amenities: string[];
   preferences: ListingPreferences;
   photoUrls: string[];
+  status: ModerationStatus;
+  removed: boolean;
+  removedAt: Date | null;
+  archived: boolean;
+  featured: boolean;
+  featuredPosition: number | null;
   createdAt: Date;
   updatedAt: Date;
 }

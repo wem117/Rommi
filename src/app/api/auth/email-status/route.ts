@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { isSupabaseAdminConfigured } from "@/lib/supabase-server";
+import { clientKey, consume, rateLimitResponse } from "@/lib/api/rate-limit";
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { friendlySupabaseError } from "@/lib/utils/errors";
 
 const schema = z.object({
@@ -11,6 +11,13 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   try {
+    // This endpoint reveals whether an email is registered (needed for the
+    // sign-in/up UX), which makes it an enumeration target. Throttle hard:
+    // 10 lookups/minute per IP.
+    if (!consume(clientKey(request, "email-status"), 10, 60_000)) {
+      return rateLimitResponse();
+    }
+
     if (!isSupabaseAdminConfigured) {
       return NextResponse.json(
         { error: "Supabase admin credentials are missing from .env.local." },
@@ -19,7 +26,7 @@ export async function POST(request: Request) {
     }
 
     const { email } = schema.parse(await request.json());
-    const supabase = createSupabaseAdminClient() as any;
+    const supabase = createSupabaseAdminClient();
     const normalizedEmail = email.trim().toLowerCase();
 
     const { data, error } = await supabase

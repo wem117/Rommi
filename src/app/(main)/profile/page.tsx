@@ -6,7 +6,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { ContactLinks } from "@/components/shared/contact-links";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
 import { useConversations } from "@/hooks/use-conversations";
@@ -29,7 +31,7 @@ type TabId = (typeof tabs)[number]["id"];
 
 export default function ProfilePage() {
   const { user, profile, refreshProfile } = useAuth();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { conversations, loading: conversationsLoading } = useConversations();
   const { listings, loading: listingsLoading } = useListings();
   const {
@@ -139,19 +141,25 @@ export default function ProfilePage() {
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-3xl font-bold">{profile.fullName}</h1>
-                <VerifiedBadge verified={profile.verified || user?.emailVerified} />
+                <h1 className="text-2xl font-bold sm:text-3xl">{profile.fullName}</h1>
+                {/* "Verified" is an admin-granted trust mark; email confirmation alone must not show it. */}
+                <VerifiedBadge verified={profile.verified} />
               </div>
               <p className="mt-2 max-w-2xl text-foreground/65">{profile.bio || t("profile.noBio")}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <StatusBadge label={profile.university} />
                 <StatusBadge label={profile.occupation} />
-                <StatusBadge label={`${profile.age} years old`} />
+                <StatusBadge label={`${profile.age} ${t("roommateDetail.yearsOld")}`} />
                 <StatusBadge
                   label={profile.lookingForApartment ? t("profile.visible") : t("profile.hidden")}
                   active={profile.lookingForApartment}
                 />
               </div>
+              {profile.telegram || profile.phone ? (
+                <div className="mt-4">
+                  <ContactLinks telegram={profile.telegram} phone={profile.phone} size="sm" />
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -201,48 +209,88 @@ export default function ProfilePage() {
                     label={t("profile.budget")}
                     value={`${formatCurrency(profile.minBudget)} - ${formatCurrency(profile.maxBudget)}`}
                   />
-                  <Info label={t("profile.moveIn")} value={formatDate(profile.preferredMoveInDate)} />
-                  <Info label={t("profile.gender")} value={profile.gender.replaceAll("_", " ")} />
+                  <Info label={t("profile.moveIn")} value={formatDate(profile.preferredMoveInDate, locale)} />
+                  <Info
+                    label={t("profile.gender")}
+                    value={
+                      {
+                        male: t("listingForm.male"),
+                        female: t("listingForm.female"),
+                        other: t("roommates.other"),
+                        prefer_not_to_say: t("roommates.preferNotToSay")
+                      }[profile.gender] ?? profile.gender.replaceAll("_", " ")
+                    }
+                  />
                 </div>
 
-                <div className="mt-4 rounded-[1.5rem] border border-[#e8dccd] bg-[#f8f2e8] p-4">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
+                <div className="mt-4 rounded-[1.5rem] border border-[#e8dccd] bg-[#f8f2e8] p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
                       <h3 className="text-sm font-semibold text-foreground">{t("profile.searchVisibility")}</h3>
                       <p className="mt-1 text-sm leading-6 text-foreground/60">
                         {t("profile.searchVisibilityDescription")}
                       </p>
-                      <p className="mt-2 text-xs font-semibold text-primary">
+                      <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${profile.lookingForApartment ? "bg-primary" : "bg-foreground/30"}`}
+                        />
                         {profile.lookingForApartment ? t("profile.searchVisibilityOn") : t("profile.searchVisibilityOff")}
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => void toggleVisibility()}
-                      disabled={visibilitySaving}
-                      className={`inline-flex h-11 w-20 items-center rounded-full p-1 transition disabled:cursor-not-allowed disabled:opacity-70 ${
-                        profile.lookingForApartment ? "bg-primary" : "bg-[#d8cdbd]"
-                      }`}
-                      aria-pressed={profile.lookingForApartment}
-                    >
-                      <span
-                        className={`grid h-9 w-9 place-items-center rounded-full bg-white shadow-sm transition ${
-                          profile.lookingForApartment ? "translate-x-9" : "translate-x-0"
-                        }`}
-                      >
-                        {visibilitySaving ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : null}
-                      </span>
-                    </button>
+                    <div className="flex shrink-0 items-center gap-2 pt-0.5">
+                      {visibilitySaving ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : null}
+                      <Switch
+                        checked={profile.lookingForApartment}
+                        disabled={visibilitySaving}
+                        onCheckedChange={() => void toggleVisibility()}
+                        aria-label={t("profile.searchVisibility")}
+                      />
+                    </div>
                   </div>
                 </div>
               </Panel>
 
               <Panel title={t("profile.lifestylePreferences")}>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {Object.entries(profile.lifestyle).map(([key, value]) => (
-                    <Info key={key} label={formatLabel(key)} value={String(value).replaceAll("_", " ")} />
-                  ))}
+                  <Info
+                    label={t("onboarding.cleanlinessLabel")}
+                    value={t(
+                      profile.lifestyle.cleanliness === "very_clean"
+                        ? "onboarding.cleanlinessVeryClean"
+                        : profile.lifestyle.cleanliness === "moderate"
+                          ? "onboarding.cleanlinessModerate"
+                          : "onboarding.cleanlinessRelaxed"
+                    )}
+                  />
+                  <Info
+                    label={t("onboarding.sleepScheduleLabel")}
+                    value={t(
+                      profile.lifestyle.sleepSchedule === "early_bird"
+                        ? "onboarding.sleepEarlyBird"
+                        : profile.lifestyle.sleepSchedule === "night_owl"
+                          ? "onboarding.sleepNightOwl"
+                          : "onboarding.sleepBalanced"
+                    )}
+                  />
+                  <Info
+                    label={t("onboarding.guestsLabel")}
+                    value={t(
+                      profile.lifestyle.guests === "rarely"
+                        ? "onboarding.guestsRarely"
+                        : profile.lifestyle.guests === "often"
+                          ? "onboarding.guestsOften"
+                          : "onboarding.guestsSometimes"
+                    )}
+                  />
+                  <Info
+                    label={t("onboarding.smokingLabel")}
+                    value={profile.lifestyle.smoking ? t("listingForm.yes") : t("listingForm.no")}
+                  />
+                  <Info
+                    label={t("onboarding.petsLabel")}
+                    value={profile.lifestyle.pets ? t("listingForm.yes") : t("listingForm.no")}
+                  />
                 </div>
               </Panel>
             </div>
@@ -251,7 +299,7 @@ export default function ProfilePage() {
           {activeTab === "chats" ? (
             <div>
               {conversationsLoading ? (
-                <div className="rounded-2xl bg-background p-6 text-sm text-foreground/60">Loading conversations...</div>
+                <div className="rounded-2xl bg-background p-6 text-sm text-foreground/60">{t("chat.loadingConversations")}</div>
               ) : conversations.length === 0 ? (
                 <EmptyState title={t("profile.emptyChatsTitle")} text={t("profile.emptyChatsText")} />
               ) : (
@@ -429,6 +477,8 @@ function ChatCard({
   openChatLabel: string;
   noMessagesLabel: string;
 }) {
+  const { locale } = useLocale();
+
   return (
     <Link
       href={`/inbox/${conversation.id}`}
@@ -456,7 +506,7 @@ function ChatCard({
       </div>
 
       <div className="flex items-center gap-3 text-sm text-foreground/55">
-        <span>{formatDate(conversation.updatedAt)}</span>
+        <span>{formatDate(conversation.updatedAt, locale)}</span>
         <span className="inline-flex items-center gap-2 rounded-full bg-background px-3 py-1.5 font-medium text-foreground/70">
           <MessageCircle className="h-4 w-4 text-primary" />
           {openChatLabel}
@@ -582,6 +632,3 @@ function getHistoryListings(
     .filter((item): item is { listing: (typeof listings)[number]; contacted: boolean } => Boolean(item));
 }
 
-function formatLabel(value: string) {
-  return value.replace(/([A-Z])/g, " $1");
-}

@@ -2,75 +2,150 @@
 
 import {
   ArrowRight,
-  BedDouble,
-  Building2,
   CalendarDays,
   CheckCircle2,
   ChevronRight,
   Home,
+  LogOut,
   MapPin,
+  Menu,
   MessageCircle,
   Search,
-  ShieldCheck,
   Sparkles,
   Star,
-  Users
+  UserCircle,
+  Users,
+  X
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, type ReactNode } from "react";
 
+import { CountUp } from "@/components/count-up";
+import { Reveal } from "@/components/reveal";
+import { Footer } from "@/components/layout/footer";
 import { LanguageMenu } from "@/components/layout/language-menu";
+import { useAuth } from "@/context/auth-context";
+import { ListingCard } from "@/components/listings/listing-card";
+import { RoommateCard } from "@/components/roommates/roommate-card";
+import { Carousel } from "@/components/ui/carousel";
 import { useLocale } from "@/context/locale-context";
-import { demoListings, demoProfiles, demoUniversities } from "@/lib/data/demo";
-import { formatCurrency, formatDate, formatMonthlyRent } from "@/lib/utils/format";
-
-const testimonials = [
-  {
-    name: "Madina",
-    role: "Student at KazNU",
-    badge: "Verified Tenant",
-    quote:
-      "Я нашел иделаьную комнату для себя за 3 дня. Платформа очень удобная, также процент соотношениий хорошо подбирает варианты."
-  }
-];
-
-const listingTypeLabels: Record<(typeof demoListings)[number]["listingType"], string> = {
-  private_room: "Private Room",
-  shared_room: "Shared Room",
-  entire_place: "Studio"
-};
+import { CITIES } from "@/lib/constants/cities";
+import { getFeaturedListings } from "@/lib/data/listings";
+import { DEFAULT_HOMEPAGE_SECTIONS, getPublicSettings, type PublicSettings } from "@/lib/data/public-settings";
+import { getFeaturedRoommates } from "@/lib/data/profiles";
+import { getActiveTestimonials, type Testimonial } from "@/lib/data/testimonials";
+import { getFeaturedUniversities, type UniversityWithStats } from "@/lib/data/universities";
+import { formatNumber } from "@/lib/utils/format";
+import { computeHomepageStats, DEFAULT_HOMEPAGE_STATS_CONFIG } from "@/lib/utils/homepage-stats";
+import type { Listing } from "@/types/listing";
+import type { UserProfile } from "@/types/user";
 
 export default function HomePage() {
   const { locale, t } = useLocale();
+  const { user, signOut } = useAuth();
+  const router = useRouter();
+  const [searchCity, setSearchCity] = useState("");
+  const [searchBudget, setSearchBudget] = useState("");
+  const [searchType, setSearchType] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // All content states start EMPTY — never demo data. The data services return
+  // demo content only when Supabase is unconfigured; with Supabase configured,
+  // empty results keep these empty and the sections below stay hidden.
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [settings, setSettings] = useState<PublicSettings | null>(null);
+  const [featuredListings, setFeaturedListings] = useState<Listing[]>([]);
+  const [featuredRoommates, setFeaturedRoommates] = useState<UserProfile[]>([]);
+  const [featuredUniversities, setFeaturedUniversities] = useState<UniversityWithStats[]>([]);
 
+  useEffect(() => {
+    void getActiveTestimonials().then(setTestimonials);
+    void getFeaturedUniversities(6).then(setFeaturedUniversities);
+    void getPublicSettings().then((next) => {
+      setSettings(next);
+      void getFeaturedListings(next.featuredListingsLimit).then(setFeaturedListings);
+      void getFeaturedRoommates(next.featuredRoommatesLimit).then(setFeaturedRoommates);
+    });
+
+    // Remember the last home-page search (restored after mount to avoid a
+    // hydration mismatch with the server-rendered empty defaults).
+    try {
+      const saved = window.localStorage.getItem("roomi:home:search");
+      if (saved) {
+        const parsed = JSON.parse(saved) as { city?: string; budget?: string; type?: string };
+        if (parsed.city) setSearchCity(parsed.city);
+        if (parsed.budget) setSearchBudget(parsed.budget);
+        if (parsed.type) setSearchType(parsed.type);
+      }
+    } catch {
+      // ignore malformed storage
+    }
+  }, []);
+
+  function handleSearch() {
+    try {
+      window.localStorage.setItem(
+        "roomi:home:search",
+        JSON.stringify({ city: searchCity, budget: searchBudget, type: searchType })
+      );
+    } catch {
+      // ignore quota errors
+    }
+    const params = new URLSearchParams();
+    if (searchCity) params.set("city", searchCity);
+    if (searchBudget) params.set("maxRent", searchBudget);
+    if (searchType) params.set("listingType", searchType);
+    router.push(`/rooms${params.toString() ? `?${params.toString()}` : ""}`);
+  }
+
+  const sections = settings?.homepageSections ?? DEFAULT_HOMEPAGE_SECTIONS;
+  const sectionOrder = sections.filter((s) => s.visible).map((s) => s.key);
+
+  const heroLocaleContent = settings?.homepageHero?.[locale];
+  const heroTitle = heroLocaleContent?.title?.trim() || null;
+  const heroDescription = heroLocaleContent?.subtitle?.trim() || t("home.heroDescription");
+  const heroImage = settings?.homepageHero?.imageUrl?.trim() || "/universities/main1.jpg";
+
+  // Admin-configurable, deterministic trust numbers (base + daily growth from a
+  // start date). Same for every visitor, stable across refreshes, animated in.
+  const heroStats = computeHomepageStats(settings?.homepageStats ?? DEFAULT_HOMEPAGE_STATS_CONFIG);
   const stats = [
-    { value: "3,500+", label: t("home.verifiedListings") },
-    { value: "10,000+", label: t("home.activeStudents") },
-    { value: "2,400+", label: t("home.successfulMatches") }
+    { value: heroStats.listings, label: t("home.verifiedListings") },
+    { value: heroStats.students, label: t("home.activeStudents") },
+    { value: heroStats.matches, label: t("home.successfulMatches") }
   ];
 
   const steps = getSteps(locale);
-  const platformStats = getPlatformStats(locale);
+  const platformStats = getPlatformStats(locale, heroStats);
   const faqs = getFaqs(locale);
   const roommateHighlights = getRoommateHighlights(locale);
-  const statusLabel = locale === "en" ? "Today" : locale === "ru" ? "Сегодня" : "Бүгін";
-  const delayedStatusLabel = locale === "en" ? "2 days" : locale === "ru" ? "2 дня" : "2 күн";
-  const mockSearchFields = [
+  const searchFields = [
     {
       icon: MapPin,
       label: t("home.searchCity"),
-      element: <input aria-label={t("home.searchCity")} placeholder={t("home.searchCity")} />
+      element: (
+        <select aria-label={t("home.searchCity")} value={searchCity} onChange={(e) => setSearchCity(e.target.value)}>
+          <option value="">{t("home.searchCity")}</option>
+          {CITIES.map((city) => (
+            <option key={city} value={city}>
+              {city}
+            </option>
+          ))}
+        </select>
+      )
     },
     {
       icon: CalendarDays,
       label: t("home.searchBudget"),
       element: (
-        <select aria-label={t("home.searchBudget")} defaultValue="">
+        <select aria-label={t("home.searchBudget")} value={searchBudget} onChange={(e) => setSearchBudget(e.target.value)}>
           <option value="">{t("home.searchBudget")}</option>
-          <option value="100000">Under 100K ₸</option>
-          <option value="150000">Under 150K ₸</option>
-          <option value="200000">Under 200K ₸</option>
-          <option value="300000">Under 300K ₸</option>
+          {[25000, 40000, 50000, 75000, 100000, 150000, 200000, 300000].map((amount) => (
+            <option key={amount} value={String(amount)}>
+              {t("home.budgetUnder").replace("{amount}", amount.toLocaleString("en-US"))}
+            </option>
+          ))}
         </select>
       )
     },
@@ -78,157 +153,23 @@ export default function HomePage() {
       icon: Home,
       label: t("home.searchType"),
       element: (
-        <select aria-label={t("home.searchType")} defaultValue="">
+        <select aria-label={t("home.searchType")} value={searchType} onChange={(e) => setSearchType(e.target.value)}>
           <option value="">{t("home.searchType")}</option>
-          <option value="private_room">Private Room</option>
-          <option value="shared_room">Shared Room</option>
-          <option value="entire_place">Studio</option>
+          <option value="private_room">{t("listing.types.privateRoom")}</option>
+          <option value="shared_room">{t("listing.types.sharedRoom")}</option>
+          <option value="entire_place">{t("listing.types.entirePlace")}</option>
         </select>
       )
     }
   ];
 
-  return (
-    <main className="min-h-screen bg-[#faf6ef] text-foreground">
-      <section className="relative overflow-hidden">
-        <Image
-          src="https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1800&q=85"
-          alt="Modern shared apartment"
-          fill
-          priority
-          className="object-cover object-center"
-          sizes="100vw"
-        />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(17,16,12,0.62)_0%,rgba(17,16,12,0.35)_30%,rgba(17,16,12,0.72)_100%)]" />
-
-        <div className="relative z-10 mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
-          <nav className="fixed left-0 right-0 top-0 z-30">
-            <div className="mx-auto mt-4 flex max-w-7xl items-center justify-between rounded-full border border-white/15 bg-[rgba(16,14,12,0.35)] px-4 py-3 shadow-xl backdrop-blur-md sm:px-6">
-              <Link href="/" className="flex items-center gap-3 text-white">
-                <span className="grid h-10 w-10 place-items-center rounded-2xl bg-primary text-white shadow-lg">
-                  <Home className="h-5 w-5" />
-                </span>
-                <span className="font-heading text-lg font-bold sm:text-xl">
-                  Roommate <span className="text-primary">KZ</span>
-                </span>
-              </Link>
-
-              <div className="hidden items-center gap-1 md:flex">
-                <NavLink href="/rooms">{t("nav.rooms")}</NavLink>
-                <NavLink href="/roommates">{t("nav.roommates")}</NavLink>
-                <NavLink href="/list-a-room/step-1">{t("nav.listRoom")}</NavLink>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="hidden sm:block">
-                  <LanguageMenu inverted />
-                </div>
-                <Link
-                  href="/sign-in"
-                  className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
-                >
-                  {t("nav.signIn")}
-                </Link>
-              </div>
-            </div>
-          </nav>
-
-          <div className="flex min-h-[700px] items-center justify-center py-24 sm:min-h-[760px] sm:py-28 lg:min-h-[820px]">
-            <div className="max-w-4xl text-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white/90 backdrop-blur-sm">
-                <span className="h-2 w-2 rounded-full bg-[#f1a531]" />
-                {t("home.heroBadge")}
-              </div>
-
-              <h1 className="mt-6 text-4xl font-bold leading-tight text-white sm:text-5xl lg:text-7xl">
-                {t("home.heroTitleLead")} <span className="text-primary">{t("home.heroTitleAccent")}</span>
-              </h1>
-              <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-white/80 sm:text-lg">
-                {t("home.heroDescription")}
-              </p>
-
-              <div className="mt-10 rounded-[2rem] border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur-xl sm:p-3">
-                <div className="grid gap-2 md:grid-cols-[1.2fr_1fr_0.8fr_auto]">
-                  {mockSearchFields.map((field) => (
-                    <div key={field.label} className="relative">
-                      <field.icon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/45" />
-                      <div className="[&_input]:pl-11 [&_select]:pl-11 [&_select]:appearance-none [&_input]:bg-white [&_select]:bg-white">
-                        {field.element}
-                      </div>
-                    </div>
-                  ))}
-
-                  <Link
-                    href="/rooms"
-                    className="inline-flex items-center justify-center gap-2 rounded-[1.25rem] bg-primary px-6 py-4 text-sm font-semibold text-white transition hover:bg-primary/90"
-                  >
-                    <Search className="h-4 w-4" />
-                    {t("home.searchButton")}
-                  </Link>
-                </div>
-              </div>
-
-              <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-white sm:gap-10">
-                {stats.map((stat, index) => (
-                  <div key={stat.label} className="flex items-center gap-6 sm:gap-10">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold sm:text-3xl">{stat.value}</p>
-                      <p className="mt-1 text-xs text-white/70 sm:text-sm">{stat.label}</p>
-                    </div>
-                    {index < stats.length - 1 ? <div className="hidden h-10 w-px bg-white/15 sm:block" /> : null}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-[#fffdf9] px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-6xl">
-          <SectionHeader
-            badge={t("home.howItWorksBadge")}
-            title={
-              <>
-                {t("home.howItWorksTitle")} <span className="text-primary">{t("home.howItWorksAccent")}</span>
-              </>
-            }
-            description={t("home.howItWorksDescription")}
-            centered
-          />
-
-          <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {steps.map((step, index) => (
-              <div key={step.title} className="group relative">
-                <article className="rounded-[1.75rem] border border-[#eee2d2] bg-white p-6 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl">
-                  <div className="flex items-center justify-between">
-                    <span className="text-5xl font-bold text-primary/15">{step.number}</span>
-                    <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary transition group-hover:bg-primary/15">
-                      <step.icon className="h-5 w-5" />
-                    </span>
-                  </div>
-                  <h3 className="mt-6 font-heading text-xl font-bold">{step.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-foreground/60">{step.text}</p>
-                </article>
-                {index < steps.length - 1 ? (
-                  <ChevronRight className="absolute right-[-18px] top-1/2 hidden h-5 w-5 -translate-y-1/2 text-[#d8cdbd] lg:block" />
-                ) : null}
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-14 grid grid-cols-2 gap-6 md:grid-cols-4">
-            {platformStats.map((stat) => (
-              <div key={stat.label} className="text-center">
-                <p className="text-3xl font-bold text-primary sm:text-4xl">{stat.value}</p>
-                <p className="mt-2 text-sm text-foreground/60">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-[#fbf7f0] px-4 py-16 sm:px-6 lg:px-8">
+  // The 5 admin-reorderable/toggleable sections (Admin > Homepage). Hero and
+  // the "How it works" / final CTA bands stay structurally fixed since they
+  // carry primary navigation and the closing conversion CTA.
+  const sectionRenderers: Record<string, ReactNode> = {
+    // Sections with no real content render nothing (null is skipped below).
+    featured_listings: featuredListings.length === 0 ? null : (
+      <section key="featured_listings" className="bg-[#fbf7f0] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
             <SectionHeader
@@ -245,132 +186,61 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="mt-8 grid gap-6 lg:grid-cols-3">
-            {demoListings.slice(0, 3).map((listing, index) => {
-              const owner = demoProfiles.find((profile) => profile.uid === listing.ownerId);
-
-              return (
-                <Link
-                  key={listing.id}
-                  href={`/rooms/${listing.id}`}
-                  className="group overflow-hidden rounded-[2rem] border border-[#efe5d9] bg-white shadow-[0_20px_40px_rgba(64,43,17,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_26px_48px_rgba(64,43,17,0.14)]"
-                >
-                  <div className="relative aspect-[1.08/0.92] overflow-hidden">
-                    <Image
-                      src={listing.photoUrls[0]}
-                      alt={listing.title}
-                      fill
-                      className="object-cover transition duration-500 group-hover:scale-105"
-                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                    />
-                    <div className="absolute left-4 top-4 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur">
-                        {listingTypeLabels[listing.listingType]}
-                      </span>
-                      <span className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-white shadow-sm">
-                        Verified
-                      </span>
-                    </div>
-                    <div className="absolute right-4 top-4 rounded-full bg-[#f1a531] px-3 py-1 text-xs font-medium text-white shadow-sm">
-                      {index === 2 ? delayedStatusLabel : statusLabel}
-                    </div>
-
-                    {owner ? (
-                      <div className="absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-full bg-white/92 px-2 py-1 shadow-sm backdrop-blur">
-                        <div className="relative h-7 w-7 overflow-hidden rounded-full bg-[#ece4d8]">
-                          {owner.photoURL ? (
-                            <Image src={owner.photoURL} alt={owner.fullName} fill className="object-cover" sizes="28px" />
-                          ) : null}
-                        </div>
-                        <span className="pr-2 text-sm font-medium text-foreground">
-                          {owner.fullName}, {owner.age}
-                        </span>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="p-6">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="line-clamp-2 font-heading text-[1.2rem] font-bold leading-8 text-foreground sm:text-[1.35rem]">
-                          {listing.title}
-                        </h3>
-                        <p className="mt-2 flex items-center gap-1 text-sm text-foreground/55">
-                          <MapPin className="h-3.5 w-3.5" />
-                          {listing.city}, {listing.district}
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <span className="block text-lg font-bold text-primary sm:text-xl">
-                          {formatMonthlyRent(listing.monthlyRent)}
-                        </span>
-                        {listing.depositRequired ? (
-                          <span className="mt-1 block text-xs font-medium text-[#8e7d70]">
-                            + {formatCurrency(listing.depositAmount)} deposit
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-foreground/55">
-                      <span className="inline-flex items-center gap-1">
-                        <BedDouble className="h-3.5 w-3.5" />
-                        {listing.bedrooms} bd
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <Building2 className="h-3.5 w-3.5" />
-                        {listing.bathrooms} ba
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <CalendarDays className="h-3.5 w-3.5" />
-                        {formatDate(listing.availableFrom)}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <Carousel
+            className="mt-8"
+            ariaLabel={t("home.featuredTitle")}
+            itemClassName="basis-[86%] sm:basis-[47%] lg:basis-[31.5%]"
+          >
+            {featuredListings.map((listing) => (
+              <ListingCard key={listing.id} listing={listing} />
+            ))}
+          </Carousel>
         </div>
       </section>
-
-      <section className="bg-[#fffdf9] px-4 py-16 sm:px-6 lg:px-8">
+    ),
+    universities: featuredUniversities.length === 0 ? null : (
+      <section key="universities" className="bg-[#fffdf9] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <SectionHeader
-              title={t("home.universityTitle")}
-              description={t("home.universityDescription")}
-            />
+            <SectionHeader title={t("home.universityTitle")} description={t("home.universityDescription")} />
             <Link href="/universities" className="text-sm font-semibold text-primary transition hover:text-primary/80">
               {t("home.exploreUniversityAreas")}
             </Link>
           </div>
 
-          <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {demoUniversities.map((university, index) => (
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-3">
+            {featuredUniversities.map((university) => (
               <Link
-                key={university.name}
-                href="/universities"
-                className={`group overflow-hidden rounded-[1.75rem] border border-[#efe5d9] bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl ${index === 0 ? "md:col-span-2 xl:col-span-1" : ""}`}
+                key={university.id}
+                href={`/rooms?university=${encodeURIComponent(university.name)}`}
+                className="group overflow-hidden rounded-2xl border border-[#efe5d9] bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl sm:rounded-[1.75rem]"
               >
-                <div className="relative aspect-[1.6/1] overflow-hidden">
-                  <Image
-                    src={university.image}
-                    alt={university.name}
-                    fill
-                    className="object-cover transition duration-500 group-hover:scale-105"
-                    sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                    <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white backdrop-blur">
+                <div className="relative aspect-[1.6/1] overflow-hidden bg-surface-muted">
+                  {university.imageUrl ? (
+                    <Image
+                      src={university.imageUrl}
+                      alt={university.name}
+                      fill
+                      className="object-cover transition duration-500 group-hover:scale-105"
+                      sizes="(min-width: 1280px) 33vw, (min-width: 640px) 33vw, 50vw"
+                    />
+                  ) : (
+                    <div className="grid h-full w-full place-items-center bg-gradient-to-br from-primary/15 to-accent/15 text-3xl font-bold text-primary/40">
+                      {university.name.slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 sm:p-4">
+                    <span className="rounded-full bg-white/15 px-2 py-0.5 text-[0.65rem] font-medium text-white backdrop-blur sm:px-3 sm:py-1 sm:text-xs">
                       {university.city}
                     </span>
                   </div>
                 </div>
-                <div className="p-5">
-                  <h3 className="font-heading text-2xl font-bold">{university.name}</h3>
-                  <p className="mt-2 text-sm text-foreground/55">
-                    {university.listings} listings <span className="mx-2 text-[#d3c6b7]">|</span> {university.students} students
+                <div className="p-3 sm:p-5">
+                  <h3 className="font-heading text-base font-bold leading-tight sm:text-2xl">{university.name}</h3>
+                  <p className="mt-1 text-xs text-foreground/55 sm:mt-2 sm:text-sm">
+                    {university.listingsCount} {t("home.listingsWord")}
+                    <span className="mx-1.5 text-[#d3c6b7] sm:mx-2">|</span>
+                    {university.roommatesCount} {t("home.studentsWord")}
                   </p>
                 </div>
               </Link>
@@ -378,9 +248,10 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      <section className="bg-primary px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+    ),
+    featured_roommates: featuredRoommates.length === 0 ? null : (
+      <section key="featured_roommates" className="bg-primary px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
+        <div className="mx-auto grid max-w-6xl gap-6 sm:gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div className="text-white">
             <SectionHeader
               badge={t("home.roommateBadge")}
@@ -407,90 +278,59 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            {demoProfiles.slice(0, 4).map((profile, index) => (
-              <Link
-                key={profile.uid}
-                href={`/roommates/${profile.uid}`}
-                className={`rounded-[1.75rem] bg-white p-5 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl ${index % 2 === 1 ? "sm:translate-y-5" : ""}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="relative h-12 w-12 overflow-hidden rounded-full bg-[#ece4d8]">
-                    {profile.photoURL ? (
-                      <Image src={profile.photoURL} alt={profile.fullName} fill className="object-cover" sizes="48px" />
-                    ) : null}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-heading text-base font-bold">{profile.fullName}</h3>
-                      {profile.verified ? <ShieldCheck className="h-4 w-4 text-primary" /> : null}
-                    </div>
-                    <p className="text-xs text-foreground/55">
-                      {profile.age} · {profile.occupation}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex items-center gap-2">
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e8f3ef]">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${94 - index * 3}%` }} />
-                  </div>
-                  <span className="text-sm font-bold text-primary">{94 - index * 3}%</span>
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-2 text-xs text-foreground/60">
-                  <span className="rounded-full bg-[#f5efe6] px-3 py-1">{profile.lifestyle.smoking.replaceAll("_", " ")}</span>
-                  <span className="rounded-full bg-[#f5efe6] px-3 py-1">{profile.lifestyle.cleanliness.replaceAll("_", " ")}</span>
-                  <span className="rounded-full bg-[#f5efe6] px-3 py-1">{profile.lifestyle.sleepSchedule.replaceAll("_", " ")}</span>
-                </div>
-              </Link>
+          <Carousel ariaLabel={t("home.roommateTitle")} itemClassName="basis-[86%] sm:basis-[47%]">
+            {featuredRoommates.map((profile) => (
+              <RoommateCard key={profile.uid} profile={profile} />
             ))}
-          </div>
+          </Carousel>
         </div>
       </section>
-
-      <section className="bg-[#fffdf9] px-4 py-16 sm:px-6 lg:px-8">
+    ),
+    testimonials: testimonials.length === 0 ? null : (
+      <section key="testimonials" className="bg-[#fffdf9] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-5xl">
           <SectionHeader badge={t("home.testimonialBadge")} title={t("home.testimonialTitle")} centered />
 
-          <div className="mt-10 grid items-center gap-8 rounded-[2rem] border border-[#efe5d9] bg-white p-8 shadow-soft md:grid-cols-[0.9fr_1.1fr] md:p-10">
-            <div className="relative mx-auto h-56 w-56 overflow-hidden rounded-[1.75rem] bg-[#f5efe6]">
-              <Image
-                src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=700&q=80"
-                alt="Happy Roommate KZ user"
-                fill
-                className="object-cover"
-                sizes="224px"
-              />
-              <div className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-full bg-[#f1a531] text-white shadow-lg">
-                <Sparkles className="h-4 w-4" />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-1 text-[#f1a531]">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <Star key={index} className="h-4 w-4 fill-current" />
-                ))}
-              </div>
-              <blockquote className="mt-5 font-heading text-xl leading-9 text-foreground/80 sm:text-2xl">
-                &quot;{testimonials[0].quote}&quot;
-              </blockquote>
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <div>
-                  <p className="font-semibold">{testimonials[0].name}</p>
-                  <p className="text-sm text-foreground/55">{testimonials[0].role}</p>
+          <Carousel className="mt-10" ariaLabel={t("home.testimonialTitle")}>
+            {testimonials.map((testimonial) => (
+              <div
+                key={testimonial.name}
+                className="grid items-center gap-6 rounded-[2rem] border border-[#efe5d9] bg-white p-6 shadow-soft sm:gap-8 sm:p-8 md:grid-cols-[0.9fr_1.1fr] md:p-10"
+              >
+                <div className="relative mx-auto h-44 w-44 overflow-hidden rounded-[1.75rem] bg-[#f5efe6] sm:h-56 sm:w-56">
+                  <Image src={testimonial.image} alt={testimonial.name} fill className="object-cover" sizes="224px" />
+                  <div className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-full bg-[#f1a531] text-white shadow-lg">
+                    <Sparkles className="h-4 w-4" />
+                  </div>
                 </div>
-                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                  {testimonials[0].badge}
-                </span>
+
+                <div>
+                  <div className="flex items-center gap-1 text-[#f1a531]">
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <Star key={index} className="h-4 w-4 fill-current" />
+                    ))}
+                  </div>
+                  <blockquote className="mt-5 font-heading text-lg leading-8 text-foreground/80 sm:text-2xl sm:leading-9">
+                    &quot;{testimonial.quote}&quot;
+                  </blockquote>
+                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                    <div>
+                      <p className="font-semibold">{testimonial.name}</p>
+                      <p className="text-sm text-foreground/55">{testimonial.role}</p>
+                    </div>
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                      {testimonial.badge}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            ))}
+          </Carousel>
         </div>
       </section>
-
-      <section className="bg-[#fbf7f0] px-4 py-16 sm:px-6 lg:px-8">
+    ),
+    faq: (
+      <section key="faq" className="bg-[#fbf7f0] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-4xl">
           <SectionHeader
             badge={t("home.faqBadge")}
@@ -518,8 +358,244 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+    )
+  };
 
-      <section className="relative overflow-hidden px-4 py-16 sm:px-6 lg:px-8">
+  return (
+    <main className="min-h-screen bg-[#faf6ef] text-foreground">
+      <section className="relative overflow-hidden">
+        <Image
+          src={heroImage}
+          alt="Modern shared apartment"
+          fill
+          priority
+          className="object-cover object-center"
+          sizes="100vw"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(17,16,12,0.62)_0%,rgba(17,16,12,0.35)_30%,rgba(17,16,12,0.72)_100%)]" />
+
+        <div className="relative z-10 mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+          <nav className="fixed inset-x-0 top-0 z-30 px-3 sm:px-6 lg:px-8">
+            <div className="mx-auto mt-4 max-w-7xl rounded-[1.75rem] border border-white/15 bg-[rgba(16,14,12,0.5)] shadow-xl backdrop-blur-md">
+              <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-6 sm:py-3">
+                <Link href="/" className="flex items-center gap-2.5 text-white sm:gap-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-primary text-white shadow-lg sm:h-10 sm:w-10">
+                    <Home className="h-5 w-5" />
+                  </span>
+                  <span className="font-heading text-lg font-bold sm:text-xl">
+                    Room<span className="text-primary">i</span>
+                  </span>
+                </Link>
+
+                <div className="hidden items-center gap-1 md:flex">
+                  <NavLink href="/rooms">{t("nav.rooms")}</NavLink>
+                  <NavLink href="/roommates">{t("nav.roommates")}</NavLink>
+                  <NavLink href="/list-a-room/step-1">{t("nav.listRoom")}</NavLink>
+                </div>
+
+                {/* Desktop actions — must reflect auth state immediately after
+                    login (OAuth and email both redirect here). */}
+                <div className="hidden items-center gap-2 md:flex">
+                  <LanguageMenu inverted />
+                  {user ? (
+                    <>
+                      <Link
+                        href="/profile"
+                        className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"
+                      >
+                        <UserCircle className="h-4 w-4" />
+                        {t("nav.myAccount")}
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => void signOut()}
+                        className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        {t("nav.signOut")}
+                      </button>
+                    </>
+                  ) : (
+                    <Link
+                      href="/sign-in"
+                      className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
+                    >
+                      {t("nav.signIn")}
+                    </Link>
+                  )}
+                </div>
+
+                {/* Mobile actions: language selector stays visible, links collapse into a menu */}
+                <div className="flex items-center gap-2 md:hidden">
+                  <LanguageMenu inverted />
+                  <button
+                    type="button"
+                    aria-label="Menu"
+                    aria-expanded={mobileMenuOpen}
+                    onClick={() => setMobileMenuOpen((open) => !open)}
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/15"
+                  >
+                    {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                  </button>
+                </div>
+              </div>
+
+              {mobileMenuOpen ? (
+                <div className="border-t border-white/10 px-3 py-3 md:hidden">
+                  <div className="grid gap-1">
+                    <MobileNavLink href="/rooms" onClick={() => setMobileMenuOpen(false)}>
+                      {t("nav.rooms")}
+                    </MobileNavLink>
+                    <MobileNavLink href="/roommates" onClick={() => setMobileMenuOpen(false)}>
+                      {t("nav.roommates")}
+                    </MobileNavLink>
+                    <MobileNavLink href="/list-a-room/step-1" onClick={() => setMobileMenuOpen(false)}>
+                      {t("nav.listRoom")}
+                    </MobileNavLink>
+                    {user ? (
+                      <>
+                        <Link
+                          href="/profile"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="mt-1 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-white/20"
+                        >
+                          {t("nav.myAccount")}
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            void signOut();
+                          }}
+                          className="mt-1 rounded-full bg-primary px-5 py-2.5 text-center text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
+                        >
+                          {t("nav.signOut")}
+                        </button>
+                      </>
+                    ) : (
+                      <Link
+                        href="/sign-in"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="mt-1 rounded-full bg-primary px-5 py-2.5 text-center text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
+                      >
+                        {t("nav.signIn")}
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </nav>
+
+          <div className="flex min-h-[520px] items-center justify-center py-16 sm:min-h-[760px] sm:py-28 lg:min-h-[820px]">
+            <div className="w-full max-w-4xl text-center">
+              <div className="inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-medium text-white/90 backdrop-blur-sm sm:text-sm">
+                {/* Live-status dot: green with a subtle glow + gentle pulse (SaaS style). */}
+                <span className="relative flex h-2 w-2 items-center justify-center">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-50" />
+                  <span className="relative h-2 w-2 rounded-full bg-success shadow-[0_0_8px_2px_hsl(var(--success)/0.55)]" />
+                </span>
+                {t("home.heroBadge")}
+              </div>
+
+              <h1 className="mt-6 text-[2rem] font-bold leading-tight text-white sm:text-5xl lg:text-7xl">
+                {heroTitle ?? (
+                  <>
+                    {t("home.heroTitleLead")} <span className="text-primary">{t("home.heroTitleAccent")}</span>
+                  </>
+                )}
+              </h1>
+              <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-white/80 sm:mt-6 sm:text-lg sm:leading-8">
+                {heroDescription}
+              </p>
+
+              <div className="mt-6 rounded-[2rem] border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur-xl sm:mt-10 sm:p-3">
+                <div className="grid gap-2 md:grid-cols-[1.2fr_1fr_0.8fr_auto]">
+                  {searchFields.map((field) => (
+                    <div key={field.label} className="relative">
+                      <field.icon className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-foreground/45" />
+                      <div className="[&_input]:w-full [&_input]:bg-white [&_input]:pl-11 [&_select]:w-full [&_select]:appearance-none [&_select]:bg-white [&_select]:pl-11">
+                        {field.element}
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={handleSearch}
+                    className="inline-flex items-center justify-center gap-2 rounded-[1.25rem] bg-primary px-6 py-4 text-sm font-semibold text-white transition hover:bg-primary/90"
+                  >
+                    <Search className="h-4 w-4" />
+                    {t("home.searchButton")}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-5 text-white sm:mt-10 sm:gap-10">
+                {stats.map((stat, index) => (
+                  <div key={stat.label} className="flex items-center gap-5 sm:gap-10">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold sm:text-3xl">
+                        <CountUp value={stat.value} format={(n) => `${formatNumber(n)}+`} />
+                      </p>
+                      <p className="mt-1 text-xs text-white/70 sm:text-sm">{stat.label}</p>
+                    </div>
+                    {index < stats.length - 1 ? <div className="hidden h-10 w-px bg-white/15 sm:block" /> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-[#fffdf9] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
+        <div className="mx-auto max-w-6xl">
+          <SectionHeader
+            badge={t("home.howItWorksBadge")}
+            title={
+              <>
+                {t("home.howItWorksTitle")} <span className="text-primary">{t("home.howItWorksAccent")}</span>
+              </>
+            }
+            description={t("home.howItWorksDescription")}
+            centered
+          />
+
+          <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {steps.map((step, index) => (
+              <Reveal key={step.title} className="group relative" delayMs={index * 100}>
+                <article className="rounded-[1.75rem] border border-[#eee2d2] bg-white p-6 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+                  <div className="flex items-center justify-between">
+                    <span className="text-5xl font-bold text-primary/15">{step.number}</span>
+                    <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary transition group-hover:bg-primary/15">
+                      <step.icon className="h-5 w-5" />
+                    </span>
+                  </div>
+                  <h3 className="mt-6 font-heading text-xl font-bold">{step.title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-foreground/60">{step.text}</p>
+                </article>
+                {index < steps.length - 1 ? (
+                  <ChevronRight className="absolute right-[-18px] top-1/2 hidden h-5 w-5 -translate-y-1/2 text-[#d8cdbd] lg:block" />
+                ) : null}
+              </Reveal>
+            ))}
+          </div>
+
+          <div className="mt-14 grid grid-cols-2 gap-6 md:grid-cols-4">
+            {platformStats.map((stat) => (
+              <div key={stat.label} className="text-center">
+                <p className="text-3xl font-bold text-primary sm:text-4xl">{stat.value}</p>
+                <p className="mt-2 text-sm text-foreground/60">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {sectionOrder.map((key) => sectionRenderers[key] ?? null)}
+
+      <section className="relative overflow-hidden px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="absolute inset-0">
           <Image
             src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1800&q=85"
@@ -540,14 +616,14 @@ export default function HomePage() {
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
               href="/rooms"
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-white transition hover:bg-primary/90"
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90 hover:shadow-xl active:scale-95"
             >
               {t("home.startSearching")}
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <Link
               href="/list-a-room/step-1"
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-8 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+              className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-8 py-3 text-sm font-semibold text-white backdrop-blur transition hover:border-white/40 hover:bg-white/20 active:scale-95"
             >
               {t("home.listYourRoom")}
             </Link>
@@ -555,52 +631,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className="border-t border-[#ecdfce] bg-[#fffdf9]">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.5fr_1fr_1fr_1fr] lg:px-8">
-          <div>
-            <Link href="/" className="flex items-center gap-3 text-foreground">
-              <span className="grid h-10 w-10 place-items-center rounded-2xl bg-primary text-white shadow-lg">
-                <Home className="h-5 w-5" />
-              </span>
-              <span className="font-heading text-xl font-bold">
-                Roommate <span className="text-primary">KZ</span>
-              </span>
-            </Link>
-            <p className="mt-4 max-w-sm text-sm leading-7 text-foreground/60">
-              Kazakhstan&apos;s trusted roommate and housing platform for students and young professionals.
-            </p>
-          </div>
-
-          <FooterColumn
-            title="Platform"
-            links={[
-              { label: "Browse Rooms", href: "/rooms" },
-              { label: "Find Roommates", href: "/roommates" },
-              { label: "Universities", href: "/universities" }
-            ]}
-          />
-          <FooterColumn
-            title="Company"
-            links={[
-              { label: "About Us", href: "/" },
-              { label: "Contact", href: "/" },
-              { label: "Careers", href: "/" }
-            ]}
-          />
-          <FooterColumn
-            title="Support"
-            links={[
-              { label: "Help Center", href: "/" },
-              { label: "Terms of Service", href: "/" },
-              { label: "Privacy Policy", href: "/" }
-            ]}
-          />
-        </div>
-
-        <div className="border-t border-[#ecdfce] px-4 py-5 text-center text-xs text-foreground/50">
-          © 2026 Roommate KZ. All rights reserved.
-        </div>
-      </footer>
+      <Footer />
     </main>
   );
 }
@@ -610,6 +641,26 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
     <Link
       href={href}
       className="rounded-full px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+    >
+      {children}
+    </Link>
+  );
+}
+
+function MobileNavLink({
+  href,
+  onClick,
+  children
+}: {
+  href: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className="rounded-2xl px-4 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/10"
     >
       {children}
     </Link>
@@ -640,39 +691,18 @@ function SectionHeader({
           {badge}
         </span>
       ) : null}
-      <h2 className={`mt-4 text-3xl font-bold sm:text-4xl ${light ? "text-white" : "text-foreground"}`}>
+      <h2 className={`mt-3 text-2xl font-bold sm:mt-4 sm:text-4xl ${light ? "text-white" : "text-foreground"}`}>
         {title}
       </h2>
       {description ? (
         <p
-          className={`mt-3 max-w-2xl text-sm leading-7 sm:text-base ${centered ? "mx-auto" : ""} ${
+          className={`mt-2 max-w-2xl text-sm leading-6 sm:mt-3 sm:leading-7 sm:text-base ${centered ? "mx-auto" : ""} ${
             light ? "text-white/75" : "text-foreground/60"
           }`}
         >
           {description}
         </p>
       ) : null}
-    </div>
-  );
-}
-
-function FooterColumn({
-  title,
-  links
-}: {
-  title: string;
-  links: Array<{ label: string; href: string }>;
-}) {
-  return (
-    <div>
-      <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-foreground/70">{title}</h3>
-      <div className="mt-4 grid gap-3 text-sm text-foreground/60">
-        {links.map((link) => (
-          <Link key={link.label} href={link.href} className="transition hover:text-primary">
-            {link.label}
-          </Link>
-        ))}
-      </div>
     </div>
   );
 }
@@ -764,29 +794,39 @@ function getSteps(locale: "en" | "ru" | "kz") {
   ];
 }
 
-function getPlatformStats(locale: "en" | "ru" | "kz") {
+/**
+ * Platform stat tiles. Numeric values come from the admin-configured stats
+ * engine (Admin → Settings → Homepage statistics) — the same source as the
+ * hero counters — never hardcoded fake metrics. "100% free" is a factual
+ * product claim, not a fabricated measurement.
+ */
+function getPlatformStats(locale: "en" | "ru" | "kz", stats: { listings: number; students: number; matches: number }) {
+  const listings = `${formatNumber(stats.listings)}+`;
+  const students = `${formatNumber(stats.students)}+`;
+  const matches = `${formatNumber(stats.matches)}+`;
+
   if (locale === "ru") {
     return [
-      { value: "3.5K+", label: "Активные объявления" },
-      { value: "94%", label: "Точность совпадений" },
-      { value: "24h", label: "Средний ответ" },
+      { value: listings, label: "Активные объявления" },
+      { value: students, label: "Активные студенты" },
+      { value: matches, label: "Успешные совпадения" },
       { value: "100%", label: "Бесплатно" }
     ];
   }
 
   if (locale === "kz") {
     return [
-      { value: "3.5K+", label: "Белсенді хабарландыру" },
-      { value: "94%", label: "Сәйкестік дәлдігі" },
-      { value: "24h", label: "Орташа жауап уақыты" },
+      { value: listings, label: "Белсенді хабарландыру" },
+      { value: students, label: "Белсенді студенттер" },
+      { value: matches, label: "Сәтті сәйкестіктер" },
       { value: "100%", label: "Тегін қолдану" }
     ];
   }
 
   return [
-    { value: "3.5K+", label: "Active Listings" },
-    { value: "94%", label: "Match Accuracy" },
-    { value: "24h", label: "Avg Response Time" },
+    { value: listings, label: "Active Listings" },
+    { value: students, label: "Active Students" },
+    { value: matches, label: "Successful Matches" },
     { value: "100%", label: "Free to Use" }
   ];
 }
@@ -827,7 +867,7 @@ function getFaqs(locale: "en" | "ru" | "kz") {
           "Система сравнивает бюджет, дату заезда, чистоту, режим сна, гостей и другие привычки, чтобы сильные совпадения поднимались выше."
       },
       {
-        question: "Насколько безопасен Roommate KZ?",
+        question: "Насколько безопасен Roomi?",
         answer:
           "Платформа строится вокруг проверенных профилей, деталей жилья и прозрачной активности, чтобы студентам было спокойнее принимать решения."
       },
@@ -857,7 +897,7 @@ function getFaqs(locale: "en" | "ru" | "kz") {
           "Жүйе бюджет, көшу уақыты, тазалық, ұйқы тәртібі, қонақтар және басқа әдеттерді салыстырып, мықты сәйкестіктерді жоғары қояды."
       },
       {
-        question: "Roommate KZ қолдану қауіпсіз бе?",
+        question: "Roomi қолдану қауіпсіз бе?",
         answer:
           "Платформа тексерілген профильдерге, тұрғын үй ақпаратына және ашық белсенділікке сүйеніп, студенттерге сенімдірек шешім қабылдауға көмектеседі."
       },
@@ -886,7 +926,7 @@ function getFaqs(locale: "en" | "ru" | "kz") {
         "Our match score compares budget, move-in timing, cleanliness, sleep schedule, guests, and other lifestyle preferences so you can shortlist better fits faster."
     },
     {
-      question: "Is it safe to use Roommate KZ?",
+      question: "Is it safe to use Roomi?",
       answer:
         "The platform is designed around verified profiles, room details, and reportable activity so students can make more confident decisions before meeting."
     },

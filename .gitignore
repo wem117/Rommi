@@ -2,5 +2,9 @@ node_modules
 .next
 .env
 .env.local
+.DS_Store
 
 *.txt
+# TypeScript incremental build cache (generated)
+tsconfig.tsbuildinfo
+*.tsbuildinfo

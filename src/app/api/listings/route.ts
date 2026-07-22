@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ZodError } from "zod";
 
 import { createListing } from "@/lib/data/listings-admin";
 import { requireSessionUser } from "@/lib/supabase/session";
@@ -29,6 +30,9 @@ export async function POST(request: Request) {
       city: input.city,
       district: input.district ?? "",
       address: input.address,
+      university: input.university,
+      lat: input.lat ?? null,
+      lng: input.lng ?? null,
       bedrooms: input.bedrooms,
       bathrooms: input.bathrooms,
       availableFrom: new Date(input.availableFrom),
@@ -44,6 +48,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ id }, { status: 201 });
   } catch (error) {
     console.error("Create listing failed", error);
+    // Surface the specific validation problem (e.g. gibberish title) instead of
+    // a generic failure — the wizard also shows these inline via zodResolver.
+    if (error instanceof ZodError) {
+      const issue = error.issues[0];
+      return NextResponse.json(
+        { error: issue ? issue.message : "Listing data is invalid." },
+        { status: 400 }
+      );
+    }
     const status = error instanceof Error && error.message === "UNAUTHENTICATED" ? 401 : 400;
     return NextResponse.json(
       { error: friendlySupabaseError(error, "Could not create listing") },

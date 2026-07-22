@@ -12,20 +12,33 @@ const config: Config = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#0a8d6e",
-          foreground: "#ffffff"
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))"
         },
         accent: {
-          DEFAULT: "#a37021",
-          foreground: "#ffffff"
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))"
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))"
         },
         card: {
-          DEFAULT: "#000000",
-          foreground: "#15100c"
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))"
+        },
+        "surface-muted": "hsl(var(--surface-muted))",
+        highlight: {
+          DEFAULT: "hsl(var(--highlight))",
+          foreground: "hsl(var(--highlight-foreground))"
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))"
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))"
         }
       },
       borderRadius: {
@@ -41,7 +54,7 @@ const config: Config = {
       }
     }
   },
-  plugins: []
+  plugins: [require("tailwindcss-animate")]
 };
 
 export default config;

@@ -35,7 +35,7 @@ export function useMessages(conversationId?: string) {
         if (!cancelled) {
           setMessages(nextMessages);
           if (user) {
-            await markConversationAsRead(currentConversationId, user.uid, nextMessages);
+            await markConversationAsRead(currentConversationId, user.uid);
           }
         }
       } catch (loadError) {
@@ -60,7 +60,7 @@ export function useMessages(conversationId?: string) {
 
     let imageUrl: string | undefined;
     if (imageFile) {
-      const result = await uploadImageFile({ file: imageFile, kind: "listings" });
+      const result = await uploadImageFile({ file: imageFile, kind: "messages" });
       imageUrl = result.url;
     }
 

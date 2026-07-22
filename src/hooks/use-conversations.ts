@@ -4,9 +4,56 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/context/auth-context";
 import { ensureConversation, getConversationsForUser } from "@/lib/data/conversations";
+import { getProfileById } from "@/lib/data/profiles";
 import { debugSupabaseError, friendlySupabaseError } from "@/lib/utils/errors";
 import { type AsyncStatus, withRetry } from "@/lib/utils/retry";
 import type { Conversation } from "@/types/chat";
+import type { UserProfile } from "@/types/user";
+
+export function getOtherParticipantId(conversation: Pick<Conversation, "participantIds">, currentUserId?: string) {
+  return conversation.participantIds.find((participantId) => participantId !== currentUserId);
+}
+
+// Resolves the *other* participant's profile for each conversation, so chat
+// lists/headers can show "Yeraly Zharylkassyn" instead of a generic
+// "Conversation" placeholder or the listing title.
+export function useConversationParticipants(conversations: Conversation[], currentUserId?: string) {
+  const [profiles, setProfiles] = useState<Record<string, UserProfile | null>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      if (!currentUserId || !conversations.length) {
+        if (!cancelled) {
+          setProfiles(prev => Object.keys(prev).length === 0 ? prev : {});
+        }
+        return;
+      }
+
+      const otherIds = [
+        ...new Set(
+          conversations
+            .map((conversation) => getOtherParticipantId(conversation, currentUserId))
+            .filter((id): id is string => Boolean(id))
+        )
+      ];
+
+      const entries = await Promise.all(
+        otherIds.map(async (id) => [id, await getProfileById(id).catch(() => null)] as const)
+      );
+
+      if (!cancelled) setProfiles(Object.fromEntries(entries));
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [conversations, currentUserId]);
+
+  return profiles;
+}
 
 export function useConversations() {
   const { user } = useAuth();

@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { demoListings } from "@/lib/data/demo";
 import { getUniversityCity } from "@/lib/constants/universities";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -145,13 +147,13 @@ export async function getListings(filters: ListingFiltersInput = {}, page = 1, p
  * Supabase isn't configured; with Supabase configured, an empty or failed
  * result returns [] (the caller hides the section) — never fake listings.
  */
-export async function getFeaturedListings(limit = 6): Promise<Listing[]> {
+export async function getFeaturedListings(limit = 6, client?: SupabaseClient): Promise<Listing[]> {
   if (!isSupabaseConfigured) {
     return demoListings.filter((listing) => !listing.removed).slice(0, limit);
   }
 
   try {
-    const supabase = getSupabaseBrowserClient();
+    const supabase = client ?? getSupabaseBrowserClient();
     const { data, error } = await supabase
       .from("listings")
       .select("*")

@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/context/auth-context";
 import { ensureConversation, getConversationsForUser } from "@/lib/data/conversations";
 import { getProfileById } from "@/lib/data/profiles";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { debugSupabaseError, friendlySupabaseError } from "@/lib/utils/errors";
 import { type AsyncStatus, withRetry } from "@/lib/utils/retry";
 import type { Conversation } from "@/types/chat";
@@ -101,11 +103,43 @@ export function useConversations() {
     }
 
     void loadCurrentUser();
-    const interval = window.setInterval(() => void load(currentUser.uid), 8000);
+
+    // Realtime: reload the conversation list when any conversation the user
+    // participates in changes (new message bumps last_message/unread_counts).
+    // RLS ensures only the user's own conversation rows generate events. Falls
+    // back to a slow poll if realtime is unavailable.
+    if (!isSupabaseConfigured) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    let pollId: number | undefined;
+    // Coalesce bursts of change events into a single reload.
+    let reloadTimer: number | undefined;
+    const scheduleReload = () => {
+      if (reloadTimer) return;
+      reloadTimer = window.setTimeout(() => {
+        reloadTimer = undefined;
+        if (!cancelled) void load(currentUser.uid);
+      }, 300);
+    };
+
+    const channel = supabase
+      .channel(`conversations:${currentUser.uid}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, scheduleReload)
+      .subscribe((status) => {
+        if ((status === "CHANNEL_ERROR" || status === "TIMED_OUT") && !pollId) {
+          pollId = window.setInterval(() => void load(currentUser.uid), 8000);
+        }
+      });
 
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
+      if (reloadTimer) window.clearTimeout(reloadTimer);
+      if (pollId) window.clearInterval(pollId);
+      void supabase.removeChannel(channel);
     };
   }, [load, user]);
 

@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { demoProfiles } from "@/lib/data/demo";
 import { mapProfileRow } from "@/lib/supabase/mappers";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -136,12 +138,12 @@ export async function getRoommateProfiles(currentUid?: string | null) {
 }
 
 /** Admin-curated roommates for the home page. Falls back to demo profiles when none are featured. */
-export async function getFeaturedRoommates(limit = 6) {
+export async function getFeaturedRoommates(limit = 6, client?: SupabaseClient) {
   if (!isSupabaseConfigured) {
     return demoProfiles.filter((profile) => profile.onboardingComplete && profile.lookingForApartment).slice(0, limit);
   }
 
-  const supabase = getSupabaseBrowserClient();
+  const supabase = client ?? getSupabaseBrowserClient();
   const { data, error } = await supabase
     .from("profiles")
     .select(PUBLIC_PROFILE_COLUMNS)

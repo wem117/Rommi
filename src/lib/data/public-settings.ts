@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { DEFAULT_HOMEPAGE_STATS_CONFIG, type HomepageStatsConfig } from "@/lib/utils/homepage-stats";
@@ -98,11 +100,11 @@ export async function getPublicSettings(): Promise<PublicSettings> {
  * Falls back to sensible defaults when Supabase isn't configured, the table
  * doesn't exist yet, or a key hasn't been set.
  */
-async function fetchPublicSettings(): Promise<PublicSettings> {
+export async function fetchPublicSettings(client?: SupabaseClient): Promise<PublicSettings> {
   if (!isSupabaseConfigured) return DEFAULT_PUBLIC_SETTINGS;
 
   try {
-    const supabase = getSupabaseBrowserClient();
+    const supabase = client ?? getSupabaseBrowserClient();
     const { data, error } = await supabase
       .from("site_settings")
       .select("key, value")

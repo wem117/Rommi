@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 
     // Per-user throttle: 10 reports/minute stops spam loops while never
     // blocking legitimate moderation reports.
-    if (!consume(`reports:${user.id}`, 10, 60_000)) return rateLimitResponse();
+    if (!(await consume(`reports:${user.id}`, 10, 60_000))) return rateLimitResponse();
 
     const data = reportCreateSchema.parse(await request.json());
 

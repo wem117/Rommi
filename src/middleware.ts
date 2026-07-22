@@ -59,7 +59,9 @@ async function isMaintenanceModeOn(supabaseUrl: string, anonKey: string): Promis
         headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
         // Cache briefly at the edge so maintenance mode doesn't add a Supabase
         // round-trip to every request; toggling takes up to ~30s to propagate.
-        next: { revalidate: 30 }
+        next: { revalidate: 30 },
+        // Never let a slow/hung Supabase call stall navigation — fail open fast.
+        signal: AbortSignal.timeout(2000)
       }
     );
     if (!res.ok) return false;

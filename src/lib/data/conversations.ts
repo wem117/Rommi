@@ -2,7 +2,7 @@ import { demoConversations, demoMessages } from "@/lib/data/demo";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { mapConversationRow, mapMessageRow } from "@/lib/supabase/mappers";
-import { isMissingSupabaseTable } from "@/lib/utils/errors";
+import { isMissingRpc, isMissingSupabaseTable } from "@/lib/utils/errors";
 import type { Conversation } from "@/types/chat";
 
 export async function getConversationsForUser(uid: string) {
@@ -46,6 +46,32 @@ export async function ensureConversation({
   }
 
   const supabase = getSupabaseBrowserClient();
+
+  // Atomic get-or-create keyed on the sorted participant set + listing, so two
+  // users opening the same chat at once converge on ONE conversation row
+  // (supabase-migration-atomic-mutations.sql). Falls back to the legacy
+  // select-then-insert only when the RPC hasn't been applied.
+  const { data: rpcId, error: rpcError } = await supabase.rpc("get_or_create_conversation", {
+    p_participant_ids: participantIds,
+    p_listing_id: listingId ?? null,
+    p_listing_title: listingTitle ?? null
+  });
+
+  if (!rpcError && rpcId) return rpcId as string;
+  if (rpcError && !isMissingRpc(rpcError)) {
+    if (isMissingSupabaseTable(rpcError, "conversations")) {
+      const existingDemo = demoConversations.find(
+        (conversation) =>
+          conversation.listingId === (listingId ?? null) &&
+          conversation.participantIds.length === participantIds.length &&
+          conversation.participantIds.every((id) => participantIds.includes(id))
+      );
+      return existingDemo?.id ?? demoConversations[0]?.id ?? "conversation-1";
+    }
+    throw rpcError;
+  }
+
+  // --- Legacy fallback (RPC not applied): non-atomic lookup then insert ---
   const { data: existingRows, error: lookupError } = await supabase
     .from("conversations")
     .select("*")
@@ -141,6 +167,20 @@ export async function sendConversationMessage({
 
   if (error) throw error;
 
+  const lastMessage = text ?? (imageUrl ? "Image" : "");
+
+  // Atomic: increment every other participant's unread count and reset the
+  // sender's, in one server-side UPDATE. Avoids the read-modify-write race that
+  // corrupted counters under concurrent sends.
+  const { error: bumpError } = await supabase.rpc("bump_conversation_after_send", {
+    p_conversation_id: conversationId,
+    p_last_message: lastMessage
+  });
+
+  if (!bumpError) return;
+  if (!isMissingRpc(bumpError)) throw bumpError;
+
+  // Legacy fallback (racy).
   const { data: conversationRow } = await supabase
     .from("conversations")
     .select("*")
@@ -154,7 +194,7 @@ export async function sendConversationMessage({
   await supabase
     .from("conversations")
     .update({
-      last_message: text ?? (imageUrl ? "Image" : ""),
+      last_message: lastMessage,
       last_message_at: new Date().toISOString(),
       unread_counts: nextUnreadCounts,
       updated_at: new Date().toISOString()
@@ -166,6 +206,16 @@ export async function markConversationAsRead(conversationId: string, userId: str
   if (!isSupabaseConfigured) return;
 
   const supabase = getSupabaseBrowserClient();
+
+  // Atomic reset of the caller's own unread counter.
+  const { error } = await supabase.rpc("mark_conversation_read", {
+    p_conversation_id: conversationId
+  });
+
+  if (!error) return;
+  if (!isMissingRpc(error)) throw error;
+
+  // Legacy fallback (racy).
   const { data } = await supabase.from("conversations").select("unread_counts").eq("id", conversationId).single();
   const unreadCounts = ((data?.unread_counts as Record<string, number> | null) ?? {});
   unreadCounts[userId] = 0;

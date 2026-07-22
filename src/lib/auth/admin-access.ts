@@ -11,18 +11,28 @@
 export const ADMIN_ROLE = "TimaEra";
 
 /**
- * Admin allowlist bootstrap check. Administrator access is granted to any
- * email in ADMIN_EMAILS (comma-separated). Defaults to the project owner so
- * the panel is locked down out of the box. Callers (`requireAdminUser`,
- * `middleware`) also honor a `profiles.role === ADMIN_ROLE` flag and the
- * admin-managed `site_settings.admin_emails` list as secondary paths.
+ * Admin allowlist bootstrap check. Administrator access is granted to any email
+ * in ADMIN_EMAILS (comma-separated).
+ *
+ * FAIL-CLOSED: in production, if ADMIN_EMAILS is not set the env allowlist is
+ * EMPTY. A misconfigured deploy must never silently grant admin to a hardcoded
+ * address. The development default exists only for local convenience. Callers
+ * (`requireAdminUser`, `middleware`) also honor a `profiles.role === ADMIN_ROLE`
+ * flag and the admin-managed `site_settings.admin_emails` list as secondary
+ * bootstrap paths, so real admins remain reachable after first setup.
  */
-const DEFAULT_ADMIN_EMAILS = ["yeraly28.10@gmail.com"];
+const DEV_DEFAULT_ADMIN_EMAILS = ["yeraly28.10@gmail.com"];
 
 function getAllowlist(): string[] {
   const fromEnv = process.env.ADMIN_EMAILS;
-  const list = fromEnv ? fromEnv.split(",") : DEFAULT_ADMIN_EMAILS;
-  return list.map((email) => email.trim().toLowerCase()).filter(Boolean);
+
+  if (!fromEnv) {
+    // Fail closed in production: no env allowlist => no env-granted admins.
+    if (process.env.NODE_ENV === "production") return [];
+    return DEV_DEFAULT_ADMIN_EMAILS.map((email) => email.trim().toLowerCase());
+  }
+
+  return fromEnv.split(",").map((email) => email.trim().toLowerCase()).filter(Boolean);
 }
 
 export function isAdminEmail(email: string | null | undefined): boolean {

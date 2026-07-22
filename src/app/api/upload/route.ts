@@ -9,11 +9,15 @@ import { requireAdminUser } from "@/lib/supabase/admin";
 import { requireSessionUser } from "@/lib/supabase/session";
 import { MAX_IMAGE_SIZE, IMAGE_TYPES } from "@/lib/supabase/storage";
 import { friendlySupabaseError, isMissingSupabaseTable } from "@/lib/utils/errors";
+import { verifyImageContent, type DetectedImageType } from "@/lib/utils/file-signature";
 
-function fileExtension(file: File) {
-  const fallback = file.type.split("/")[1] || "jpg";
-  return file.name.split(".").pop()?.toLowerCase() || fallback;
-}
+// Extension is derived from the VERIFIED content type, never from the
+// client-supplied filename/MIME, so a spoofed extension can't be persisted.
+const EXTENSION_BY_TYPE: Record<DetectedImageType, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp"
+};
 
 const deleteSchema = z.object({
   path: z.string().min(1)
@@ -41,7 +45,7 @@ export async function POST(request: Request) {
 
     // Per-user throttle: 30 uploads/hour caps storage abuse without getting
     // in the way of a listing with a full photo set.
-    if (!consume(`upload:${user.id}`, 30, 60 * 60_000)) return rateLimitResponse();
+    if (!(await consume(`upload:${user.id}`, 30, 60 * 60_000))) return rateLimitResponse();
 
     if (!IMAGE_TYPES.includes(file.type as (typeof IMAGE_TYPES)[number])) {
       return NextResponse.json({ error: "Only JPG, JPEG, PNG, and WEBP images are allowed." }, { status: 400 });
@@ -51,17 +55,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Images must be 5 MB or smaller." }, { status: 400 });
     }
 
+    // Content-based verification: reject anything whose real bytes aren't a
+    // supported raster image, regardless of the declared MIME/extension. This
+    // blocks SVG-with-script and renamed-HTML payloads reaching the public bucket.
+    const detectedType = await verifyImageContent(file);
+    if (!detectedType) {
+      return NextResponse.json(
+        { error: "That file isn't a valid JPG, PNG, or WEBP image." },
+        { status: 400 }
+      );
+    }
+
+    const extension = EXTENSION_BY_TYPE[detectedType];
     const supabase = createSupabaseAdminClient();
     const path =
       kind === ADMIN_UPLOAD_KIND
-        ? `admin/${randomUUID()}.${fileExtension(file)}`
-        : `${kind}/${user.id}/${randomUUID()}.${fileExtension(file)}`;
+        ? `admin/${randomUUID()}.${extension}`
+        : `${kind}/${user.id}/${randomUUID()}.${extension}`;
     const bytes = Buffer.from(await file.arrayBuffer());
 
     const { error: uploadError } = await supabase.storage
       .from(supabaseConfig.storageBucket)
       .upload(path, bytes, {
-        contentType: file.type,
+        // Store the VERIFIED content type, and force download semantics off the
+        // table by never trusting the client value.
+        contentType: detectedType,
         upsert: false
       });
 

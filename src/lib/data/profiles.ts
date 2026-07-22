@@ -2,6 +2,7 @@ import { demoProfiles } from "@/lib/data/demo";
 import { mapProfileRow } from "@/lib/supabase/mappers";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { isMissingRpc } from "@/lib/utils/errors";
 import type { UserProfile } from "@/types/user";
 
 function sortNewest<T extends { createdAt: Date }>(items: T[]) {
@@ -182,26 +183,53 @@ export async function updateProfile(profile: Partial<UserProfile> & Pick<UserPro
   if (error) throw error;
 }
 
-export async function toggleFavoriteListing(uid: string, listingId: string, active: boolean) {
-  if (!isSupabaseConfigured) return;
-
+// Legacy read-modify-write fallbacks — used only when the atomic RPCs
+// (supabase-migration-atomic-mutations.sql) haven't been applied yet. They carry
+// the original lost-update race and exist purely for backward compatibility.
+async function toggleFavoriteListingLegacy(uid: string, listingId: string, active: boolean) {
   const profile = await getProfileById(uid);
   const nextFavorites = active
     ? (profile?.favoriteListingIds ?? []).filter((id) => id !== listingId)
     : [...new Set([...(profile?.favoriteListingIds ?? []), listingId])];
-
   await updateProfile({ uid, favoriteListingIds: nextFavorites });
+}
+
+async function toggleFavoriteRoommateLegacy(uid: string, roommateId: string, active: boolean) {
+  const profile = await getProfileById(uid);
+  const nextFavorites = active
+    ? (profile?.favoriteRoommateIds ?? []).filter((id) => id !== roommateId)
+    : [...new Set([...(profile?.favoriteRoommateIds ?? []), roommateId])];
+  await updateProfile({ uid, favoriteRoommateIds: nextFavorites });
+}
+
+export async function toggleFavoriteListing(uid: string, listingId: string, active: boolean) {
+  if (!isSupabaseConfigured) return;
+
+  const supabase = getSupabaseBrowserClient();
+  const { error } = await supabase.rpc("toggle_favorite_listing", {
+    p_listing_id: listingId,
+    p_active: active
+  });
+
+  if (error) {
+    if (isMissingRpc(error)) return toggleFavoriteListingLegacy(uid, listingId, active);
+    throw error;
+  }
 }
 
 export async function toggleFavoriteRoommate(uid: string, roommateId: string, active: boolean) {
   if (!isSupabaseConfigured) return;
 
-  const profile = await getProfileById(uid);
-  const nextFavorites = active
-    ? (profile?.favoriteRoommateIds ?? []).filter((id) => id !== roommateId)
-    : [...new Set([...(profile?.favoriteRoommateIds ?? []), roommateId])];
+  const supabase = getSupabaseBrowserClient();
+  const { error } = await supabase.rpc("toggle_favorite_roommate", {
+    p_roommate_id: roommateId,
+    p_active: active
+  });
 
-  await updateProfile({ uid, favoriteRoommateIds: nextFavorites });
+  if (error) {
+    if (isMissingRpc(error)) return toggleFavoriteRoommateLegacy(uid, roommateId, active);
+    throw error;
+  }
 }
 
 async function appendUniqueProfileValue(
@@ -211,6 +239,17 @@ async function appendUniqueProfileValue(
 ) {
   if (!isSupabaseConfigured) return;
 
+  const column = key === "viewedListingIds" ? "viewed_listing_ids" : "contacted_listing_ids";
+  const supabase = getSupabaseBrowserClient();
+  const { error } = await supabase.rpc("record_recent_listing", {
+    p_column: column,
+    p_listing_id: value
+  });
+
+  if (!error) return;
+  if (!isMissingRpc(error)) throw error;
+
+  // Legacy fallback (racy): read-modify-write.
   const profile = await getProfileById(uid);
   const currentValues = profile?.[key] ?? [];
   const nextValues = [value, ...currentValues.filter((item) => item !== value)].slice(0, 24);

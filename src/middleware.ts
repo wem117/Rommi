@@ -14,10 +14,12 @@ const protectedPrefixes = [
   "/onboarding"
 ];
 
-// Browse list pages (/rooms, /roommates) stay public for SEO, but opening a
-// specific detail page requires signing in. These prefixes protect only the
-// sub-routes (e.g. /rooms/<id>), never the bare list page itself.
-const protectedDetailPrefixes = ["/rooms", "/roommates", "/listings"];
+// Listing and roommate DETAIL pages are public + server-rendered for SEO. Only
+// the owner-editing route stays behind auth (ownership is additionally enforced
+// server-side in the API and data layer).
+function isProtectedEditPath(pathname: string) {
+  return pathname.startsWith("/listings/") && pathname.endsWith("/edit");
+}
 
 // Always reachable even while maintenance mode is on, so admins can sign in
 // and disable it, and so auth/API calls made by the app itself keep working.
@@ -27,8 +29,9 @@ function isProtected(pathname: string) {
   if (protectedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
     return true;
   }
-  // Detail pages only: /rooms/<id> is protected, /rooms is not.
-  return protectedDetailPrefixes.some((prefix) => pathname.startsWith(`${prefix}/`));
+  // Public detail views (/rooms/<id>, /roommates/<id>) are NOT protected; only
+  // the edit route is.
+  return isProtectedEditPath(pathname);
 }
 
 // The login/register pages themselves — an already-authenticated visitor

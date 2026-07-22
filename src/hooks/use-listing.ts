@@ -7,14 +7,21 @@ import { friendlySupabaseError } from "@/lib/utils/errors";
 import { type AsyncStatus, withRetry } from "@/lib/utils/retry";
 import type { Listing } from "@/types/listing";
 
-export function useListing(listingId?: string) {
-  const [listing, setListing] = useState<Listing | null>(null);
-  const [loading, setLoading] = useState(Boolean(listingId));
+export function useListing(listingId?: string, initialListing?: Listing | null) {
+  const [listing, setListing] = useState<Listing | null>(initialListing ?? null);
+  // When the server already provided this listing (SSR), start resolved — no
+  // client-fetch waterfall and no loading flash.
+  const [loading, setLoading] = useState(Boolean(listingId) && !initialListing);
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<AsyncStatus>("idle");
+  const [status, setStatus] = useState<AsyncStatus>(initialListing ? "success" : "idle");
 
   useEffect(() => {
     let cancelled = false;
+
+    // Server-provided data for this exact id is authoritative; skip the refetch.
+    if (initialListing && initialListing.id === listingId) {
+      return;
+    }
 
     async function loadListing() {
       if (!listingId) {
@@ -47,7 +54,7 @@ export function useListing(listingId?: string) {
     return () => {
       cancelled = true;
     };
-  }, [listingId]);
+  }, [listingId, initialListing]);
 
   return { listing, data: listing, loading, error, status };
 }

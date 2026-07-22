@@ -72,7 +72,7 @@ function toProfilePayload(profile: Partial<UserProfile>) {
  * Also excludes contacts_hidden: cards never render contacts, and naming it
  * here would 42703 on databases where the contacts migration hasn't run yet.
  */
-const PUBLIC_PROFILE_COLUMNS = [
+export const PUBLIC_PROFILE_COLUMNS = [
   "uid",
   "full_name",
   "age",

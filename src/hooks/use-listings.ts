@@ -24,14 +24,35 @@ export interface ListingFilters {
   sort?: "newest" | "rent_asc" | "rent_desc";
 }
 
-export function useListings(filters: ListingFilters = {}) {
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [loading, setLoading] = useState(true);
+// Serialized key of the "no filters, default sort" state. When the initial
+// (SSR-seeded) render matches this, we can trust the server-provided first page
+// and skip the first client fetch.
+const DEFAULT_FILTERS_KEY = JSON.stringify({
+  city: "",
+  university: "",
+  listingType: "",
+  propertyType: "",
+  minRent: "",
+  maxRent: "",
+  genderPreference: "",
+  smoking: "",
+  pets: "",
+  sort: "newest"
+});
+
+export function useListings(
+  filters: ListingFilters = {},
+  initial?: { listings: Listing[]; hasMore: boolean }
+) {
+  const [listings, setListings] = useState<Listing[]>(initial?.listings ?? []);
+  const [loading, setLoading] = useState(!initial);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<AsyncStatus>("idle");
-  const [hasMore, setHasMore] = useState(false);
+  const [status, setStatus] = useState<AsyncStatus>(initial ? "success" : "idle");
+  const [hasMore, setHasMore] = useState(initial?.hasMore ?? false);
   const debouncedSearch = useDebounce(filters.search ?? "", 250);
+  // True until the seeded first page has been consumed by the initial effect.
+  const seededRef = useRef(Boolean(initial));
 
   // Callers pass a fresh `filters` object every render. Depending on its object
   // identity would re-run the fetch effect forever (the Saved Rooms flashing
@@ -95,8 +116,19 @@ export function useListings(filters: ListingFilters = {}) {
   // `loadListings` is stable (deps: debouncedSearch), so this can't self-trigger.
   useEffect(() => {
     pageRef.current = 1;
+
+    // First run with an SSR-provided page: if the filter state is still the
+    // default (which is what the server rendered), keep the seed instead of
+    // immediately refetching the same data.
+    if (seededRef.current) {
+      seededRef.current = false;
+      if (filtersKey === DEFAULT_FILTERS_KEY && !debouncedSearch) {
+        return;
+      }
+    }
+
     void loadListings("initial");
-  }, [filtersKey, loadListings]);
+  }, [filtersKey, loadListings, debouncedSearch]);
 
   return {
     listings,

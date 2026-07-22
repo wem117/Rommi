@@ -31,3 +31,30 @@ export async function getPublicProfileByIdServer(uid: string): Promise<UserProfi
   if (error || !data) return null;
   return mapProfileRow(data as unknown as Record<string, unknown>);
 }
+
+/**
+ * First page of publicly-listed roommates for SSR of /roommates. Mirrors
+ * getRoommateProfiles() (public columns, onboarded + looking, newest) without the
+ * current-user exclusion (the server has no session — the client refines).
+ */
+export async function getRoommatesFirstPageServer(limit = 60): Promise<UserProfile[]> {
+  if (!isSupabaseConfigured) {
+    return demoProfiles
+      .filter((profile) => profile.onboardingComplete && profile.lookingForApartment)
+      .slice(0, limit);
+  }
+
+  const supabase = createSupabasePublicServerClient();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(PUBLIC_PROFILE_COLUMNS)
+    .eq("onboarding_complete", true)
+    .eq("looking_for_apartment", true)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error || !data) return [];
+  return data.map((row) => mapProfileRow(row as unknown as Record<string, unknown>));
+}

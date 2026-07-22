@@ -26,6 +26,32 @@ export async function getListingByIdServer(listingId: string): Promise<Listing |
   return mapListingRow(data);
 }
 
+/**
+ * First page of the public /rooms browse (newest, no filters), for SSR. Mirrors
+ * the default query in getListings() so the server-rendered HTML matches what the
+ * client shows before any filter is applied.
+ */
+export async function getListingsFirstPageServer(
+  pageSize = 9
+): Promise<{ listings: Listing[]; hasMore: boolean }> {
+  if (!isSupabaseConfigured) {
+    const visible = demoListings.filter((listing) => !listing.removed);
+    return { listings: visible.slice(0, pageSize), hasMore: visible.length > pageSize };
+  }
+
+  const supabase = createSupabasePublicServerClient();
+  if (!supabase) return { listings: [], hasMore: false };
+
+  const { data, count, error } = await supabase
+    .from("listings")
+    .select("*", { count: "estimated" })
+    .order("created_at", { ascending: false })
+    .range(0, pageSize - 1);
+
+  if (error || !data) return { listings: [], hasMore: false };
+  return { listings: data.map(mapListingRow), hasMore: (count ?? 0) > pageSize };
+}
+
 /** Public listing ids for the sitemap. */
 export async function getPublicListingIndex(
   limit = 5000

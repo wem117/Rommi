@@ -42,14 +42,15 @@ export async function getListingsFirstPageServer(
   const supabase = createSupabasePublicServerClient();
   if (!supabase) return { listings: [], hasMore: false };
 
-  const { data, count, error } = await supabase
+  // Fetch one extra row instead of a COUNT to determine hasMore.
+  const { data, error } = await supabase
     .from("listings")
-    .select("*", { count: "estimated" })
+    .select("*")
     .order("created_at", { ascending: false })
-    .range(0, pageSize - 1);
+    .range(0, pageSize);
 
   if (error || !data) return { listings: [], hasMore: false };
-  return { listings: data.map(mapListingRow), hasMore: (count ?? 0) > pageSize };
+  return { listings: data.slice(0, pageSize).map(mapListingRow), hasMore: data.length > pageSize };
 }
 
 /** Public listing ids for the sitemap. */

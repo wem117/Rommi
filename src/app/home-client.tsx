@@ -359,7 +359,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
   };
 
   return (
-    <main className="min-h-screen bg-[#faf6ef] text-foreground">
+    <main id="main-content" className="min-h-screen bg-[#faf6ef] text-foreground">
       <section className="relative overflow-hidden">
         <Image
           src={heroImage}

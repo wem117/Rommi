@@ -8,11 +8,11 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        // Private/auth-gated/API surfaces are never indexed. Listing detail
-        // pages (/rooms/<id>) are now public + server-rendered, so they stay
-        // crawlable. Roommate profiles are public but personal, so they are kept
-        // out of crawling (and also carry a noindex in their own metadata).
-        // Listing edit routes require auth and are excluded via /listings/.
+        // The public BROWSE list pages (/rooms, /roommates) stay crawlable for
+        // SEO. Their DETAIL sub-pages now require authentication, so they are
+        // excluded from crawling (the trailing slash keeps /rooms and /roommates
+        // themselves allowed while blocking /rooms/<id>, /roommates/<id>).
+        // Private/auth-gated/API surfaces are likewise excluded.
         disallow: [
           "/admin",
           "/api/",
@@ -21,6 +21,7 @@ export default function robots(): MetadataRoute.Robots {
           "/profile",
           "/onboarding",
           "/list-a-room",
+          "/rooms/",
           "/roommates/",
           "/listings/"
         ]

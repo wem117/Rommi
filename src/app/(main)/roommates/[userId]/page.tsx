@@ -2,20 +2,20 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { getPublicProfileByIdServer } from "@/lib/data/profiles-server";
+import { requirePageAuth } from "@/lib/supabase/page-auth";
 
 import RoommateDetailClient from "./roommate-detail-client";
 
-export const revalidate = 300;
+// Auth-gated detail page: guests are redirected to sign-in (see the server auth
+// guard in the default export). Server-rendered per signed-in user, so it
+// renders dynamically rather than via shared ISR. Roommate profiles are also
+// kept out of the search index (personal data).
+export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ userId: string }>;
 }
 
-// PRIVACY: roommate pages are public and server-rendered (fast, shareable), but
-// individual student profiles are deliberately kept OUT of the search index —
-// we don't want real people's names/photos indexed by crawlers. Listings are
-// indexed; personal profiles are not. Flip `index` to true only with an explicit
-// product/privacy decision.
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { userId } = await params;
   const profile = await getPublicProfileByIdServer(userId);
@@ -37,6 +37,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function Page({ params }: PageProps) {
   const { userId } = await params;
+
+  // Server-side authorization: guests are redirected to sign-in with a return
+  // URL before any profile data is fetched or rendered.
+  await requirePageAuth(`/roommates/${userId}`);
+
   const profile = await getPublicProfileByIdServer(userId);
 
   if (!profile) notFound();

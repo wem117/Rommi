@@ -2,16 +2,17 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { getListingByIdServer } from "@/lib/data/listings-server";
+import { requirePageAuth } from "@/lib/supabase/page-auth";
 import { siteConfig } from "@/lib/site-config";
 import { formatCurrency } from "@/lib/utils/format";
 
 import ListingDetailClient from "./listing-detail-client";
 
-// Server-rendered + ISR: the page HTML (title, price, description, photos) is
-// generated on the server and cached, so crawlers and first paint get real
-// content instead of an empty client shell. Revalidates periodically to pick up
-// edits/removals.
-export const revalidate = 300;
+// Auth-gated detail page: guests are redirected to sign-in (see the server auth
+// guard in the default export). It is still server-rendered for signed-in users
+// (fast first paint), but per-user, so it renders dynamically rather than via
+// shared ISR.
+export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ listingId: string }>;
@@ -55,6 +56,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function Page({ params }: PageProps) {
   const { listingId } = await params;
+
+  // Server-side authorization: guests are redirected to sign-in with a return
+  // URL. Runs before any listing data is fetched or rendered, so a detail URL
+  // cannot be opened directly by an unauthenticated visitor.
+  await requirePageAuth(`/rooms/${listingId}`);
+
   const listing = await getListingByIdServer(listingId);
 
   if (!listing) notFound();

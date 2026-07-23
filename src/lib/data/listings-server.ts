@@ -52,29 +52,3 @@ export async function getListingsFirstPageServer(
   if (error || !data) return { listings: [], hasMore: false };
   return { listings: data.slice(0, pageSize).map(mapListingRow), hasMore: data.length > pageSize };
 }
-
-/** Public listing ids for the sitemap. */
-export async function getPublicListingIndex(
-  limit = 5000
-): Promise<Array<{ id: string; updatedAt: string }>> {
-  if (!isSupabaseConfigured) {
-    return demoListings
-      .filter((listing) => !listing.removed)
-      .map((listing) => ({ id: listing.id, updatedAt: listing.createdAt.toISOString() }));
-  }
-
-  const supabase = createSupabasePublicServerClient();
-  if (!supabase) return [];
-
-  const { data, error } = await supabase
-    .from("listings")
-    .select("id, updated_at")
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (error || !data) return [];
-  return data.map((row) => ({
-    id: String((row as { id: string }).id),
-    updatedAt: String((row as { updated_at?: string }).updated_at ?? new Date().toISOString())
-  }));
-}

@@ -1,6 +1,7 @@
 "use client";
 
 import { Chrome, Loader2, LockKeyhole, Mail } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -11,6 +12,7 @@ import { StatusBanner } from "@/components/StatusBanner";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
 import { getProfileById } from "@/lib/data/profiles";
+import { CURRENT_POLICY_VERSION } from "@/lib/legal/policy-version";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { signInWithGoogle, signUpWithEmail } from "@/lib/supabase/auth";
 import { resolvePostAuthDestination } from "@/lib/utils/auth-destination";
@@ -34,6 +36,7 @@ function SignUpContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [bannerTone, setBannerTone] = useState<"info" | "success" | "error">("info");
@@ -45,6 +48,12 @@ function SignUpContent() {
   }, [loading, profile?.onboardingComplete, redirectTo, router, user]);
 
   async function handleEmailSignUp() {
+    if (!acceptedTerms) {
+      setBannerTone("error");
+      setBannerMessage(t("auth.mustAcceptTerms"));
+      return;
+    }
+
     if (!emailPattern.test(email.trim())) {
       setBannerTone("error");
       setBannerMessage(t("auth.invalidEmail"));
@@ -73,7 +82,11 @@ function SignUpContent() {
     setBannerMessage(null);
 
     try {
-      const authResult = await signUpWithEmail(email.trim().toLowerCase(), password);
+      const authResult = await signUpWithEmail(
+        email.trim().toLowerCase(),
+        password,
+        CURRENT_POLICY_VERSION
+      );
 
       if (!authResult.user) {
         setBannerTone("success");
@@ -94,6 +107,12 @@ function SignUpContent() {
   }
 
   async function handleGoogle() {
+    if (!acceptedTerms) {
+      setBannerTone("error");
+      setBannerMessage(t("auth.mustAcceptTerms"));
+      return;
+    }
+
     if (!isSupabaseConfigured) {
       setBannerTone("error");
       setBannerMessage("Supabase keys are missing. Add them to .env.local before using auth.");
@@ -201,9 +220,33 @@ function SignUpContent() {
           </div>
         </div>
 
+        <label
+          htmlFor="acceptTerms"
+          className="flex cursor-pointer items-start gap-3 rounded-2xl bg-[#f7f1e7] px-4 py-3 text-sm leading-6 sm:text-base"
+        >
+          <input
+            id="acceptTerms"
+            type="checkbox"
+            required
+            checked={acceptedTerms}
+            onChange={(event) => setAcceptedTerms(event.target.checked)}
+            className="mt-1 h-4 w-4 shrink-0 accent-[#0f957d]"
+          />
+          <span>
+            {t("auth.acceptTermsPrefix")}{" "}
+            <Link href="/terms" target="_blank" className="font-semibold text-[#0f957d] underline">
+              {t("auth.termsLink")}
+            </Link>{" "}
+            {t("auth.acceptTermsAnd")}{" "}
+            <Link href="/privacy" target="_blank" className="font-semibold text-[#0f957d] underline">
+              {t("auth.privacyLink")}
+            </Link>
+          </span>
+        </label>
+
         <button
           type="submit"
-          disabled={submitting || googleLoading}
+          disabled={submitting || googleLoading || !acceptedTerms}
           className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0f957d] px-5 py-3.5 text-base font-semibold text-white shadow-md transition hover:bg-[#0d856f] hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 sm:px-6 sm:py-5 sm:text-xl"
         >
           {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : null}

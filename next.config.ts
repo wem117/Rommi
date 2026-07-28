@@ -76,6 +76,25 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders
+      },
+      {
+        // HTML documents only — never the build-hashed /_next/static assets
+        // (which must stay `immutable`) and never API routes (which set their
+        // own caching).
+        //
+        // Next serves prerendered pages with `s-maxage=31536000` /
+        // `stale-while-revalidate=31535880`, so a shared cache (CDN, reverse
+        // proxy) may keep a page's HTML for up to a year. After a redeploy the
+        // build-hashed CSS/JS that HTML references no longer exists, so the
+        // stale HTML requests `/_next/static/css/<old-hash>.css`, gets a 404,
+        // and the page renders as completely unstyled HTML.
+        //
+        // Forcing revalidation keeps HTML and assets in lockstep. The origin's
+        // own ISR cache still serves the page instantly, and conditional
+        // requests answer with cheap 304s, so this costs a round-trip, not a
+        // re-render.
+        source: "/((?!_next/static|_next/image|api/).*)",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }]
       }
     ];
   }

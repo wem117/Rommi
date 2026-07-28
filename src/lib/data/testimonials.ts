@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
@@ -71,11 +73,11 @@ export function mapTestimonialRow(row: TestimonialRow): Testimonial {
  * Active testimonials for the public home page. Falls back to demo content when
  * Supabase is unconfigured, the table is missing, or there are no active rows.
  */
-export async function getActiveTestimonials(): Promise<Testimonial[]> {
+export async function getActiveTestimonials(client?: SupabaseClient): Promise<Testimonial[]> {
   if (!isSupabaseConfigured) return DEMO_TESTIMONIALS;
 
   try {
-    const supabase = getSupabaseBrowserClient();
+    const supabase = client ?? getSupabaseBrowserClient();
     const { data, error } = await supabase
       .from("testimonials")
       .select("*")

@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { demoUniversities } from "@/lib/data/demo";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -95,13 +97,16 @@ export async function getActiveUniversities(): Promise<PublicUniversity[]> {
 }
 
 /** Featured universities with live listing/roommate counts, for the home page hub cards. */
-export async function getFeaturedUniversities(limit = 6): Promise<UniversityWithStats[]> {
+export async function getFeaturedUniversities(
+  limit = 6,
+  client?: SupabaseClient
+): Promise<UniversityWithStats[]> {
   if (!isSupabaseConfigured) {
     return demoAsUniversitiesWithStats(limit);
   }
 
   try {
-    const supabase = getSupabaseBrowserClient();
+    const supabase = client ?? getSupabaseBrowserClient();
     const initial = await supabase
       .from("universities")
       .select("*")

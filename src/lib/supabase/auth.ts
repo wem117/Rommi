@@ -10,12 +10,42 @@ export async function signInWithEmail(email: string, password: string) {
   return data;
 }
 
-export async function signUpWithEmail(email: string, password: string) {
+/**
+ * Persists the current user's Terms/Privacy acceptance. The server generates
+ * the timestamp and version, so nothing here is trusted from the client; this
+ * only signals "the user ticked the box". Failures are non-fatal to sign-up —
+ * the acceptance is also captured in the auth user's metadata at creation time
+ * and can be reconciled on a later authenticated request.
+ */
+export async function recordTermsAcceptance(): Promise<void> {
+  try {
+    await fetch("/api/auth/accept-terms", { method: "POST" });
+  } catch {
+    // Network hiccup: sign-up already succeeded, so don't block the user.
+  }
+}
+
+export async function signUpWithEmail(email: string, password: string, policyVersion?: string) {
   if (!isSupabaseConfigured) throw new Error("Supabase is not configured");
 
   const supabase = getSupabaseBrowserClient();
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    // Captured atomically with account creation so the acceptance survives the
+    // email-confirmation flow, where no session exists yet to call the API.
+    options: policyVersion
+      ? { data: { terms_accepted: true, terms_version: policyVersion } }
+      : undefined
+  });
   if (error) throw error;
+
+  // With email confirmation disabled a session exists immediately, so write the
+  // authoritative, server-timestamped record right away.
+  if (data.session?.access_token) {
+    await recordTermsAcceptance();
+  }
+
   return data;
 }
 

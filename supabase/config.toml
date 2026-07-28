@@ -1,0 +1,13 @@
+# Supabase CLI project configuration.
+# Docs: https://supabase.com/docs/guides/cli/config
+project_id = "roomi"
+
+[db]
+major_version = 15
+
+[db.migrations]
+# Migrations live in supabase/migrations and apply in filename (timestamp) order.
+schema_paths = []
+
+[realtime]
+enabled = true

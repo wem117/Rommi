@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { demoListings } from "@/lib/data/demo";
 import { getUniversityCity } from "@/lib/constants/universities";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -79,7 +81,9 @@ export async function getListings(filters: ListingFiltersInput = {}, page = 1, p
 
   const supabase = getSupabaseBrowserClient();
   function buildQuery(includeRemovedFilter: boolean) {
-    let query = supabase.from("listings").select("*", { count: "exact" });
+    // No count: exact/planned count is an extra aggregate on a large table.
+    // We instead fetch one row beyond the page and infer `hasMore` from it.
+    let query = supabase.from("listings").select("*");
 
     if (includeRemovedFilter) {
       query = query.or("removed.is.null,removed.eq.false");
@@ -118,13 +122,14 @@ export async function getListings(filters: ListingFiltersInput = {}, page = 1, p
   }
 
   const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-  let { data, count, error } = await buildQuery(true).range(from, to);
+  // Fetch one extra row past the page so we can tell whether more exist without
+  // a COUNT query.
+  const to = from + pageSize;
+  let { data, error } = await buildQuery(true).range(from, to);
 
   if (error && /removed/i.test(String(error.message ?? ""))) {
     const retried = await buildQuery(false).range(from, to);
     data = retried.data;
-    count = retried.count;
     error = retried.error;
   }
 
@@ -136,8 +141,10 @@ export async function getListings(filters: ListingFiltersInput = {}, page = 1, p
   }
 
   if (error) throw error;
-  const listings = (data ?? []).map(mapListingRow);
-  return { listings, hasMore: (count ?? 0) > page * pageSize };
+  const rows = data ?? [];
+  const hasMore = rows.length > pageSize;
+  const listings = rows.slice(0, pageSize).map(mapListingRow);
+  return { listings, hasMore };
 }
 
 /**
@@ -145,13 +152,13 @@ export async function getListings(filters: ListingFiltersInput = {}, page = 1, p
  * Supabase isn't configured; with Supabase configured, an empty or failed
  * result returns [] (the caller hides the section) — never fake listings.
  */
-export async function getFeaturedListings(limit = 6): Promise<Listing[]> {
+export async function getFeaturedListings(limit = 6, client?: SupabaseClient): Promise<Listing[]> {
   if (!isSupabaseConfigured) {
     return demoListings.filter((listing) => !listing.removed).slice(0, limit);
   }
 
   try {
-    const supabase = getSupabaseBrowserClient();
+    const supabase = client ?? getSupabaseBrowserClient();
     const { data, error } = await supabase
       .from("listings")
       .select("*")

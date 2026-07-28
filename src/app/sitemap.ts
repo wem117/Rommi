@@ -3,14 +3,19 @@ import type { MetadataRoute } from "next";
 import { siteConfig } from "@/lib/site-config";
 
 /**
- * Static, publicly-indexable routes. Auth-gated pages (inbox, profile, admin…)
- * are intentionally excluded and blocked in robots.ts. Dynamic listing/roommate
- * detail pages can be appended here once fetched from Supabase at build time.
+ * Public, crawlable routes only. The browse LIST pages (/rooms, /roommates) are
+ * public and server-rendered; their DETAIL sub-pages now require authentication,
+ * so they are intentionally excluded here and blocked in robots.ts. Auth-gated
+ * pages (inbox, profile, admin…) are likewise excluded.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
 
-  const routes: Array<{ path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }> = [
+  const routes: Array<{
+    path: string;
+    priority: number;
+    changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"];
+  }> = [
     { path: "/", priority: 1, changeFrequency: "daily" },
     { path: "/rooms", priority: 0.9, changeFrequency: "hourly" },
     { path: "/roommates", priority: 0.9, changeFrequency: "hourly" },

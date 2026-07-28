@@ -8,6 +8,9 @@ import {
   markConversationAsRead,
   sendConversationMessage
 } from "@/lib/data/conversations";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { mapMessageRow } from "@/lib/supabase/mappers";
 import { uploadImageFile } from "@/lib/supabase/storage";
 import { friendlySupabaseError } from "@/lib/utils/errors";
 import type { Message } from "@/types/chat";
@@ -47,11 +50,51 @@ export function useMessages(conversationId?: string) {
     }
 
     void load();
-    const interval = window.setInterval(() => void load(), 4000);
+
+    // Realtime: subscribe to new messages for this conversation instead of
+    // polling. RLS restricts delivery to conversation participants. If the
+    // channel can't establish (realtime disabled / network), fall back to a slow
+    // poll so chat still works — never worse than the previous behavior.
+    if (!isSupabaseConfigured) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    let pollId: number | undefined;
+
+    const channel = supabase
+      .channel(`messages:${currentConversationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${currentConversationId}`
+        },
+        (payload) => {
+          const message = mapMessageRow(payload.new as Record<string, unknown>);
+          setMessages((current) =>
+            current.some((existing) => existing.id === message.id) ? current : [...current, message]
+          );
+          // A message from the other party while we're viewing => mark read.
+          if (user && message.senderId !== user.uid) {
+            void markConversationAsRead(currentConversationId, user.uid);
+          }
+        }
+      )
+      .subscribe((status) => {
+        if ((status === "CHANNEL_ERROR" || status === "TIMED_OUT") && !pollId) {
+          pollId = window.setInterval(() => void load(), 5000);
+        }
+      });
 
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
+      void supabase.removeChannel(channel);
+      if (pollId) window.clearInterval(pollId);
     };
   }, [conversationId, user]);
 
@@ -71,6 +114,8 @@ export function useMessages(conversationId?: string) {
       imageUrl: imageUrl ?? null
     });
 
+    // Optimistic refresh for the sender; the realtime INSERT echo is de-duped by
+    // id in the subscription handler, so this can't create duplicates.
     const nextMessages = await getMessagesForConversation(conversationId);
     setMessages(nextMessages);
   }

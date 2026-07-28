@@ -1,7 +1,10 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { demoProfiles } from "@/lib/data/demo";
 import { mapProfileRow } from "@/lib/supabase/mappers";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { isMissingRpc } from "@/lib/utils/errors";
 import type { UserProfile } from "@/types/user";
 
 function sortNewest<T extends { createdAt: Date }>(items: T[]) {
@@ -42,7 +45,7 @@ function toProfilePayload(profile: Partial<UserProfile>) {
   // NOTE: privileged columns (role, verified, banned, suspended, featured,
   // roommate_status) are intentionally NOT written here. The browser client
   // must never send them; they are set only by admin/moderation flows via the
-  // service-role client and locked at the DB (supabase-migration-privilege-columns.sql).
+  // service-role client and locked at the DB (supabase/migrations/20240101000400_privilege_columns.sql).
   if (hasOwnProperty(profile, "profileCompletion")) {
     payload.profile_completion = profile.profileCompletion ?? 0;
   }
@@ -65,13 +68,13 @@ function toProfilePayload(profile: Partial<UserProfile>) {
 /**
  * Columns safe to expose on public browse surfaces (roommate cards, featured
  * rows). Excludes contacts (email/telegram/phone — revoked from the anon role
- * at the database, see supabase-migration-contact-privacy.sql) and the
+ * at the database, see supabase/migrations/20240101000300_contact_privacy.sql) and the
  * viewer-private favorites/viewed/contacted arrays. `select("*")` would be
  * rejected by PostgREST for anonymous visitors once those columns are revoked.
  * Also excludes contacts_hidden: cards never render contacts, and naming it
  * here would 42703 on databases where the contacts migration hasn't run yet.
  */
-const PUBLIC_PROFILE_COLUMNS = [
+export const PUBLIC_PROFILE_COLUMNS = [
   "uid",
   "full_name",
   "age",
@@ -135,12 +138,12 @@ export async function getRoommateProfiles(currentUid?: string | null) {
 }
 
 /** Admin-curated roommates for the home page. Falls back to demo profiles when none are featured. */
-export async function getFeaturedRoommates(limit = 6) {
+export async function getFeaturedRoommates(limit = 6, client?: SupabaseClient) {
   if (!isSupabaseConfigured) {
     return demoProfiles.filter((profile) => profile.onboardingComplete && profile.lookingForApartment).slice(0, limit);
   }
 
-  const supabase = getSupabaseBrowserClient();
+  const supabase = client ?? getSupabaseBrowserClient();
   const { data, error } = await supabase
     .from("profiles")
     .select(PUBLIC_PROFILE_COLUMNS)
@@ -182,26 +185,53 @@ export async function updateProfile(profile: Partial<UserProfile> & Pick<UserPro
   if (error) throw error;
 }
 
-export async function toggleFavoriteListing(uid: string, listingId: string, active: boolean) {
-  if (!isSupabaseConfigured) return;
-
+// Legacy read-modify-write fallbacks — used only when the atomic RPCs
+// (supabase/migrations/20240101001400_atomic_mutations.sql) haven't been applied yet. They carry
+// the original lost-update race and exist purely for backward compatibility.
+async function toggleFavoriteListingLegacy(uid: string, listingId: string, active: boolean) {
   const profile = await getProfileById(uid);
   const nextFavorites = active
     ? (profile?.favoriteListingIds ?? []).filter((id) => id !== listingId)
     : [...new Set([...(profile?.favoriteListingIds ?? []), listingId])];
-
   await updateProfile({ uid, favoriteListingIds: nextFavorites });
+}
+
+async function toggleFavoriteRoommateLegacy(uid: string, roommateId: string, active: boolean) {
+  const profile = await getProfileById(uid);
+  const nextFavorites = active
+    ? (profile?.favoriteRoommateIds ?? []).filter((id) => id !== roommateId)
+    : [...new Set([...(profile?.favoriteRoommateIds ?? []), roommateId])];
+  await updateProfile({ uid, favoriteRoommateIds: nextFavorites });
+}
+
+export async function toggleFavoriteListing(uid: string, listingId: string, active: boolean) {
+  if (!isSupabaseConfigured) return;
+
+  const supabase = getSupabaseBrowserClient();
+  const { error } = await supabase.rpc("toggle_favorite_listing", {
+    p_listing_id: listingId,
+    p_active: active
+  });
+
+  if (error) {
+    if (isMissingRpc(error)) return toggleFavoriteListingLegacy(uid, listingId, active);
+    throw error;
+  }
 }
 
 export async function toggleFavoriteRoommate(uid: string, roommateId: string, active: boolean) {
   if (!isSupabaseConfigured) return;
 
-  const profile = await getProfileById(uid);
-  const nextFavorites = active
-    ? (profile?.favoriteRoommateIds ?? []).filter((id) => id !== roommateId)
-    : [...new Set([...(profile?.favoriteRoommateIds ?? []), roommateId])];
+  const supabase = getSupabaseBrowserClient();
+  const { error } = await supabase.rpc("toggle_favorite_roommate", {
+    p_roommate_id: roommateId,
+    p_active: active
+  });
 
-  await updateProfile({ uid, favoriteRoommateIds: nextFavorites });
+  if (error) {
+    if (isMissingRpc(error)) return toggleFavoriteRoommateLegacy(uid, roommateId, active);
+    throw error;
+  }
 }
 
 async function appendUniqueProfileValue(
@@ -211,6 +241,17 @@ async function appendUniqueProfileValue(
 ) {
   if (!isSupabaseConfigured) return;
 
+  const column = key === "viewedListingIds" ? "viewed_listing_ids" : "contacted_listing_ids";
+  const supabase = getSupabaseBrowserClient();
+  const { error } = await supabase.rpc("record_recent_listing", {
+    p_column: column,
+    p_listing_id: value
+  });
+
+  if (!error) return;
+  if (!isMissingRpc(error)) throw error;
+
+  // Legacy fallback (racy): read-modify-write.
   const profile = await getProfileById(uid);
   const currentValues = profile?.[key] ?? [];
   const nextValues = [value, ...currentValues.filter((item) => item !== value)].slice(0, 24);

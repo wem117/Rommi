@@ -30,7 +30,10 @@ export async function searchAddress(query: string, signal?: AbortSignal): Promis
   url.searchParams.set("countrycodes", "kz");
 
   try {
-    const res = await fetch(url.toString(), { signal, headers: { Accept: "application/json" } });
+    const res = await fetch(url.toString(), {
+      signal: signal ?? AbortSignal.timeout(8000),
+      headers: { Accept: "application/json" }
+    });
     if (!res.ok) return [];
     const data = (await res.json()) as Array<{ display_name: string; lat: string; lon: string }>;
     return data
@@ -48,7 +51,10 @@ export async function reverseGeocode(lat: number, lng: number, signal?: AbortSig
   url.searchParams.set("format", "jsonv2");
 
   try {
-    const res = await fetch(url.toString(), { signal, headers: { Accept: "application/json" } });
+    const res = await fetch(url.toString(), {
+      signal: signal ?? AbortSignal.timeout(8000),
+      headers: { Accept: "application/json" }
+    });
     if (!res.ok) return null;
     const data = (await res.json()) as { display_name?: string };
     return data.display_name ?? null;

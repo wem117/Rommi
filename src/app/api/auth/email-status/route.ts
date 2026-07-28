@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     // This endpoint reveals whether an email is registered (needed for the
     // sign-in/up UX), which makes it an enumeration target. Throttle hard:
     // 10 lookups/minute per IP.
-    if (!consume(clientKey(request, "email-status"), 10, 60_000)) {
+    if (!(await consume(clientKey(request, "email-status"), 10, 60_000))) {
       return rateLimitResponse();
     }
 

@@ -4,7 +4,7 @@
  * This is the OFFLINE FALLBACK / demo source. In production the canonical list
  * lives in the `public.universities` table and is managed from the admin panel
  * (see `src/lib/data/universities.ts`). Keep this in sync with the seed data in
- * `supabase-migration-universities.sql` so demo and production match.
+ * `supabase/migrations (universities)` so demo and production match.
  */
 export interface UniversityEntry {
   name: string;

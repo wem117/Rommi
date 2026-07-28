@@ -37,5 +37,11 @@ jobs:
       - name: ESLint (zero warnings)
         run: npm run lint
 
+      - name: Unit tests
+        run: npm run test
+
       - name: Production build
         run: npm run build
+
+      - name: Dependency audit (production deps, fail on high)
+        run: npm audit --omit=dev --audit-level=high

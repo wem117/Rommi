@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/context/auth-context";
 import { getRoommateProfiles } from "@/lib/data/profiles";
@@ -8,18 +8,28 @@ import { friendlySupabaseError } from "@/lib/utils/errors";
 import { type AsyncStatus, withRetry } from "@/lib/utils/retry";
 import type { UserProfile } from "@/types/user";
 
-export function useRoommates() {
+export function useRoommates(initialRoommates?: UserProfile[]) {
   const { user } = useAuth();
-  const [roommates, setRoommates] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Seed from SSR data for instant paint; the effect still refetches to exclude
+  // the current user and pick up any session-scoped data.
+  const [roommates, setRoommates] = useState<UserProfile[]>(initialRoommates ?? []);
+  const [loading, setLoading] = useState(!initialRoommates);
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<AsyncStatus>("idle");
+  const [status, setStatus] = useState<AsyncStatus>(initialRoommates ? "success" : "idle");
+
+  const seededRef = useRef(Boolean(initialRoommates));
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadRoommates() {
-      setLoading(true);
+      // On the first run after an SSR seed, refetch in the background without
+      // flashing the skeleton over already-rendered content.
+      if (seededRef.current) {
+        seededRef.current = false;
+      } else {
+        setLoading(true);
+      }
       setError(null);
       setStatus("loading");
 

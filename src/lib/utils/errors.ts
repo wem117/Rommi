@@ -25,6 +25,21 @@ export function isMissingSupabaseTable(error: unknown, tableName?: string) {
   return code === "PGRST205" && message.includes(expected);
 }
 
+/**
+ * True when an RPC call failed because the database function doesn't exist yet
+ * (migration not applied). PostgREST returns PGRST202; Postgres 42883. Lets
+ * callers fall back to a legacy client-side path instead of hard-failing.
+ */
+export function isMissingRpc(error: unknown) {
+  const code = getErrorCode(error);
+  const message = getErrorMessage(error);
+  return (
+    code === "PGRST202" ||
+    code === "42883" ||
+    /could not find the function|function .* does not exist/i.test(message)
+  );
+}
+
 export function debugSupabaseError(error: unknown) {
   if (error instanceof Error) {
     return {
@@ -54,7 +69,7 @@ export function friendlySupabaseError(error: unknown, fallback = "Something went
   }
 
   if (/could not find the table 'public\./i.test(message)) {
-    return "Your Supabase schema is incomplete. Run supabase-schema.sql and supabase-policies.sql in the SQL editor, then refresh.";
+    return "Your Supabase schema is incomplete. Apply the migrations in supabase/migrations (supabase db push), then refresh.";
   }
 
   if (/failed to fetch|networkerror|network request failed|load failed/i.test(message)) {

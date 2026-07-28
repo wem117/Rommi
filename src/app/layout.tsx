@@ -114,6 +114,13 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${manrope.variable}`}>
+        {/* Keyboard/screen-reader users can jump past the nav straight to content. */}
+        <a
+          href="#main-content"
+          className="sr-only rounded-md bg-primary px-4 py-2 font-semibold text-primary-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100]"
+        >
+          Skip to content
+        </a>
         <script
           type="application/ld+json"
           // Escape "<" so admin-editable strings can never close the script tag.

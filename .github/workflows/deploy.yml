@@ -115,8 +115,8 @@ jobs:
           script: |
             set -euo pipefail
             IMAGE="${{ needs.build-and-push.outputs.image }}:latest"
-            mkdir -p /app/roomi
-            cd /app/roomi
+            mkdir -p ~/app/roomi
+            cd ~/app/roomi
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker pull "$IMAGE"
             docker stop roomi-web || true

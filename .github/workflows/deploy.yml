@@ -7,6 +7,11 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
 
 concurrency:
   # Never run two deploys of main at once; let an in-flight deploy finish.
@@ -66,8 +71,6 @@ jobs:
       - name: Compute image name from github.repository
         id: image
         run: |
-          # ghcr requires a lowercase path; a trailing dot is not a valid docker
-          # reference, so derive the tag from github.repository and normalize it.
           name="${GITHUB_REPOSITORY,,}"
           name="${name%.}"
           echo "image=${{ env.REGISTRY }}/${name}" >> "$GITHUB_OUTPUT"
@@ -77,7 +80,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GHCR_PAT }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -104,7 +107,7 @@ jobs:
       packages: read
     steps:
       - name: Deploy to VPS via SSH
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
@@ -114,7 +117,7 @@ jobs:
             IMAGE="${{ needs.build-and-push.outputs.image }}:latest"
             mkdir -p /app/roomi
             cd /app/roomi
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker pull "$IMAGE"
             docker stop roomi-web || true
             docker rm roomi-web || true

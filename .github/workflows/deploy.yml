@@ -1,20 +1,76 @@
 name: Build and Deploy Roomi to VPS
 
+# Vercel-style pipeline: a push to main runs the full quality gate FIRST, and the
+# image is only built and deployed to the VPS when tests/lint/typecheck/build all
+# pass. A failing test blocks the deploy.
 on:
   push:
     branches:
       - main
 
+concurrency:
+  # Never run two deploys of main at once; let an in-flight deploy finish.
+  group: deploy-main
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: yeraly218/roommatekz
 
 jobs:
-  build-and-push:
+  # 1) Quality gate — blocks everything below if anything fails.
+  test:
     runs-on: ubuntu-latest
+    env:
+      # Placeholder public config so the build exercises the real (Supabase-
+      # configured) code paths without secrets. No network calls at build time.
+      NEXT_PUBLIC_SITE_URL: https://ci.invalid
+      NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+      NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET: roommate-assets
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: ESLint (zero warnings)
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Production build
+        run: npm run build
+
+  # 2) Build + push the image — ONLY after the quality gate passes.
+  build-and-push:
+    needs: [test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.image }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Compute image name from github.repository
+        id: image
+        run: |
+          # ghcr requires a lowercase path; a trailing dot is not a valid docker
+          # reference, so derive the tag from github.repository and normalize it.
+          name="${GITHUB_REPOSITORY,,}"
+          name="${name%.}"
+          echo "image=${{ env.REGISTRY }}/${name}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -31,7 +87,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          tags: ${{ steps.image.outputs.image }}:latest
           build-args: |
             NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
             NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
@@ -39,9 +95,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # 3) Deploy to the VPS — ONLY after a successful build/push.
   deploy:
-    needs: build-and-push
+    needs: [build-and-push]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -50,13 +110,18 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -euo pipefail
+            IMAGE="${{ needs.build-and-push.outputs.image }}:latest"
+            mkdir -p /app/roomi
+            cd /app/roomi
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker pull ghcr.io/yeraly218/roommatekz:latest
+            docker pull "$IMAGE"
             docker stop roomi-web || true
             docker rm roomi-web || true
             docker run -d \
               --name roomi-web \
               --restart unless-stopped \
               -p 127.0.0.1:3000:3000 \
-              ghcr.io/yeraly218/roommatekz:latest
+              "$IMAGE"
             docker image prune -f
+            docker logout ghcr.io || true

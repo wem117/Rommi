@@ -1,8 +1,9 @@
 name: CI
 
+# Pre-merge validation for pull requests. Pushes to main are validated by the
+# `test` job in deploy.yml (which gates the build + VPS deploy), so we don't
+# duplicate the full quality gate here on main.
 on:
-  push:
-    branches: [main]
   pull_request:
 
 concurrency:

@@ -1,5 +1,5 @@
 const fs = require("fs/promises");
-const path = require("path");
+const path = path = require("path");
 
 async function main() {
   let puppeteer;
@@ -12,7 +12,7 @@ async function main() {
     process.exit(1);
   }
 
-  const startUrl = process.env.CRAWL_START_URL || "http://localhost:3000";
+  const startUrl = process.env.CRAWL_START_URL || "https://roomi.kz";
   const maxPages = Number(process.env.CRAWL_MAX_PAGES || 20);
   const concurrency = Math.max(1, Number(process.env.CRAWL_CONCURRENCY || 2));
   const headless = process.env.CRAWL_HEADLESS !== "false";
@@ -24,7 +24,8 @@ async function main() {
 
   const browser = await puppeteer.launch({
     headless,
-    defaultViewport: { width: 1440, height: 960 }
+    defaultViewport: { width: 1440, height: 960 },
+    args: ["--no-sandbox", "--disable-setuid-sandbox"]
   });
 
   const queue = [startUrl];
@@ -70,14 +71,16 @@ async function main() {
     let discoveredLinks = [];
 
     try {
+      // Using domcontentloaded to prevent hanging on Supabase WebSockets/polling
       const response = await page.goto(url, {
-        waitUntil: "networkidle2",
+        waitUntil: "domcontentloaded",
         timeout: 30000
       });
 
       status = response ? response.status() : 0;
       title = await page.title();
       html = await page.content();
+      
       discoveredLinks = await page.$$eval("a[href]", (anchors) =>
         anchors
           .map((anchor) => anchor.getAttribute("href"))

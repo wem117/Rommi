@@ -21,6 +21,18 @@ beforeAll(async () => {
   // supabaseConfig reads these at module-evaluation time.
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://api.roomi.kz";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
+
+  // createClient() eagerly constructs a RealtimeClient, which demands a global
+  // WebSocket. The browser always has one and Node 22 does too — but this
+  // project targets Node 20 (.nvmrc, Dockerfile, CI), where it does not exist,
+  // so without this the suite passes locally and fails in CI. Nothing here ever
+  // opens a connection; the constructor just has to find a callable.
+  if (!("WebSocket" in globalThis)) {
+    (globalThis as { WebSocket?: unknown }).WebSocket = class {
+      close() {}
+    };
+  }
+
   ({ getSupabaseRecoveryRequestClient, getSupabaseBrowserClient } = await import("@/lib/supabase/client"));
 });
 

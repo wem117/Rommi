@@ -3,8 +3,6 @@
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { readRecoveryCredentials } from "@/lib/supabase/recovery";
 
 const RESET_PATH = "/reset-password";
@@ -13,78 +11,32 @@ const RESET_PATH = "/reset-password";
  * Safety net that sends a user who arrived from a password-recovery email to
  * /reset-password, even when the link did not land there.
  *
- * WHY THIS EXISTS
- * ---------------
  * GoTrue only honours a `redirect_to` that matches its allow list
  * (GOTRUE_URI_ALLOW_LIST, from ADDITIONAL_REDIRECT_URLS). If that entry is ever
- * missing, GoTrue does not error — it silently DISCARDS the requested target and
- * falls back to SITE_URL. The recovery link then lands on the site root still
- * carrying the credentials, e.g. `https://roomi.kz/#access_token=...&type=recovery`
- * (implicit) or `/?code=...` (PKCE), leaving the user on the home page with no
- * way to set a password — which surfaces as "this reset link is invalid or has
- * expired". This component makes the flow survive that misconfiguration.
+ * missing, GoTrue does not error — it silently discards the requested target and
+ * falls back to SITE_URL, dropping the user on the site root with the credential
+ * still in the URL and no way to set a password. This keeps the flow working
+ * through that misconfiguration.
  *
- * WHY IT IS A FULL NAVIGATION, NOT router.replace()
- * -------------------------------------------------
- * `router.replace("/reset-password")` is a client-side transition that REWRITES
- * the address bar — and the recovery credentials live in the URL fragment. The
- * fragment was therefore thrown away before /reset-password could read it, and
- * the tokens are unrecoverable once gone.
+ * It is a full navigation rather than router.replace() because a client-side
+ * transition rewrites the address bar, and the credential lives in the URL.
  *
- * That is not a theoretical race. The shared browser client runs
- * `flowType: "pkce"` (hardcoded by @supabase/ssr), and GoTrueClient rejects an
- * implicit callback URL outright under that flow:
- *     case 'implicit': if (this.flowType === 'pkce')
- *         throw new AuthPKCEGrantCodeExchangeError('Not a valid PKCE flow url.')
- * So for an implicit link, supabase-js never creates a session, never emits
- * PASSWORD_RECOVERY, and never clears the hash — the hash sniff below is the
- * only trigger, and it fires while the tokens are still the ONLY copy in
- * existence. Stripping them there is fatal.
- *
- * Carrying `search + hash` across a real browser navigation hands the untouched
- * URL to /reset-password, where `establishRecoverySession()` installs it with
- * setSession(). When supabase-js DID succeed on its own (same-browser PKCE), the
- * session is already persisted in cookies and survives the reload just as well.
+ * `type` MUST be checked: signup-confirmation and email-change links arrive in
+ * an identical shape, and this component is mounted app-wide, so without the
+ * guard confirming a new account would be diverted to "set a new password".
  */
 export function PasswordRecoveryRedirect() {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
+    // Already there (or deeper): nothing to do — avoids a redirect loop.
+    if (window.location.pathname.startsWith(RESET_PATH)) return;
 
-    const supabase = getSupabaseBrowserClient();
-    let cancelled = false;
-
-    const goToReset = () => {
-      if (cancelled) return;
-      // Already there (or deeper): nothing to do — avoids a redirect loop.
-      if (window.location.pathname.startsWith(RESET_PATH)) return;
-      // Preserve the query string and fragment verbatim; they carry the
-      // recovery credentials.
-      window.location.replace(`${RESET_PATH}${window.location.search}${window.location.hash}`);
-    };
-
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") goToReset();
-    });
-
-    // Implicit links never reach the event above (see the flow-mismatch throw in
-    // the doc comment), so the URL itself is the trigger. A token_hash link is
-    // inert until something POSTs it, so it needs the same treatment.
-    //
-    // `type` MUST be checked. Signup confirmation and email-change links land in
-    // exactly the same shape, and this component is mounted app-wide — without
-    // the guard, confirming a new account would bounce the user to
-    // "set a new password" instead of signing them in.
     const credentials = readRecoveryCredentials(window.location.href);
-    if (credentials.type === "recovery" && (credentials.tokenHash || credentials.accessToken)) goToReset();
+    if (credentials.type !== "recovery" || !credentials.tokenHash) return;
 
-    return () => {
-      cancelled = true;
-      subscription.unsubscribe();
-    };
+    // Preserve the query string; it carries the token_hash.
+    window.location.replace(`${RESET_PATH}${window.location.search}`);
   }, [pathname]);
 
   return null;

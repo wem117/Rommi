@@ -81,8 +81,9 @@ describe("establishRecoverySession", () => {
   });
 
   it("reports GoTrue's own error rather than attempting a doomed redemption", async () => {
+    // Exactly what production emitted when a spent link was followed.
     visit(
-      "https://roomi.kz/reset-password#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired"
+      "https://roomi.kz/reset-password?error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired"
     );
 
     await expect(establishRecoverySession()).resolves.toEqual({
@@ -93,20 +94,28 @@ describe("establishRecoverySession", () => {
     expect(verifyOtp).not.toHaveBeenCalled();
   });
 
-  it("still installs implicit fragment tokens from links already in inboxes", async () => {
-    visit("https://roomi.kz/reset-password#access_token=abc.def&refresh_token=r123&type=recovery");
-    setSession.mockResolvedValue({ data: { session: SESSION }, error: null });
 
-    await expect(establishRecoverySession()).resolves.toEqual({ status: "authenticated" });
-    expect(setSession).toHaveBeenCalledWith({ access_token: "abc.def", refresh_token: "r123" });
+
+  it("never calls exchangeCodeForSession — that is the production root cause", async () => {
+    // A ?code= URL must be treated as "no credential", NOT exchanged. In
+    // production this threw AuthPKCECodeVerifierMissingError client-side and no
+    // request was ever sent, so the page reported "invalid or expired".
+    visit("https://roomi.kz/reset-password?code=99059b3f-13b7-4037-9988-8b81662ad519&email=user%40roomi.kz");
+
+    // The email hint is still honoured so the code form arrives prefilled.
+    await expect(establishRecoverySession()).resolves.toEqual({
+      status: "no-credentials",
+      email: "user@roomi.kz"
+    });
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(verifyOtp).not.toHaveBeenCalled();
   });
 
-  it("still exchanges a legacy PKCE code", async () => {
-    visit("https://roomi.kz/reset-password?code=pkce-auth-code");
-    exchangeCodeForSession.mockResolvedValue({ data: { session: SESSION }, error: null });
+  it("never calls setSession — recovery does not travel in a URL fragment", async () => {
+    visit("https://roomi.kz/reset-password#access_token=abc.def&refresh_token=r123&type=recovery");
 
-    await expect(establishRecoverySession()).resolves.toEqual({ status: "authenticated" });
-    expect(exchangeCodeForSession).toHaveBeenCalledWith("pkce-auth-code");
+    await expect(establishRecoverySession()).resolves.toEqual({ status: "no-credentials", email: null });
+    expect(setSession).not.toHaveBeenCalled();
   });
 
   it("prefers the URL credential over a session that is already signed in", async () => {

@@ -1,5 +1,5 @@
 import { siteConfig } from "@/lib/site-config";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getSupabaseBrowserClient, getSupabaseRecoveryRequestClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured, supabaseConfig } from "@/lib/supabase/config";
 
 export async function signInWithEmail(email: string, password: string) {
@@ -91,36 +91,48 @@ export async function signInWithGoogle(nextPath?: string) {
 }
 
 /**
- * Where a recovery email should land the user.
- *
- * MUST be the /reset-password PAGE, never the /api/auth/callback ROUTE.
- *
- * GoTrue's emailed recovery link goes through /auth/v1/verify, which returns the
- * session as an IMPLICIT URL FRAGMENT:
- *
- *   https://roomi.kz/...#access_token=...&refresh_token=...&type=recovery
- *
- * A fragment is never transmitted to the server. Pointing this at the callback
- * route therefore guaranteed failure: the route handler saw a request with no
- * `?code=`, treated it as a broken OAuth callback and bounced the user to
- * /sign-in?error=missing_oauth_code — surfacing as "this reset link is invalid
- * or has expired" even though the link was perfectly valid. Reproduced
- * end-to-end against production before this change.
- *
- * A page can read the fragment: the browser client runs with
- * `detectSessionInUrl`, so supabase-js consumes the tokens on load, establishes
- * the recovery session and lets updateUser() set the new password. This also
- * covers the PKCE variant (`?code=`), which supabase-js exchanges client-side.
+ * Where a recovery email should land the user: the /reset-password PAGE, never
+ * the /api/auth/callback ROUTE. A server route cannot read a URL fragment, and
+ * the recovery session arrives in one.
  */
 function getPasswordResetRedirectTo() {
   const origin = typeof window !== "undefined" ? window.location.origin : siteConfig.url;
   return new URL("/reset-password", origin).toString();
 }
 
+/**
+ * Sends the password-recovery email WITHOUT PKCE, deliberately.
+ *
+ * Why not the shared browser client:
+ * `@supabase/ssr`'s createBrowserClient hardcodes `flowType: "pkce"`, and
+ * resetPasswordForEmail() attaches a `code_challenge` whenever the flow is PKCE.
+ * GoTrue then issues a PKCE recovery link — verified against production: the
+ * stored token is `pkce_...` and /verify redirects to
+ * `/reset-password?code=<uuid>`. Redeeming that code REQUIRES the
+ * `code_verifier` that was generated in, and stored by, the browser that asked
+ * for the reset.
+ *
+ * Password-reset links are email links: they get opened on a phone when the
+ * request came from a laptop, or inside Gmail's in-app webview, which is a
+ * different storage context. There the verifier does not exist, so the exchange
+ * is cryptographically impossible and the user is told "this link is invalid or
+ * has expired" — for a link that is perfectly valid. PKCE binds a credential to
+ * a single browser; email delivery deliberately crosses browsers. The two
+ * cannot be combined for recovery.
+ *
+ * Sending the request through an implicit-flow client omits the code_challenge,
+ * so GoTrue mints the standard recovery link instead: it carries the session in
+ * the URL fragment and therefore works from ANY device.
+ * `establishRecoverySession()` installs those tokens with setSession() and
+ * immediately scrubs them from the address bar. Fragments are never sent to a
+ * server, so they stay out of access logs and the Referer header.
+ *
+ * OAuth still uses PKCE (same browser throughout), which is where PKCE belongs.
+ */
 export async function sendResetPassword(email: string) {
   if (!isSupabaseConfigured) throw new Error("Supabase is not configured");
 
-  const supabase = getSupabaseBrowserClient();
+  const supabase = getSupabaseRecoveryRequestClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: getPasswordResetRedirectTo()
   });

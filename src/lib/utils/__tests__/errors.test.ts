@@ -8,6 +8,14 @@ import {
 } from "@/lib/utils/errors";
 
 describe("friendlySupabaseError", () => {
+  it("hints at Google sign-in on invalid credentials (OAuth-only accounts)", () => {
+    // GoTrue returns the identical error for a wrong password and for an
+    // account that has no password at all (created via Google OAuth).
+    const msg = friendlySupabaseError({ message: "Invalid login credentials" });
+    expect(msg).toMatch(/not recognized/i);
+    expect(msg).toMatch(/Continue with Google/);
+  });
+
   it("explains a disabled social provider on the self-hosted instance", () => {
     // GoTrue phrasing when GOOGLE_ENABLED is not set on the server.
     expect(friendlySupabaseError({ message: "Unsupported provider: provider is not enabled" })).toMatch(

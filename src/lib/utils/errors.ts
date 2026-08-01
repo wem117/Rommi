@@ -77,7 +77,10 @@ export function friendlySupabaseError(error: unknown, fallback = "Something went
   }
 
   if (/invalid login credentials/i.test(message)) {
-    return "That email and password combination was not recognized.";
+    // GoTrue deliberately returns the same error for a wrong password and for
+    // an account that has NO password (created via Google OAuth). Verified in
+    // production that OAuth-only accounts are common, so the hint matters.
+    return "That email and password combination was not recognized. If you signed up with Google, use “Continue with Google” instead.";
   }
 
   // Password-reset / email-delivery specific cases (surfaced so the cause is

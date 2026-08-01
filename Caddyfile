@@ -1,3 +1,0 @@
-roomi.kz, www.roomi.kz {
-    reverse_proxy app:3000
-}

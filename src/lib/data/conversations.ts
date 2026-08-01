@@ -119,24 +119,36 @@ export async function ensureConversation({
   return data.id as string;
 }
 
+/**
+ * Newest messages shown per conversation. Bounded because PostgREST caps
+ * responses at PGRST_DB_MAX_ROWS (1000 in production): an UNBOUNDED ascending
+ * query would silently return the OLDEST 1000 rows once a conversation grows
+ * past the cap — hiding the most recent messages, which is exactly the wrong
+ * failure mode for a chat.
+ */
+const MESSAGE_FETCH_LIMIT = 200;
+
 export async function getMessagesForConversation(conversationId: string) {
   if (!isSupabaseConfigured) {
     return demoMessages.filter((message) => message.conversationId === conversationId);
   }
 
   const supabase = getSupabaseBrowserClient();
+  // Fetch the newest N descending, then reverse to the chronological order the
+  // chat UI renders. Realtime INSERT events append anything sent after load.
   const { data, error } = await supabase
     .from("messages")
     .select("*")
     .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .limit(MESSAGE_FETCH_LIMIT);
 
   if (error && isMissingSupabaseTable(error, "messages")) {
     return demoMessages.filter((message) => message.conversationId === conversationId);
   }
 
   if (error) throw error;
-  return (data ?? []).map(mapMessageRow);
+  return (data ?? []).map(mapMessageRow).reverse();
 }
 
 export async function sendConversationMessage({

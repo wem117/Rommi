@@ -1,3 +1,4 @@
+import { siteConfig } from "@/lib/site-config";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured, supabaseConfig } from "@/lib/supabase/config";
 
@@ -89,12 +90,39 @@ export async function signInWithGoogle(nextPath?: string) {
   return data;
 }
 
+/**
+ * Where a recovery email should land the user.
+ *
+ * MUST be the /reset-password PAGE, never the /api/auth/callback ROUTE.
+ *
+ * GoTrue's emailed recovery link goes through /auth/v1/verify, which returns the
+ * session as an IMPLICIT URL FRAGMENT:
+ *
+ *   https://roomi.kz/...#access_token=...&refresh_token=...&type=recovery
+ *
+ * A fragment is never transmitted to the server. Pointing this at the callback
+ * route therefore guaranteed failure: the route handler saw a request with no
+ * `?code=`, treated it as a broken OAuth callback and bounced the user to
+ * /sign-in?error=missing_oauth_code — surfacing as "this reset link is invalid
+ * or has expired" even though the link was perfectly valid. Reproduced
+ * end-to-end against production before this change.
+ *
+ * A page can read the fragment: the browser client runs with
+ * `detectSessionInUrl`, so supabase-js consumes the tokens on load, establishes
+ * the recovery session and lets updateUser() set the new password. This also
+ * covers the PKCE variant (`?code=`), which supabase-js exchanges client-side.
+ */
+function getPasswordResetRedirectTo() {
+  const origin = typeof window !== "undefined" ? window.location.origin : siteConfig.url;
+  return new URL("/reset-password", origin).toString();
+}
+
 export async function sendResetPassword(email: string) {
   if (!isSupabaseConfigured) throw new Error("Supabase is not configured");
 
   const supabase = getSupabaseBrowserClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: getAuthCallbackRedirectTo("/reset-password")
+    redirectTo: getPasswordResetRedirectTo()
   });
   if (error) throw error;
 }

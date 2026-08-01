@@ -116,7 +116,11 @@ export function UniversityCombobox({
           setActiveIndex(0);
           if (!event.target.value) onChange("");
         }}
-        className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+        // Radius and padding intentionally left to the global `input, select,
+        // textarea` rule in globals.css. Hardcoding rounded-xl + px-4 py-3 here
+        // made this control a different height and corner radius from every
+        // <select> beside it in the filter grid.
+        className="w-full outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
         autoComplete="off"
       />
       {open && matches.length > 0 ? (

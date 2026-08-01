@@ -42,7 +42,7 @@ export function RoommateCard({
           router.push(href);
         }
       }}
-      className="cursor-pointer rounded-3xl border border-[#eadfce] bg-white p-4 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:rounded-[2rem] sm:p-6">
+      className="min-w-0 cursor-pointer overflow-hidden rounded-3xl border border-[#eadfce] bg-white p-4 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:rounded-[2rem] sm:p-6">
       <div className="flex items-start gap-3 sm:gap-4">
         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-[#efe7dc] sm:h-20 sm:w-20">
           {profile.photoURL ? (
@@ -62,10 +62,10 @@ export function RoommateCard({
             {/* fill green + white check strokes; same-color fill/stroke rendered as a solid blob */}
             {profile.verified ? <BadgeCheck className="h-5 w-5 shrink-0 fill-success text-white" /> : null}
           </div>
-          <p className="mt-1 text-sm text-[#9a6e56] sm:mt-2 sm:text-[15px]">
+          <p className="mt-1 break-words text-sm text-[#9a6e56] sm:mt-2 sm:text-[15px]">
             {profile.age} · {profile.occupation}
           </p>
-          <p className="line-clamp-2 text-sm text-[#9a6e56] sm:text-[15px]">
+          <p className="line-clamp-2 break-words text-sm text-[#9a6e56] sm:text-[15px]">
             {profile.university} · {city}
           </p>
         </div>
@@ -105,7 +105,7 @@ export function RoommateCard({
         ))}
       </div>
 
-      <p className="mt-3 line-clamp-2 text-sm leading-6 text-[#8a644f] sm:mt-5 sm:line-clamp-3 sm:text-[15px] sm:leading-8">
+      <p className="mt-3 line-clamp-2 break-words text-sm leading-6 text-[#8a644f] sm:mt-5 sm:line-clamp-3 sm:text-[15px] sm:leading-8">
         {profile.bio ||
           t("roommates.cardFallbackBio")}
       </p>

@@ -156,7 +156,7 @@ function RoomsPageContent({ initial }: { initial: InitialData }) {
         ) : null}
 
         {view === "list" && loading ? (
-          <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
               <div key={index} className="h-[330px] animate-pulse rounded-[1.75rem] bg-white shadow-soft sm:h-[390px]" />
             ))}

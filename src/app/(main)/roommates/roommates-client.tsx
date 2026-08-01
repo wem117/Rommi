@@ -90,8 +90,8 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
             {t("roommates.description")}
           </p>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:mt-10 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <Field label={t("roommates.city")}>
+          <div className="mt-5 grid grid-cols-2 items-end gap-3 sm:mt-10 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <Field label={t("roommates.city")} className="col-span-2 md:col-span-1">
               <select value={city} onChange={(event) => setCity(event.target.value)}>
                 {cityOptions.map((option) => (
                   <option key={option} value={option}>
@@ -109,7 +109,7 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
               />
             </Field>
 
-            <Field label={t("roommates.gender")}>
+            <Field label={t("roommates.gender")} className="col-span-2 md:col-span-1">
               <select value={gender} onChange={(event) => setGender(event.target.value as Gender | "all")}>
                 {genderOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -119,7 +119,7 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
               </select>
             </Field>
 
-            <Field label={t("roommates.minAge")}>
+            <Field label={t("roommates.minAge")} className="col-span-1">
               <input
                 type="number"
                 min="18"
@@ -128,7 +128,7 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
               />
             </Field>
 
-            <Field label={t("roommates.maxAge")}>
+            <Field label={t("roommates.maxAge")} className="col-span-1">
               <input
                 type="number"
                 min="18"
@@ -137,7 +137,7 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
               />
             </Field>
 
-            <Field label={t("roommates.maxBudget")}>
+            <Field label={t("roommates.maxBudget")} className="col-span-2 md:col-span-1">
               <select value={maxBudget} onChange={(event) => setMaxBudget(event.target.value as BudgetFilter)}>
                 {budgetOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -156,7 +156,7 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
 
       <section className="mx-auto max-w-[1180px] px-4 py-5 sm:px-6 sm:py-12 lg:px-8">
         {loading ? (
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
             {Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
@@ -191,7 +191,7 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
         ) : null}
 
         {!loading && !error && filteredRoommates.length > 0 ? (
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
             {filteredRoommates.map((roommate) => (
               <RoommateCard key={roommate.uid} profile={roommate} currentUser={profile} />
             ))}
@@ -220,7 +220,7 @@ function Field({
   className?: string;
 }) {
   return (
-    <label className={className}>
+    <label className={`min-w-0 ${className}`}>
       <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-[#a87458] sm:mb-3 sm:text-sm">
         {label}
       </span>

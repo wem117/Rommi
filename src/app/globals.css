@@ -110,8 +110,16 @@ h6 {
 input,
 select,
 textarea {
-  /* Slightly denser controls on phones; desktop keeps the original py-3. */
-  @apply w-full rounded-2xl border border-border bg-card px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 sm:px-4 sm:py-3;
+  /* Slightly denser controls on phones; desktop keeps the original py-3.
+   *
+   * The min-height is load-bearing, not cosmetic. Chromium sizes a <select>
+   * from its option font metrics and ignores the line-height that `text-sm`
+   * gives an <input>, so a select rendered exactly 1px shorter than a text
+   * input sitting beside it in the same filter row. The values are the box the
+   * padding already implies — 10+10+20+2 on phones, 12+12+20+2 from `sm` — so
+   * this pins the two control types together without changing either design.
+   * It is a floor, so textareas still grow with their content. */
+  @apply w-full rounded-2xl border border-border bg-card px-3.5 py-2.5 text-sm leading-5 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 min-h-[2.625rem] sm:min-h-[2.875rem] sm:px-4 sm:py-3;
 }
 
 label {

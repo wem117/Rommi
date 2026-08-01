@@ -15,13 +15,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { FavoriteRoommateButton } from "@/components/favorites/favorite-roommate-button";
+import { RoommateCard } from "@/components/roommates/roommate-card";
 import { ContactLinks } from "@/components/shared/contact-links";
 import { getUniversityCity } from "@/lib/constants/universities";
 import { StatusBanner } from "@/components/StatusBanner";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
 import { createConversation } from "@/hooks/use-conversations";
-import { getProfileById } from "@/lib/data/profiles";
+import { getProfileById, getRoommateProfiles } from "@/lib/data/profiles";
 import { calculateCompatibilityScore, compatibilityTierKey } from "@/lib/utils/compatibility";
 import { formatCurrency, formatDateShort } from "@/lib/utils/format";
 import type { UserProfile } from "@/types/user";
@@ -69,6 +70,32 @@ export default function RoommateDetailClient({
   const [loading, setLoading] = useState(!initialProfile);
   const [error, setError] = useState<string | null>(null);
   const [messageLoading, setMessageLoading] = useState(false);
+  const [similar, setSimilar] = useState<UserProfile[]>([]);
+
+  // Suggestions for "keep browsing". Fetched after the profile so it never
+  // blocks first paint, and rendered only once results exist so the page height
+  // does not jump while it loads.
+  useEffect(() => {
+    if (!profile?.uid) return;
+    let cancelled = false;
+
+    void getRoommateProfiles(user?.uid ?? null)
+      .then((all) => {
+        if (cancelled) return;
+        const sameCity = (a: UserProfile) =>
+          getUniversityCity(a.university) === getUniversityCity(profile.university);
+        const pool = all.filter((candidate) => candidate.uid !== profile.uid);
+        // Prefer the same city, then fill up from the rest.
+        setSimilar([...pool.filter(sameCity), ...pool.filter((c) => !sameCity(c))].slice(0, 6));
+      })
+      .catch(() => {
+        if (!cancelled) setSimilar([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.uid, profile?.university, user?.uid]);
 
   useEffect(() => {
     let cancelled = false;
@@ -282,6 +309,24 @@ export default function RoommateDetailClient({
           </div>
         </aside>
       </section>
+
+      {similar.length ? (
+        <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 sm:pb-14 lg:px-8">
+          <h2 className="text-xl font-bold sm:text-3xl">{t("roommateDetail.similarRoommates")}</h2>
+          {/*
+            Same card component as the browse grid, so styling can never drift.
+            grid-cols-1 (repeat(1,minmax(0,1fr))) rather than a bare `grid`:
+            an implicit `auto` track takes its floor from the widest item's
+            min-content, so one profile with a long unbreakable word stretched
+            the track past the viewport and scrolled the whole page sideways.
+          */}
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:mt-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+            {similar.map((candidate) => (
+              <RoommateCard key={candidate.uid} profile={candidate} currentUser={currentProfile} />
+            ))}
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }

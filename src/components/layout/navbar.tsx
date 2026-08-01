@@ -14,7 +14,7 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-[1180px] items-center justify-between gap-2 px-4 sm:h-20 sm:gap-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-16 max-w-[1180px] items-center justify-between gap-2 px-4 sm:h-20 sm:gap-4 sm:px-6 lg:px-8 [&>*]:min-w-0">
         <Link href="/" className="flex items-center gap-2 text-foreground sm:gap-3">
           <span className="grid h-10 w-10 place-items-center rounded-full bg-primary text-primary-foreground sm:h-12 sm:w-12">
             <Home className="h-5 w-5" />
@@ -24,7 +24,7 @@ export function Navbar() {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-12 text-[1.05rem] font-medium text-foreground/80 md:flex">
+        <nav className="hidden items-center gap-8 whitespace-nowrap text-[1.05rem] font-medium text-foreground/80 lg:flex xl:gap-12">
           {[
             { href: "/rooms", label: t("nav.rooms") },
             { href: "/roommates", label: t("nav.roommates") },
@@ -40,7 +40,7 @@ export function Navbar() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex sm:gap-3">
+        <div className="hidden items-center gap-2 sm:gap-3 lg:flex">
           <LanguageMenu />
           {user ? (
             <>

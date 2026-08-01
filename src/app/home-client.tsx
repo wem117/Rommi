@@ -407,7 +407,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
                   </span>
                 </Link>
 
-                <div className="hidden items-center gap-1 md:flex">
+                <div className="hidden items-center gap-1 lg:flex">
                   <NavLink href="/rooms">{t("nav.rooms")}</NavLink>
                   <NavLink href="/roommates">{t("nav.roommates")}</NavLink>
                   <NavLink href="/list-a-room/step-1">{t("nav.listRoom")}</NavLink>
@@ -415,7 +415,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
 
                 {/* Desktop actions — must reflect auth state immediately after
                     login (OAuth and email both redirect here). */}
-                <div className="hidden items-center gap-2 md:flex">
+                <div className="hidden items-center gap-2 lg:flex">
                   <LanguageMenu inverted />
                   {user ? (
                     <>
@@ -446,7 +446,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
                 </div>
 
                 {/* Mobile actions: language selector stays visible, links collapse into a menu */}
-                <div className="flex items-center gap-2 md:hidden">
+                <div className="flex items-center gap-2 lg:hidden">
                   <LanguageMenu inverted />
                   <button
                     type="button"
@@ -461,7 +461,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
               </div>
 
               {mobileMenuOpen ? (
-                <div className="border-t border-white/10 px-3 py-3 md:hidden">
+                <div className="border-t border-white/10 px-3 py-3 lg:hidden">
                   <div className="grid gap-1">
                     <MobileNavLink href="/rooms" onClick={() => setMobileMenuOpen(false)}>
                       {t("nav.rooms")}
@@ -590,7 +590,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
             centered
           />
 
-          <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
             {steps.map((step, index) => (
               <Reveal key={step.title} className="group relative" delayMs={index * 100}>
                 <article className="rounded-[1.75rem] border border-[#eee2d2] bg-white p-6 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl">

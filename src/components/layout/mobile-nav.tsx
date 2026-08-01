@@ -20,7 +20,10 @@ const NAV_LINKS = [
 /**
  * Airbnb-style mobile navigation: a hamburger trigger that opens a slide-in
  * drawer. Reuses the shared LanguageMenu, useAuth, and useLocale — no navbar
- * logic is duplicated. Rendered only below `md`; the desktop navbar is untouched.
+ * logic is duplicated. Rendered below `lg`: at the `md` range the three nav
+ * links plus the language menu and auth buttons could not fit on one row in
+ * Kazakh, which pushed the header past the viewport and scrolled every page
+ * sideways on tablets.
  *
  * The overlay is rendered through a portal to <body>: the sticky header uses
  * backdrop-blur, and `backdrop-filter` makes an element the containing block
@@ -64,7 +67,7 @@ export function MobileNav() {
 
   const overlay = (
     <div
-      className={`fixed inset-0 z-[70] md:hidden ${open ? "" : "pointer-events-none"}`}
+      className={`fixed inset-0 z-[70] lg:hidden ${open ? "" : "pointer-events-none"}`}
       role="dialog"
       aria-modal="true"
       aria-hidden={!open}
@@ -156,7 +159,7 @@ export function MobileNav() {
   );
 
   return (
-    <div className="md:hidden">
+    <div className="lg:hidden">
       <button
         type="button"
         onClick={() => setOpen(true)}

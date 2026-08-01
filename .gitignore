@@ -8,3 +8,5 @@ node_modules
 # TypeScript incremental build cache (generated)
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+schema.sql
+supabase/.temp/

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { consume, rateLimitResponse } from "@/lib/api/rate-limit";
 import { deleteListing, updateListing } from "@/lib/data/listings-admin";
 import { requireSessionUser } from "@/lib/supabase/session";
 import { friendlySupabaseError } from "@/lib/utils/errors";
@@ -13,6 +14,11 @@ interface RouteContext {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     const user = await requireSessionUser();
+
+    // Caps edit-churn, including rewriting an already-approved listing into
+    // spam after it has passed moderation.
+    if (!(await consume(`listing-update:${user.id}`, 60, 60 * 60_000))) return rateLimitResponse();
+
     const { listingId } = await context.params;
     const input = listingSchema.parse(await request.json());
 

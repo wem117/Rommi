@@ -1,6 +1,30 @@
 import { describe, expect, it } from "vitest";
 
-import { getErrorMessage, isMissingRpc, isMissingSupabaseTable } from "@/lib/utils/errors";
+import {
+  friendlySupabaseError,
+  getErrorMessage,
+  isMissingRpc,
+  isMissingSupabaseTable
+} from "@/lib/utils/errors";
+
+describe("friendlySupabaseError", () => {
+  it("explains a disabled social provider on the self-hosted instance", () => {
+    // GoTrue phrasing when GOOGLE_ENABLED is not set on the server.
+    expect(friendlySupabaseError({ message: "Unsupported provider: provider is not enabled" })).toMatch(
+      /isn't enabled yet/i
+    );
+  });
+
+  it("points at the self-hosted redirect allow-list, not a cloud dashboard", () => {
+    const msg = friendlySupabaseError({ message: "redirect url not allowed" });
+    expect(msg).toMatch(/ADDITIONAL_REDIRECT_URLS/);
+    expect(msg).not.toMatch(/dashboard/i);
+  });
+
+  it("falls back for unknown errors", () => {
+    expect(friendlySupabaseError({ message: "something odd" }, "fallback text")).toBe("fallback text");
+  });
+});
 
 describe("getErrorMessage", () => {
   it("reads strings, Errors, and message fields", () => {

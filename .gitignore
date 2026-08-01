@@ -1,12 +1,35 @@
+# Dependencies
 node_modules
+
+# Build output
 .next
+out
+next-env.d.ts.bak
+
+# Environment — never commit real credentials.
+# The production runtime env file is generated on the VPS by the deploy workflow.
 .env
 .env.local
-.DS_Store
+.env.*.local
+.env.production
+.env.development
 
+# OS / editor metadata
+.DS_Store
+**/.DS_Store
+Thumbs.db
+
+# Crawler output and other scratch text dumps
 *.txt
+
 # TypeScript incremental build cache (generated)
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+
+# Local Supabase CLI state and dumps (never the versioned migrations)
 schema.sql
 supabase/.temp/
+supabase/.branches/
+
+# Test / coverage artifacts
+coverage

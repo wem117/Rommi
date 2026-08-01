@@ -91,10 +91,16 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.image.outputs.image }}:latest
+          # Every NEXT_PUBLIC_* the browser needs must be passed here: Next inlines
+          # them at build time, so runtime-only values never reach the client bundle.
           build-args: |
             NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
             NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
             NEXT_PUBLIC_SITE_URL=https://roomi.kz
+            NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET }}
+            NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+            NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID }}
+            NEXT_PUBLIC_GEOCODER_URL=${{ secrets.NEXT_PUBLIC_GEOCODER_URL }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -115,8 +121,47 @@ jobs:
           script: |
             set -euo pipefail
             IMAGE="${{ needs.build-and-push.outputs.image }}:latest"
-            mkdir -p ~/app/roomi
-            cd ~/app/roomi
+            APP_DIR=~/app/roomi
+            mkdir -p "$APP_DIR"
+            cd "$APP_DIR"
+
+            # --- Runtime environment -------------------------------------------------
+            # NEXT_PUBLIC_* values are inlined into the bundle at build time, but
+            # SERVER-only secrets are read from the process environment at runtime.
+            # Without them the service-role client cannot be constructed, so uploads,
+            # the admin panel, moderation reports and terms-acceptance all fail.
+            # Written 0600 and passed via --env-file so secrets never appear in
+            # `docker inspect` or the process list.
+            umask 077
+            cat > "$APP_DIR/.env.production" <<'ENVEOF'
+            NODE_ENV=production
+            SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+            ADMIN_EMAILS=${{ secrets.ADMIN_EMAILS }}
+            NEXT_PUBLIC_SITE_URL=https://roomi.kz
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET }}
+            SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+            UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }}
+            UPSTASH_REDIS_REST_TOKEN=${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+            APP_RELEASE=${{ github.sha }}
+            ENVEOF
+            chmod 600 "$APP_DIR/.env.production"
+            # Drop keys whose secret was not configured, so an empty value never
+            # shadows a sensible in-app default.
+            sed -i -E '/^[A-Z_]+=$/d' "$APP_DIR/.env.production"
+
+            # Default the storage bucket when the secret is unset (matches the app default).
+            grep -q '^NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=' "$APP_DIR/.env.production" \
+              || echo "NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=roommate-assets" >> "$APP_DIR/.env.production"
+
+            if ! grep -q '^SUPABASE_SERVICE_ROLE_KEY=' "$APP_DIR/.env.production"; then
+              echo "::warning::SUPABASE_SERVICE_ROLE_KEY secret is not set. Image uploads, the admin panel, moderation and terms-acceptance will fail until it is added."
+            fi
+            if ! grep -q '^ADMIN_EMAILS=' "$APP_DIR/.env.production"; then
+              echo "::warning::ADMIN_EMAILS secret is not set. Admin access falls back to profiles.role / site_settings only."
+            fi
+
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker pull "$IMAGE"
             docker stop roomi-web || true
@@ -124,7 +169,40 @@ jobs:
             docker run -d \
               --name roomi-web \
               --restart unless-stopped \
+              --env-file "$APP_DIR/.env.production" \
               -p 127.0.0.1:3000:3000 \
               "$IMAGE"
             docker image prune -f
             docker logout ghcr.io || true
+
+            # --- Post-deploy verification -------------------------------------------
+            # Gate on LIVENESS (the new container boots and serves requests), not on
+            # database reachability: a transient Supabase blip must not mark an
+            # otherwise-good release as failed. Database health is still surfaced
+            # below so degradation is visible in the deploy log.
+            echo "Waiting for the app to answer /api/health..."
+            HEALTH_BODY=""
+            HEALTH_CODE=""
+            for i in $(seq 1 30); do
+              HEALTH_CODE="$(curl -sS -o /tmp/roomi-health.json -w '%{http_code}' --max-time 5 \
+                http://127.0.0.1:3000/api/health 2>/dev/null || true)"
+              HEALTH_BODY="$(cat /tmp/roomi-health.json 2>/dev/null || true)"
+              case "$HEALTH_BODY" in
+                *'"server":"ok"'*) break ;;
+              esac
+              HEALTH_BODY=""
+              sleep 2
+            done
+
+            if [ -z "$HEALTH_BODY" ]; then
+              echo "Deploy FAILED: the container never served a healthy response." >&2
+              docker logs --tail 80 roomi-web >&2 || true
+              exit 1
+            fi
+
+            echo "App is live (HTTP $HEALTH_CODE): $HEALTH_BODY"
+            case "$HEALTH_BODY" in
+              *'"database":"degraded"'*)
+                echo "::warning::App is serving, but it cannot reach the database at NEXT_PUBLIC_SUPABASE_URL. Check that the container can resolve/reach the Supabase gateway."
+                ;;
+            esac

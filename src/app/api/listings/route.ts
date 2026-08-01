@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
+import { consume, rateLimitResponse } from "@/lib/api/rate-limit";
 import { createListing } from "@/lib/data/listings-admin";
 import { requireSessionUser } from "@/lib/supabase/session";
 import { friendlySupabaseError } from "@/lib/utils/errors";
@@ -10,6 +11,12 @@ import { isValidMonthlyRent } from "@/lib/validations/monthly-rent";
 export async function POST(request: Request) {
   try {
     const user = await requireSessionUser();
+
+    // Listing spam is the classic marketplace abuse vector: without a cap, one
+    // account can flood the browse pages. 10 new listings/hour is far above
+    // genuine use (a real host posts a handful) while stopping bulk posting.
+    if (!(await consume(`listing-create:${user.id}`, 10, 60 * 60_000))) return rateLimitResponse();
+
     const input = listingSchema.parse(await request.json());
 
     if (!isValidMonthlyRent(input.monthlyRent)) {

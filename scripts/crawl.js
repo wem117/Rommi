@@ -1,5 +1,5 @@
 const fs = require("fs/promises");
-const path = path = require("path");
+const path = require("path");
 
 async function main() {
   let puppeteer;

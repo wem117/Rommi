@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { apiErrorResponse } from "@/lib/api/error-response";
+import { consume, rateLimitResponse } from "@/lib/api/rate-limit";
 import { CURRENT_POLICY_VERSION } from "@/lib/legal/policy-version";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { requireSessionUser } from "@/lib/supabase/session";
@@ -23,6 +24,11 @@ import { requireSessionUser } from "@/lib/supabase/session";
 export async function POST() {
   try {
     const user = await requireSessionUser();
+
+    // Cheap and idempotent, but still a write path: cap it so a signed-in
+    // client cannot spin the database with repeated calls.
+    if (!(await consume(`accept-terms:${user.id}`, 10, 60_000))) return rateLimitResponse();
+
     const supabase = createSupabaseAdminClient();
 
     const { data: existing } = await supabase

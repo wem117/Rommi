@@ -1,10 +1,36 @@
 import type { NextConfig } from "next";
 
 /**
+ * Origin of the Supabase instance this build talks to.
+ *
+ * The backend is self-hosted at https://api.roomi.kz, which is a DIFFERENT
+ * origin from the site itself (roomi.kz) and is therefore NOT covered by
+ * `'self'` in the CSP. It must be listed explicitly or the browser blocks every
+ * auth, PostgREST, storage and realtime request.
+ *
+ * Derived from the same env var the app uses, so the policy can never drift
+ * from the instance the client is actually configured to call. Falls back to
+ * the production backend when the var is absent (e.g. `next lint` outside CI).
+ */
+const SUPABASE_ORIGIN = (() => {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (!raw) return "https://api.roomi.kz";
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return "https://api.roomi.kz";
+  }
+})();
+
+/** Same origin as a websocket scheme, for Supabase Realtime. */
+const SUPABASE_WS_ORIGIN = SUPABASE_ORIGIN.replace(/^http/, "ws");
+
+/**
  * Content-Security-Policy.
  *
  * Allows exactly the origins this app talks to and nothing else:
- *   • Supabase (auth, PostgREST, storage, realtime) over https + wss
+ *   • the self-hosted Supabase instance (auth, PostgREST, storage) over https,
+ *     and Realtime over wss
  *   • Google Maps JS + tiles, and OpenStreetMap/Nominatim (the Leaflet fallback)
  *   • Google Analytics / Tag Manager (only active when an admin sets a GA id)
  *   • self-hosted next/font assets and Next's inline bootstrap
@@ -23,9 +49,9 @@ const csp = [
   "form-action 'self'",
   "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://maps.googleapis.com",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://images.unsplash.com https://lh3.googleusercontent.com https://*.supabase.co https://*.tile.openstreetmap.org https://maps.googleapis.com https://maps.gstatic.com https://*.gstatic.com https://*.googleapis.com",
+  `img-src 'self' data: blob: ${SUPABASE_ORIGIN} https://images.unsplash.com https://lh3.googleusercontent.com https://*.tile.openstreetmap.org https://maps.googleapis.com https://maps.gstatic.com https://*.gstatic.com https://*.googleapis.com`,
   "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://nominatim.openstreetmap.org https://www.google-analytics.com https://maps.googleapis.com https://*.tile.openstreetmap.org",
+  `connect-src 'self' ${SUPABASE_ORIGIN} ${SUPABASE_WS_ORIGIN} https://nominatim.openstreetmap.org https://www.google-analytics.com https://maps.googleapis.com https://*.tile.openstreetmap.org`,
   "frame-src 'self' https://*.google.com",
   "worker-src 'self' blob:",
   "manifest-src 'self'",
@@ -63,10 +89,13 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["lucide-react", "date-fns"]
   },
   images: {
+    // The self-hosted Supabase host serves every uploaded avatar/listing/message
+    // image from /storage/v1/object/public/..., so it must be allow-listed or
+    // next/image refuses to optimize them and the images fail to render.
     remotePatterns: [
+      { protocol: "https", hostname: new URL(SUPABASE_ORIGIN).hostname },
       { protocol: "https", hostname: "images.unsplash.com" },
-      { protocol: "https", hostname: "lh3.googleusercontent.com" },
-      { protocol: "https", hostname: "**.supabase.co" }
+      { protocol: "https", hostname: "lh3.googleusercontent.com" }
     ],
     // 75 is the default; 90 is used by the fullscreen gallery lightbox.
     qualities: [75, 90]

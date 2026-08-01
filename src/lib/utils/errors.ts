@@ -91,7 +91,14 @@ export function friendlySupabaseError(error: unknown, fallback = "Something went
   }
 
   if (/redirect.*(not allowed|invalid)|invalid.*redirect|url.*not allowed/i.test(message)) {
-    return "This link's redirect URL isn't allowed. An admin must add it to Supabase Auth → URL Configuration.";
+    return "This link's redirect URL isn't allowed. An admin must add it to ADDITIONAL_REDIRECT_URLS in the Supabase server config.";
+  }
+
+  // Self-hosted GoTrue reports a disabled social provider this way. Without a
+  // specific mapping this surfaced as a generic "Google sign-in failed", which
+  // gave neither the user nor the operator anything actionable.
+  if (/provider is not enabled|unsupported provider|provider.*disabled/i.test(message)) {
+    return "That sign-in method isn't enabled yet. Please sign in with your email and password.";
   }
 
   if (/email not confirmed/i.test(message)) {

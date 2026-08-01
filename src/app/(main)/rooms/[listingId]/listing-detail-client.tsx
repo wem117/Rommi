@@ -69,7 +69,10 @@ export default function ListingDetailClient({
   const { listing, loading, error } = useListing(listingId, initialListing);
   const [owner, setOwner] = useState<UserProfile | null>(null);
   const [messageLoading, setMessageLoading] = useState(false);
-  const related = useListings(listing ? { city: listing.city, sort: "newest" } : {});
+  // Deliberately NOT filtered by city: rankSimilarListings scores city highest,
+  // so same-city results still come first, but a city with a single listing
+  // still gets suggestions instead of an empty section.
+  const related = useListings(listing ? { sort: "newest" } : {});
 
   useEffect(() => {
     let cancelled = false;

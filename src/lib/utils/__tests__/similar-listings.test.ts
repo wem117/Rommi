@@ -73,3 +73,20 @@ describe("rankSimilarListings", () => {
     expect(() => rankSimilarListings(free, [listing({ id: "a" })])).not.toThrow();
   });
 });
+
+describe("city preference", () => {
+  it("ranks a same-city listing above a better match in another city", () => {
+    const out = rankSimilarListings(current, [
+      listing({ id: "other-city-perfect", city: "Astana", monthlyRent: 100_000 }),
+      listing({ id: "same-city-worse", city: "Almaty", listingType: "entire_place", monthlyRent: 900_000 })
+    ]);
+    expect(out[0].id).toBe("same-city-worse");
+  });
+
+  it("still suggests cross-city listings when the city has nothing else", () => {
+    // Production case: three listings, three different cities. A hard city
+    // filter left the section permanently empty.
+    const out = rankSimilarListings(current, [listing({ id: "elsewhere", city: "Semey" })]);
+    expect(out.map((l) => l.id)).toEqual(["elsewhere"]);
+  });
+});

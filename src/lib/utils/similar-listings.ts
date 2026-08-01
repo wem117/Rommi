@@ -3,13 +3,15 @@ import type { Listing } from "@/types/listing";
 /**
  * Orders candidate listings by how close they are to the one being viewed.
  *
- * The query already restricts to the same city (the strongest signal a renter
- * cares about), so ranking here refines within that set rather than re-filtering
- * it. Scored rather than hard-filtered on purpose: a hard filter on budget and
- * type empties the section on a young marketplace, and an empty section is worse
- * than a loosely related one. Weights reflect what a renter actually substitutes
- * between — the same kind of place first, then a comparable price, then the same
- * district.
+ * Every signal is SCORED, never used as a filter. The brief asks to *prefer*
+ * same city, budget and type, and preference is what this is: on a young
+ * marketplace a hard filter empties the section entirely — with listings spread
+ * one-per-city, a city filter leaves nothing at all — and an empty section is
+ * worse than a loosely related one.
+ *
+ * Weights reflect what a renter actually substitutes between: city dominates
+ * (nobody moves to another city for a room), then the kind of place, then a
+ * comparable price, then the district.
  */
 export function rankSimilarListings(current: Listing, candidates: Listing[], limit = 3): Listing[] {
   const rent = current.monthlyRent || 0;
@@ -18,6 +20,9 @@ export function rankSimilarListings(current: Listing, candidates: Listing[], lim
     .filter((item) => item.id !== current.id)
     .map((item) => {
       let score = 0;
+      // City outweighs everything else combined, so a same-city listing always
+      // sorts above a cross-city one however well the latter matches otherwise.
+      if (item.city === current.city) score += 20;
       if (item.listingType === current.listingType) score += 3;
       if (item.propertyType === current.propertyType) score += 2;
       if (current.district && item.district === current.district) score += 1;

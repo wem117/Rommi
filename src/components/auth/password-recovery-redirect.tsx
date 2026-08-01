@@ -5,6 +5,7 @@ import { useEffect } from "react";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { readRecoveryCredentials } from "@/lib/supabase/recovery";
 
 const RESET_PATH = "/reset-password";
 
@@ -70,9 +71,15 @@ export function PasswordRecoveryRedirect() {
     });
 
     // Implicit links never reach the event above (see the flow-mismatch throw in
-    // the doc comment), so the URL itself is the trigger.
-    const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-    if (params.get("type") === "recovery" && params.get("access_token")) goToReset();
+    // the doc comment), so the URL itself is the trigger. A token_hash link is
+    // inert until something POSTs it, so it needs the same treatment.
+    //
+    // `type` MUST be checked. Signup confirmation and email-change links land in
+    // exactly the same shape, and this component is mounted app-wide — without
+    // the guard, confirming a new account would bounce the user to
+    // "set a new password" instead of signing them in.
+    const credentials = readRecoveryCredentials(window.location.href);
+    if (credentials.type === "recovery" && (credentials.tokenHash || credentials.accessToken)) goToReset();
 
     return () => {
       cancelled = true;

@@ -1,77 +1,160 @@
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getErrorMessage } from "@/lib/utils/errors";
+
+/** Digits in the OTP GoTrue puts in `{{ .Token }}`. */
+export const RECOVERY_CODE_LENGTH = 6;
 
 /**
- * Establishes the password-recovery session from the credentials GoTrue puts in
- * the URL, for BOTH shapes it can emit.
+ * Everything GoTrue can put in a recovery URL, in one shape.
  *
- * Why this cannot be left to supabase-js alone:
+ * Four shapes exist because GoTrue's behaviour depends on the email template
+ * and on the flow the reset was requested with:
  *
- * 1. IMPLICIT links (`#access_token=...&refresh_token=...&type=recovery`).
- *    `@supabase/ssr`'s createBrowserClient hardcodes `flowType: "pkce"`, and
- *    GoTrueClient._getSessionFromURL() throws outright on a flow mismatch:
- *        case 'implicit': if (this.flowType === 'pkce')
- *            throw new AuthPKCEGrantCodeExchangeError('Not a valid PKCE flow url.')
- *    The session is then never saved and no PASSWORD_RECOVERY event fires, so the
- *    page saw "no user" and declared the link invalid. `setSession()` bypasses
- *    that check entirely — it just installs the tokens. (auth-js leaves the URL
- *    untouched on that failure path, so the fragment is still readable here.)
+ *   token_hash    the officially recommended shape, produced by a template that
+ *                 builds its own link from `{{ .TokenHash }}`. A query param, so
+ *                 it survives servers, redirects and link rewriting, and it is
+ *                 redeemed by POST — see verifyRecoveryTokenHash().
+ *   access_token  implicit links, where GoTrue's own /verify endpoint already
+ *                 consumed the token and handed back a session in the fragment.
+ *   code          PKCE links; only redeemable in the browser that requested the
+ *                 reset, because that is where the code_verifier lives.
+ *   error_*       GoTrue reporting a genuinely dead link (expired, already used).
+ *                 Worth reading so we can say what actually happened.
  *
- * 2. PKCE links (`?code=...`) require the `code_verifier` that was stored when
- *    the reset was REQUESTED. Recovery links are very often opened in a
- *    different browser than the one that requested them (desktop -> phone), or
- *    in an email client's in-app webview, where that verifier does not exist and
- *    the exchange fails. We still attempt the exchange, but a failure here is
- *    reported honestly instead of being mistaken for an expired link.
- *    `sendResetPassword()` now asks GoTrue for non-PKCE links precisely so this
- *    branch stops being reachable for freshly issued emails; it stays for links
- *    already sitting in inboxes.
- *
- * ORDER MATTERS: URL credentials are processed BEFORE any pre-existing session.
- * Checking the session first meant that a visitor who was already signed in —
- * on a shared laptop, or as a different account — kept that session, the form
- * rendered against it, and updateUser() would have changed the WRONG account's
- * password while silently discarding the recovery token. Whoever holds the link
- * from the email is the identity the form must operate on.
- *
- * Returns whether a usable recovery session now exists. Never throws.
+ * Both `?query` and `#fragment` are searched: GoTrue uses the fragment for
+ * implicit results and the query for everything else, and a template author can
+ * legitimately choose either.
  */
-export async function establishRecoverySession(): Promise<boolean> {
-  if (typeof window === "undefined") return false;
+export type RecoveryCredentials = {
+  tokenHash: string | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  code: string | null;
+  email: string | null;
+  /** GoTrue's action marker: "recovery", "signup", "magiclink", "email_change". */
+  type: string | null;
+  errorDescription: string | null;
+};
+
+export function readRecoveryCredentials(href: string): RecoveryCredentials {
+  const url = new URL(href);
+  const query = url.searchParams;
+  const fragment = new URLSearchParams(url.hash.replace(/^#/, ""));
+
+  const pick = (key: string) => query.get(key) ?? fragment.get(key);
+
+  const errorDescription = pick("error_description") ?? pick("error_code") ?? pick("error");
+
+  return {
+    tokenHash: pick("token_hash"),
+    accessToken: pick("access_token"),
+    refreshToken: pick("refresh_token"),
+    code: pick("code"),
+    email: pick("email"),
+    type: pick("type"),
+    // `+` survives URLSearchParams decoding as a space; error strings are
+    // form-encoded by GoTrue, so restore it for a readable message.
+    errorDescription: errorDescription ? errorDescription.replace(/\+/g, " ") : null
+  };
+}
+
+/**
+ * The result of trying to turn a recovery URL into a session.
+ *
+ * `no-credentials` and `failed` are kept apart on purpose: the first is a
+ * visitor who simply opened /reset-password, the second is a link that was
+ * present and did not work. Both land on the manual-code entry, but only the
+ * second one has something to apologise for.
+ */
+export type RecoveryOutcome =
+  | { status: "authenticated" }
+  | { status: "no-credentials"; email: string | null }
+  | { status: "failed"; email: string | null; message: string };
+
+/**
+ * Redeems the link-borne recovery credential and installs the session.
+ *
+ * The primary path is `verifyOtp({ token_hash, type: "recovery" })`. That call
+ * is a POST to /auth/v1/verify, which matters more than it looks:
+ *
+ *   - It is not bound to a browser. No code_verifier is involved, so the link
+ *     works when the request came from a laptop and the mail is opened on a
+ *     phone — the normal case, and the one PKCE cannot serve.
+ *   - It is not a GET, so the mail-scanning proxies that prefetch every link in
+ *     a message (Outlook Safe Links, corporate gateways, some Gmail paths)
+ *     cannot silently burn the single-use token before the user clicks it.
+ *   - The credential rides in the query string, not the fragment, so it is not
+ *     lost across a redirect or a client-side navigation.
+ *
+ * The implicit and PKCE branches remain for links already sitting in inboxes.
+ */
+export async function establishRecoverySession(): Promise<RecoveryOutcome> {
+  if (typeof window === "undefined") return { status: "no-credentials", email: null };
 
   const supabase = getSupabaseBrowserClient();
+  const credentials = readRecoveryCredentials(window.location.href);
+  const { email } = credentials;
 
-  // --- Implicit: tokens in the URL fragment (never sent to the server) -------
-  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-  const accessToken = hashParams.get("access_token");
-  const refreshToken = hashParams.get("refresh_token");
+  if (credentials.errorDescription) {
+    scrubCredentialsFromUrl();
+    return { status: "failed", email, message: credentials.errorDescription };
+  }
 
-  if (accessToken && refreshToken) {
-    const { data, error } = await supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken
+  if (credentials.tokenHash) {
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: credentials.tokenHash,
+      type: "recovery"
     });
-    if (!error && data.session) {
-      scrubCredentialsFromUrl();
-      return true;
-    }
+    scrubCredentialsFromUrl();
+    if (!error && data.session) return { status: "authenticated" };
+    return { status: "failed", email, message: getErrorMessage(error) };
   }
 
-  // --- PKCE: ?code= in the query string --------------------------------------
-  const code = new URLSearchParams(window.location.search).get("code");
-  if (code) {
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error && data.session) {
-      scrubCredentialsFromUrl();
-      return true;
-    }
+  if (credentials.accessToken && credentials.refreshToken) {
+    const { data, error } = await supabase.auth.setSession({
+      access_token: credentials.accessToken,
+      refresh_token: credentials.refreshToken
+    });
+    scrubCredentialsFromUrl();
+    if (!error && data.session) return { status: "authenticated" };
+    return { status: "failed", email, message: getErrorMessage(error) };
   }
 
-  // No credentials in the URL (or they could not be redeemed). A session may
-  // still exist because supabase-js consumed the link during its own
-  // initialization, or because the visitor is simply signed in and changing
-  // their password deliberately.
+  if (credentials.code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(credentials.code);
+    scrubCredentialsFromUrl();
+    if (!error && data.session) return { status: "authenticated" };
+    return { status: "failed", email, message: getErrorMessage(error) };
+  }
+
+  // No credential in the URL. A session may still exist — either supabase-js
+  // consumed the link during its own initialization, or the visitor is signed
+  // in and is changing their password deliberately.
   const existing = await supabase.auth.getSession();
-  return Boolean(existing.data.session);
+  if (existing.data.session) return { status: "authenticated" };
+
+  return { status: "no-credentials", email };
+}
+
+/**
+ * Redeems the 6-digit code from `{{ .Token }}`.
+ *
+ * This is the path that cannot be broken by anything in between: no link to
+ * rewrite, no fragment to drop, no redirect to mishandle, nothing for a scanner
+ * to prefetch, and no dependency on which browser or device is being used. When
+ * the link path fails for an environment we cannot control, this is what the
+ * user falls back to.
+ */
+export async function verifyRecoveryCode(email: string, code: string) {
+  const supabase = getSupabaseBrowserClient();
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: email.trim().toLowerCase(),
+    token: code.replace(/\D/g, ""),
+    type: "recovery"
+  });
+
+  if (error) throw error;
+  if (!data.session) throw new Error("Recovery code accepted but no session was returned.");
 }
 
 /**

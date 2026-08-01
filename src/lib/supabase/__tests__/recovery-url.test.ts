@@ -1,52 +1,78 @@
 import { describe, expect, it } from "vitest";
 
-/**
- * Guards the URL shapes GoTrue can hand back on a password-recovery redirect.
- *
- * The production bug was that only ONE of these was handled: an implicit link
- * (`#access_token=...`) hit GoTrueClient's flow-mismatch check under
- * `flowType: "pkce"` and threw, so no session was created and the page reported
- * "this link is invalid or has expired" for a perfectly valid link.
- */
-function readRecoveryCredentials(url: string) {
-  const u = new URL(url);
-  const hash = new URLSearchParams(u.hash.replace(/^#/, ""));
-  return {
-    accessToken: hash.get("access_token"),
-    refreshToken: hash.get("refresh_token"),
-    type: hash.get("type"),
-    code: u.searchParams.get("code")
-  };
-}
+import { readRecoveryCredentials } from "@/lib/supabase/recovery";
 
-describe("recovery URL shapes", () => {
-  it("reads implicit tokens from the hash fragment", () => {
+/**
+ * Guards every URL shape GoTrue can hand back on a password recovery, against
+ * the real parser rather than a copy of it.
+ *
+ * The production bug was that only ONE shape was handled, so a perfectly valid
+ * link reported "this link is invalid or has expired".
+ */
+describe("readRecoveryCredentials", () => {
+  it("reads a token_hash link — the shape the recovery template emits", () => {
+    const c = readRecoveryCredentials(
+      "https://roomi.kz/reset-password?token_hash=pkce_9f8e7d&type=recovery&email=user%40roomi.kz"
+    );
+    expect(c.tokenHash).toBe("pkce_9f8e7d");
+    expect(c.email).toBe("user@roomi.kz");
+    expect(c.accessToken).toBeNull();
+    expect(c.code).toBeNull();
+    expect(c.errorDescription).toBeNull();
+  });
+
+  it("reads implicit tokens from the hash fragment (legacy links)", () => {
     const c = readRecoveryCredentials(
       "https://roomi.kz/reset-password#access_token=abc.def.ghi&refresh_token=r123&type=recovery&expires_in=3600"
     );
     expect(c.accessToken).toBe("abc.def.ghi");
     expect(c.refreshToken).toBe("r123");
-    expect(c.type).toBe("recovery");
-    expect(c.code).toBeNull();
+    expect(c.tokenHash).toBeNull();
   });
 
-  it("reads a PKCE code from the query string", () => {
+  it("reads a PKCE code from the query string (legacy links)", () => {
     const c = readRecoveryCredentials("https://roomi.kz/reset-password?code=pkce-auth-code");
     expect(c.code).toBe("pkce-auth-code");
     expect(c.accessToken).toBeNull();
   });
 
-  it("yields nothing usable for a bare visit (real 'no link' case)", () => {
+  it("reads GoTrue's own error report instead of guessing at the cause", () => {
+    const c = readRecoveryCredentials(
+      "https://roomi.kz/reset-password#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired"
+    );
+    expect(c.errorDescription).toBe("Email link is invalid or has expired");
+    expect(c.tokenHash).toBeNull();
+  });
+
+  it("finds credentials in the query OR the fragment", () => {
+    // GoTrue uses the fragment for implicit results and the query elsewhere; a
+    // template author may legitimately pick either.
+    expect(readRecoveryCredentials("https://roomi.kz/reset-password#token_hash=abc").tokenHash).toBe("abc");
+    expect(readRecoveryCredentials("https://roomi.kz/reset-password?access_token=xyz").accessToken).toBe("xyz");
+  });
+
+  it("yields nothing usable for a bare visit (the real 'no link' case)", () => {
     const c = readRecoveryCredentials("https://roomi.kz/reset-password");
+    expect(c.tokenHash).toBeNull();
     expect(c.accessToken).toBeNull();
     expect(c.code).toBeNull();
+    expect(c.errorDescription).toBeNull();
   });
 
   it("never routes recovery through the API callback (fragments die at the server)", () => {
-    // Regression: recovery must target the PAGE, since a server route can never
-    // observe a URL fragment.
     const target = new URL("/reset-password", "https://roomi.kz").toString();
     expect(target).toBe("https://roomi.kz/reset-password");
     expect(target).not.toContain("/api/auth/callback");
+  });
+});
+
+describe("recovery type marker", () => {
+  it("distinguishes recovery from the identically shaped signup link", () => {
+    // The app-wide redirect keys off this. Without it, confirming a new account
+    // (same URL shape, type=signup) would be routed to "set a new password".
+    expect(readRecoveryCredentials("https://roomi.kz/?token_hash=abc&type=recovery").type).toBe("recovery");
+    expect(readRecoveryCredentials("https://roomi.kz/?token_hash=abc&type=signup").type).toBe("signup");
+    expect(readRecoveryCredentials("https://roomi.kz/#access_token=t&type=signup").type).toBe("signup");
+    expect(readRecoveryCredentials("https://roomi.kz/reset-password").type).toBeNull();
   });
 });

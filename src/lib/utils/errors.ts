@@ -93,6 +93,24 @@ export function friendlySupabaseError(error: unknown, fallback = "Something went
     return "We couldn't send the email. Email delivery may not be configured yet — please contact support.";
   }
 
+  // A spent, mistyped or expired recovery credential — the emailed link
+  // (token_hash) and the 6-digit code both land here. Recovery credentials are
+  // single-use, so "already used" is a routine outcome (a mail scanner touched
+  // the link, or the user double-clicked), and the fix is a fresh email rather
+  // than retrying the same code.
+  //
+  // Keyed primarily off the error CODE: verified against production, the two
+  // paths return the same `otp_expired` code but different prose — "Email link
+  // is invalid or has expired" for token_hash, "Token has expired or is
+  // invalid" for the code. The message patterns are the fallback for older
+  // GoTrue builds that send no error_code.
+  if (
+    /^otp_(expired|disabled)$/i.test(getErrorCode(error)) ||
+    /(token|email link|otp).*(expired|invalid)|expired or is invalid/i.test(message)
+  ) {
+    return "That code or link has expired or was already used. Request a new password reset email.";
+  }
+
   if (/redirect.*(not allowed|invalid)|invalid.*redirect|url.*not allowed/i.test(message)) {
     return "This link's redirect URL isn't allowed. An admin must add it to ADDITIONAL_REDIRECT_URLS in the Supabase server config.";
   }

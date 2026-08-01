@@ -1,6 +1,7 @@
 "use client";
 
 import { Chrome, Loader2, Mail } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -37,6 +38,7 @@ function SignInContent() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [bannerTone, setBannerTone] = useState<"info" | "success" | "error">("info");
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
+  const [resetRequestedFor, setResetRequestedFor] = useState<string | null>(null);
 
   // Surface errors handed back by the OAuth / password-recovery callback so a
   // failed code exchange isn't silent.
@@ -129,6 +131,10 @@ function SignInContent() {
       await sendResetPassword(email.trim().toLowerCase());
       setBannerTone("success");
       setBannerMessage(t("auth.resetEmailSentBanner"));
+      // Offers the second way in. The link in that email can be mangled by a
+      // webview or burned by a scanning proxy; the 6-digit code in the same
+      // email cannot, so the user always has a route that works.
+      setResetRequestedFor(email.trim().toLowerCase());
       toast.success(t("auth.resetEmailSentToast"));
     } catch (error) {
       // Surface the raw error for diagnosis; the UI shows a friendly mapping.
@@ -151,6 +157,15 @@ function SignInContent() {
       footerLinkLabel={t("auth.createOne")}
     >
       <StatusBanner tone={bannerTone} message={bannerMessage} />
+
+      {resetRequestedFor ? (
+        <Link
+          href={`/reset-password?email=${encodeURIComponent(resetRequestedFor)}`}
+          className="mb-4 block text-center text-sm font-semibold text-[#0f957d] underline underline-offset-4"
+        >
+          {t("auth.enterResetCodeInstead")}
+        </Link>
+      ) : null}
 
       <button
         type="button"

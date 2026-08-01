@@ -93,48 +93,58 @@ export async function signInWithGoogle(nextPath?: string) {
 /**
  * Where a recovery email should land the user: the /reset-password PAGE, never
  * the /api/auth/callback ROUTE. A server route cannot read a URL fragment, and
- * the recovery session arrives in one.
+ * legacy recovery links deliver the session in one.
+ *
+ * The email carries the address so the page can prefill it on the manual-code
+ * form — the user is usually on a different device from the one that asked for
+ * the reset, where the app knows nothing about them yet.
  */
-function getPasswordResetRedirectTo() {
+function getPasswordResetRedirectTo(email: string) {
   const origin = typeof window !== "undefined" ? window.location.origin : siteConfig.url;
-  return new URL("/reset-password", origin).toString();
+  const target = new URL("/reset-password", origin);
+  target.searchParams.set("email", email);
+  return target.toString();
 }
 
 /**
- * Sends the password-recovery email WITHOUT PKCE, deliberately.
+ * Sends the password-recovery email, deliberately NOT under PKCE.
  *
- * Why not the shared browser client:
- * `@supabase/ssr`'s createBrowserClient hardcodes `flowType: "pkce"`, and
- * resetPasswordForEmail() attaches a `code_challenge` whenever the flow is PKCE.
- * GoTrue then issues a PKCE recovery link — verified against production: the
- * stored token is `pkce_...` and /verify redirects to
- * `/reset-password?code=<uuid>`. Redeeming that code REQUIRES the
- * `code_verifier` that was generated in, and stored by, the browser that asked
- * for the reset.
+ * The recovery email offers the user two ways in, and this call has to keep both
+ * of them usable:
  *
- * Password-reset links are email links: they get opened on a phone when the
- * request came from a laptop, or inside Gmail's in-app webview, which is a
- * different storage context. There the verifier does not exist, so the exchange
- * is cryptographically impossible and the user is told "this link is invalid or
- * has expired" — for a link that is perfectly valid. PKCE binds a credential to
- * a single browser; email delivery deliberately crosses browsers. The two
- * cannot be combined for recovery.
+ *   1. a link built from `{{ .TokenHash }}`, redeemed by
+ *      verifyOtp({ token_hash, type: "recovery" }) — a POST, so no mail scanner
+ *      can burn the single-use token by prefetching it, and a query parameter,
+ *      so nothing is lost to a dropped fragment;
+ *   2. the 6-digit code in `{{ .Token }}`, redeemed by
+ *      verifyOtp({ email, token, type: "recovery" }).
  *
- * Sending the request through an implicit-flow client omits the code_challenge,
- * so GoTrue mints the standard recovery link instead: it carries the session in
- * the URL fragment and therefore works from ANY device.
- * `establishRecoverySession()` installs those tokens with setSession() and
- * immediately scrubs them from the address bar. Fragments are never sent to a
- * server, so they stay out of access logs and the Referer header.
+ * Neither is bound to a browser, which is the whole point. The shared browser
+ * client cannot be used to make the request: `@supabase/ssr`'s
+ * createBrowserClient hardcodes `flowType: "pkce"`, and resetPasswordForEmail()
+ * attaches a `code_challenge` whenever the flow is PKCE. GoTrue then mints a
+ * PKCE link — verified against production, where the stored token came back as
+ * `pkce_...` and /verify redirected to `/reset-password?code=<uuid>`. Redeeming
+ * that code requires the `code_verifier` held by the browser that ASKED for the
+ * reset, and recovery mail is opened on a phone when the request came from a
+ * laptop, or inside Gmail's in-app webview, which is a different storage
+ * context. PKCE binds a credential to one browser; email delivery deliberately
+ * crosses browsers.
+ *
+ * Requesting through an implicit-flow client omits the code_challenge, so a
+ * deployment still running the stock `{{ .ConfirmationURL }}` template degrades
+ * to a fragment link the page can also handle, instead of a PKCE link that is
+ * cryptographically impossible to redeem off-device.
  *
  * OAuth still uses PKCE (same browser throughout), which is where PKCE belongs.
  */
 export async function sendResetPassword(email: string) {
   if (!isSupabaseConfigured) throw new Error("Supabase is not configured");
 
+  const normalized = email.trim().toLowerCase();
   const supabase = getSupabaseRecoveryRequestClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: getPasswordResetRedirectTo()
+  const { error } = await supabase.auth.resetPasswordForEmail(normalized, {
+    redirectTo: getPasswordResetRedirectTo(normalized)
   });
   if (error) throw error;
 }

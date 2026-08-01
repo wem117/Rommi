@@ -369,7 +369,30 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
           className="object-cover object-center"
           sizes="100vw"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(17,16,12,0.62)_0%,rgba(17,16,12,0.35)_30%,rgba(17,16,12,0.72)_100%)]" />
+        {/*
+          Two-part scrim. The base gradient sets the overall mood; its middle
+          stop used to fall to 0.35 exactly where the headline sits, which is
+          why bright areas of the photo (walls, paintings, windows) swallowed
+          the text. Raised to 0.44 so the copy band is never the lightest part
+          of the image.
+        */}
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(17,16,12,0.64)_0%,rgba(17,16,12,0.44)_30%,rgba(17,16,12,0.72)_100%)]" />
+        {/*
+          Focused scrim behind the copy only, so contrast is guaranteed no
+          matter what the admin-uploaded hero image contains, while the photo
+          stays visible at the edges. Combined with the base gradient this puts
+          ~0.72 effective darkness behind the headline, which measures 4.2:1 for
+          the brand tint against a pure-white image — the worst case any upload
+          can produce — versus the 3:1 WCAG minimum for large text. Deliberately
+          no stronger than that: the lightened tint does most of the work, so the
+          photograph stays legible instead of being blacked out. Purely
+          decorative and absolutely positioned, so it adds no layout box and
+          cannot shift anything.
+        */}
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-[radial-gradient(ellipse_125%_78%_at_50%_46%,rgba(17,16,12,0.50)_0%,rgba(17,16,12,0.44)_52%,rgba(17,16,12,0)_88%)]"
+        />
 
         <div className="relative z-10 mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
           <nav className="fixed inset-x-0 top-0 z-30 px-3 sm:px-6 lg:px-8">
@@ -495,10 +518,18 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
                 {t("home.heroBadge")}
               </div>
 
-              <h1 className="mt-6 text-[2rem] font-bold leading-tight text-white sm:text-5xl lg:text-7xl">
+              {/*
+                The text-shadow is the third layer of defence: it holds the
+                glyph edges apart from whatever detail sits directly behind them
+                (picture frames, window mullions) even before the scrim is
+                considered. It costs no layout space.
+              */}
+              <h1 className="mt-6 text-[2rem] font-bold leading-tight text-white [text-shadow:0_2px_10px_rgba(17,16,12,0.55)] sm:text-5xl lg:text-7xl">
                 {heroTitle ?? (
                   <>
-                    {t("home.heroTitleLead")} <span className="text-primary">{t("home.heroTitleAccent")}</span>
+                    {t("home.heroTitleLead")}{" "}
+                    {/* Brand teal, lightened for photography — see --primary-on-dark. */}
+                    <span className="text-primary-on-dark">{t("home.heroTitleAccent")}</span>
                   </>
                 )}
               </h1>

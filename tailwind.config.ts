@@ -13,7 +13,9 @@ const config: Config = {
         foreground: "hsl(var(--foreground))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))"
+          foreground: "hsl(var(--primary-foreground))",
+          // Brand teal lightened for text over photography — see globals.css.
+          "on-dark": "hsl(var(--primary-on-dark))"
         },
         accent: {
           DEFAULT: "hsl(var(--accent))",

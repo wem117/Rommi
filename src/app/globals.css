@@ -29,6 +29,23 @@
   /* Brand */
   --primary: 166 86% 29%; /* teal #0a8d6e */
   --primary-foreground: 0 0% 100%;
+  /*
+   * The SAME brand hue (166), lightened for brand-coloured text sitting ON
+   * photography. Not a different colour — a tint of the existing one.
+   *
+   * --primary has a relative luminance of 0.20, which sits in the MIDDLE of the
+   * range, so over a photo it fails in both directions: 1.65:1 on a bright wall,
+   * 1.01:1 on light wood. Darkening the scrim does not rescue it — it makes it
+   * worse first (the background luminance passes through the teal's own on the
+   * way down) and only reaches 3:1 at ~85% scrim, which would black out the
+   * image entirely.
+   *
+   * Lightness 62% clears any scrimmed background: 5.35:1 worst case (pure white
+   * under the hero scrim), against a 3:1 requirement for large text. Reserved
+   * for brand text over images; buttons, links and text on light surfaces keep
+   * --primary.
+   */
+  --primary-on-dark: 166 70% 62%; /* teal #5ae2c2 */
   --accent: 34 66% 39%; /* gold-brown #a37021 */
   --accent-foreground: 0 0% 100%;
 
@@ -60,6 +77,8 @@
 
   --primary: 166 70% 42%;
   --primary-foreground: 0 0% 100%;
+  /* The hero scrim is dark in both themes, so this tint does not change. */
+  --primary-on-dark: 166 70% 62%;
   --accent: 34 60% 55%;
   --accent-foreground: 26 24% 8%;
 

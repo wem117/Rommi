@@ -37,10 +37,20 @@ export interface HomepageStats {
   matches: number;
 }
 
+/**
+ * Default baselines.
+ *
+ * These are the values this project already shipped as the base of the old
+ * simulation — they are not new numbers. Production stores no `homepage_stats`
+ * row, so without a non-zero default the displayed figure would fall from the
+ * order of thousands to the literal live count overnight. Keeping them makes the
+ * change continuous; the admin can lower them, or set every one to 0 to publish
+ * the unmodified real counts.
+ */
 export const DEFAULT_HOMEPAGE_STATS_CONFIG: HomepageStatsConfig = {
-  listings: { base: 0 },
-  students: { base: 0 },
-  matches: { base: 0 }
+  listings: { base: 1250 },
+  students: { base: 4875 },
+  matches: { base: 2150 }
 };
 
 export const EMPTY_HOMEPAGE_STAT_COUNTS: HomepageStatCounts = {

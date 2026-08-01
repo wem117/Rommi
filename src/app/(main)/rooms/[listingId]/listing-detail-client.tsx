@@ -33,6 +33,7 @@ import {
   recordViewedListing
 } from "@/lib/data/profiles";
 import { formatCurrency, formatDate, formatListingPrice } from "@/lib/utils/format";
+import { rankSimilarListings } from "@/lib/utils/similar-listings";
 import type { Listing } from "@/types/listing";
 import type { UserProfile } from "@/types/user";
 
@@ -127,7 +128,7 @@ export default function ListingDetailClient({
     );
   }
 
-  const relatedListings = related.listings.filter((item) => item.id !== listing.id).slice(0, 3);
+  const relatedListings = rankSimilarListings(listing, related.listings);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { apiErrorResponse } from "@/lib/api/error-response";
+import { upsertListingAdminMeta } from "@/lib/data/listing-admin-meta";
 import { mapListingRow } from "@/lib/supabase/mappers";
 import { requireAdminUser } from "@/lib/supabase/admin";
 import { listingUpdateSchema } from "@/lib/validations/admin.schema";
@@ -13,7 +14,18 @@ const listingAdminUpdateSchema = listingUpdateSchema.extend({
   featuredPosition: z.number().int().min(0).nullable().optional(),
   university: z.string().trim().max(200).optional(),
   lat: z.number().min(-90).max(90).nullable().optional(),
-  lng: z.number().min(-180).max(180).nullable().optional()
+  lng: z.number().min(-180).max(180).nullable().optional(),
+  // Admin-only; stored in listing_admin_meta, never on the listing row.
+  adminMeta: z
+    .object({
+      contactName: z.string().trim().max(200).optional(),
+      contactPhone: z.string().trim().max(60).optional(),
+      contactTelegram: z.string().trim().max(120).optional(),
+      sourceUrl: z.string().trim().max(500).optional(),
+      sourceNote: z.string().trim().max(500).optional(),
+      adminNotes: z.string().trim().max(4000).optional()
+    })
+    .optional()
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -39,6 +51,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const { data, error } = await supabase.from("listings").update(payload).eq("id", id).select("*").single();
     if (error) throw error;
+
+    if (input.adminMeta) await upsertListingAdminMeta(supabase, id, input.adminMeta);
+
     return NextResponse.json({ listing: mapListingRow(data) });
   } catch (error) {
     return apiErrorResponse(error);

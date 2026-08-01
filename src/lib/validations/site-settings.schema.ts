@@ -40,21 +40,21 @@ const platformSettingsSchema = z.object({
   defaultLanguage: z.enum(["en", "ru", "kz"]).optional()
 });
 
-const statMetricSchema = z.object({
-  base: z.number().int().min(0).max(100_000_000),
-  growthMin: z.number().int().min(0).max(100_000),
-  growthMax: z.number().int().min(0).max(100_000)
-});
+// Only the baseline is configurable now: the figure itself is a live database
+// count. The retired growth fields are still ACCEPTED (and ignored) so a
+// settings row written before this change does not fail validation the next
+// time an admin saves any other setting.
+const statMetricSchema = z
+  .object({ base: z.number().int().min(0).max(100_000_000) })
+  .passthrough();
 
-const homepageStatsSchema = z.object({
-  startDate: z
-    .string()
-    .trim()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD"),
-  listings: statMetricSchema,
-  students: statMetricSchema,
-  matches: statMetricSchema
-});
+const homepageStatsSchema = z
+  .object({
+    listings: statMetricSchema,
+    students: statMetricSchema,
+    matches: statMetricSchema
+  })
+  .passthrough();
 
 export const siteSettingsUpdateSchema = z.object({
   featuredListingsLimit: z.number().int().min(1).max(50).optional(),

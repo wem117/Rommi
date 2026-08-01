@@ -59,7 +59,15 @@ const CREATE_EMPTY = {
   genderPreference: "any" as "any" | "male" | "female",
   smoking: "no" as "no" | "yes",
   pets: "no_pets" as "no_pets" | "allowed",
-  photoUrls: [] as string[]
+  photoUrls: [] as string[],
+  // Admin-only. Stored in listing_admin_meta, never on the listing row, and
+  // never sent to a public page.
+  contactName: "",
+  contactPhone: "",
+  contactTelegram: "",
+  sourceUrl: "",
+  sourceNote: "",
+  adminNotes: ""
 };
 
 type StatusFilter = "all" | "pending" | "approved" | "rejected" | "archived" | "hidden";
@@ -75,6 +83,10 @@ export default function AdminListingsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState(CREATE_EMPTY);
   const [creating, setCreating] = useState(false);
+  const [duplicates, setDuplicates] = useState<Array<{ id: string; title: string; address: string; city: string }>>([]);
+  // False until the listing_admin_meta migration is applied. The internal block
+  // is hidden rather than shown-and-broken, so nothing the admin types is lost.
+  const [metaAvailable, setMetaAvailable] = useState(true);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -88,6 +100,7 @@ export default function AdminListingsPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Could not load listings.");
       setListings(json.listings ?? []);
+      setMetaAvailable(json.metaAvailable !== false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not load listings.");
     } finally {
@@ -244,21 +257,42 @@ export default function AdminListingsPage() {
 
   function startCreate() {
     setCreateForm({ ...CREATE_EMPTY, availableFrom: new Date().toISOString().slice(0, 10) });
+    setDuplicates([]);
     setCreateOpen(true);
   }
 
-  async function createNew() {
+  /**
+   * `publish` false stores the listing hidden, reusing the existing visibility
+   * switch as draft state. `ignoreDuplicates` is set only after the admin has
+   * been shown the matches and chosen to continue.
+   */
+  async function createNew(publish: boolean, ignoreDuplicates = false) {
     setCreating(true);
     try {
+      const { contactName, contactPhone, contactTelegram, sourceUrl, sourceNote, adminNotes, ...listing } = createForm;
       const res = await fetch("/api/admin/listings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...createForm, amenities: [], lat: null, lng: null })
+        body: JSON.stringify({
+          ...listing,
+          amenities: [],
+          lat: null,
+          lng: null,
+          publish,
+          ignoreDuplicates,
+          adminMeta: { contactName, contactPhone, contactTelegram, sourceUrl, sourceNote, adminNotes }
+        })
       });
       const json = await res.json().catch(() => ({}));
+      if (res.status === 409 && Array.isArray(json.duplicates)) {
+        setDuplicates(json.duplicates);
+        toast.error("Possible duplicate — review below.");
+        return;
+      }
       if (!res.ok) throw new Error(json.error ?? "Create failed");
-      toast.success("Listing created");
+      toast.success(publish ? "Listing published" : "Draft saved (hidden)");
       setCreateOpen(false);
+      setDuplicates([]);
       await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Create failed");
@@ -727,14 +761,111 @@ export default function AdminListingsPage() {
                 onUploadingChange={setPhotoUploading}
               />
             </div>
+
+            {/*
+              Admin-only block. These values are stored in listing_admin_meta,
+              which RLS restricts to admins — they are never returned to a
+              public page, so a seeded listing is indistinguishable from an
+              organic one to a regular user.
+            */}
+            {metaAvailable ? (
+            <div className="rounded-xl border border-dashed border-border bg-surface-muted/40 p-4">
+              <p className="text-sm font-semibold">Internal — admins only</p>
+              <p className="mt-0.5 text-xs text-foreground/60">
+                Never shown on the site. Use this for the landlord&apos;s real contact details and where you found the
+                listing.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="create-contact-name">Landlord name</Label>
+                  <Input
+                    id="create-contact-name"
+                    value={createForm.contactName}
+                    onChange={(e) => setCreateForm({ ...createForm, contactName: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="create-contact-phone">Phone</Label>
+                  <Input
+                    id="create-contact-phone"
+                    value={createForm.contactPhone}
+                    onChange={(e) => setCreateForm({ ...createForm, contactPhone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="create-contact-telegram">Telegram</Label>
+                  <Input
+                    id="create-contact-telegram"
+                    value={createForm.contactTelegram}
+                    onChange={(e) => setCreateForm({ ...createForm, contactTelegram: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="create-source-url">Source link</Label>
+                  <Input
+                    id="create-source-url"
+                    placeholder="https://t.me/…"
+                    value={createForm.sourceUrl}
+                    onChange={(e) => setCreateForm({ ...createForm, sourceUrl: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="create-source-note">Where it came from</Label>
+                  <Input
+                    id="create-source-note"
+                    placeholder="KBTU chat, WhatsApp group…"
+                    value={createForm.sourceNote}
+                    onChange={(e) => setCreateForm({ ...createForm, sourceNote: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="mt-3 space-y-1.5">
+                <Label htmlFor="create-admin-notes">Private notes</Label>
+                <Textarea
+                  id="create-admin-notes"
+                  rows={2}
+                  value={createForm.adminNotes}
+                  onChange={(e) => setCreateForm({ ...createForm, adminNotes: e.target.value })}
+                />
+              </div>
+            </div>
+            ) : null}
+
+            {duplicates.length ? (
+              <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4">
+                <p className="text-sm font-semibold text-destructive">
+                  {duplicates.length} existing listing{duplicates.length > 1 ? "s" : ""} look like this one
+                </p>
+                <ul className="mt-2 space-y-1 text-xs text-foreground/70">
+                  {duplicates.map((d) => (
+                    <li key={d.id}>
+                      {d.title} — {d.address}, {d.city}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-foreground/60">
+                  Two different rooms can share a building address, so this is a warning, not a block.
+                </p>
+              </div>
+            ) : null}
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={createNew} disabled={creating || photoUploading}>
+            <Button
+              variant="outline"
+              onClick={() => void createNew(false, duplicates.length > 0)}
+              disabled={creating || photoUploading}
+            >
               {creating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
-              {photoUploading ? "Uploading photo…" : "Create listing"}
+              Save as draft
+            </Button>
+            <Button onClick={() => void createNew(true, duplicates.length > 0)} disabled={creating || photoUploading}>
+              {creating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+              {photoUploading ? "Uploading photo…" : duplicates.length ? "Create anyway" : "Create & publish"}
             </Button>
           </DialogFooter>
         </DialogContent>

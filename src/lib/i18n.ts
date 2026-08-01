@@ -52,7 +52,6 @@ const translations = {
       rights: "All rights reserved.",
     },
     home: {
-      heroBadge: "#1 Roommate Finder in Kazakhstan",
       heroTitleLead: "Find Your Perfect",
       heroTitleAccent: "Roommate & Room",
       heroDescription:
@@ -615,7 +614,6 @@ const translations = {
       rights: "Все права защищены.",
     },
     home: {
-      heroBadge: "Платформа №1 для поиска соседей в Казахстане",
       heroTitleLead: "Найдите идеального",
       heroTitleAccent: "соседа и жилье",
       heroDescription:
@@ -1176,7 +1174,6 @@ const translations = {
       rights: "Барлық құқықтар қорғалған.",
     },
     home: {
-      heroBadge: "Қазақстандағы №1 roommate платформасы",
       heroTitleLead: "Өзіңізге лайық",
       heroTitleAccent: "көрші мен бөлме табыңыз",
       heroDescription:

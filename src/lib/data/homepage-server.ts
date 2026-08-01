@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getHomepageStatCounts } from "@/lib/data/homepage-stats";
 import { getFeaturedListings } from "@/lib/data/listings";
 import { getFeaturedRoommates } from "@/lib/data/profiles";
 import { fetchPublicSettings, type PublicSettings } from "@/lib/data/public-settings";
@@ -7,6 +8,7 @@ import { getActiveTestimonials, type Testimonial } from "@/lib/data/testimonials
 import { getFeaturedUniversities, type UniversityWithStats } from "@/lib/data/universities";
 import { createSupabasePublicServerClient } from "@/lib/supabase/public-server-client";
 import type { Listing } from "@/types/listing";
+import type { HomepageStatCounts } from "@/lib/utils/homepage-stats";
 import type { UserProfile } from "@/types/user";
 
 export interface HomepageData {
@@ -15,6 +17,8 @@ export interface HomepageData {
   universities: UniversityWithStats[];
   featuredListings: Listing[];
   featuredRoommates: UserProfile[];
+  /** Live counts behind the homepage trust figures. */
+  statCounts: HomepageStatCounts;
 }
 
 /**
@@ -30,12 +34,13 @@ export async function getHomepageData(): Promise<HomepageData> {
   // Settings first (drives the featured limits), then the rest in parallel.
   const settings = await fetchPublicSettings(client);
 
-  const [testimonials, universities, featuredListings, featuredRoommates] = await Promise.all([
+  const [testimonials, universities, featuredListings, featuredRoommates, statCounts] = await Promise.all([
     getActiveTestimonials(client),
     getFeaturedUniversities(6, client),
     getFeaturedListings(settings.featuredListingsLimit, client),
-    getFeaturedRoommates(settings.featuredRoommatesLimit, client)
+    getFeaturedRoommates(settings.featuredRoommatesLimit, client),
+    getHomepageStatCounts()
   ]);
 
-  return { settings, testimonials, universities, featuredListings, featuredRoommates };
+  return { settings, testimonials, universities, featuredListings, featuredRoommates, statCounts };
 }

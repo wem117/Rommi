@@ -36,7 +36,12 @@ import { DEFAULT_HOMEPAGE_SECTIONS, type PublicSettings } from "@/lib/data/publi
 import { type Testimonial } from "@/lib/data/testimonials";
 import { type UniversityWithStats } from "@/lib/data/universities";
 import { formatNumber } from "@/lib/utils/format";
-import { computeHomepageStats, DEFAULT_HOMEPAGE_STATS_CONFIG } from "@/lib/utils/homepage-stats";
+import {
+  computeHomepageStats,
+  DEFAULT_HOMEPAGE_STATS_CONFIG,
+  EMPTY_HOMEPAGE_STAT_COUNTS,
+  type HomepageStatCounts
+} from "@/lib/utils/homepage-stats";
 import type { Listing } from "@/types/listing";
 import type { UserProfile } from "@/types/user";
 
@@ -46,6 +51,7 @@ export interface HomeInitialData {
   universities: UniversityWithStats[];
   featuredListings: Listing[];
   featuredRoommates: UserProfile[];
+  statCounts: HomepageStatCounts;
 }
 
 export default function HomeClient({ initialData }: { initialData: HomeInitialData }) {
@@ -104,9 +110,13 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
   const heroDescription = heroLocaleContent?.subtitle?.trim() || t("home.heroDescription");
   const heroImage = settings?.homepageHero?.imageUrl?.trim() || "/universities/main1.jpg";
 
-  // Admin-configurable, deterministic trust numbers (base + daily growth from a
-  // start date). Same for every visitor, stable across refreshes, animated in.
-  const heroStats = computeHomepageStats(settings?.homepageStats ?? DEFAULT_HOMEPAGE_STATS_CONFIG);
+  // Real counts from the database plus the admin baseline. Computed on the
+  // server during ISR, so every visitor in a revalidation window sees the same
+  // figure and no client request is made for them.
+  const heroStats = computeHomepageStats(
+    settings?.homepageStats ?? DEFAULT_HOMEPAGE_STATS_CONFIG,
+    initialData.statCounts ?? EMPTY_HOMEPAGE_STAT_COUNTS
+  );
   const stats = [
     { value: heroStats.listings, label: t("home.verifiedListings") },
     { value: heroStats.students, label: t("home.activeStudents") },
@@ -509,22 +519,13 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
 
           <div className="flex min-h-[520px] items-center justify-center py-16 sm:min-h-[760px] sm:py-28 lg:min-h-[820px]">
             <div className="w-full max-w-4xl text-center">
-              <div className="inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-medium text-white/90 backdrop-blur-sm sm:text-sm">
-                {/* Live-status dot: green with a subtle glow + gentle pulse (SaaS style). */}
-                <span className="relative flex h-2 w-2 items-center justify-center">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-50" />
-                  <span className="relative h-2 w-2 rounded-full bg-success shadow-[0_0_8px_2px_hsl(var(--success)/0.55)]" />
-                </span>
-                {t("home.heroBadge")}
-              </div>
-
               {/*
                 The text-shadow is the third layer of defence: it holds the
                 glyph edges apart from whatever detail sits directly behind them
                 (picture frames, window mullions) even before the scrim is
                 considered. It costs no layout space.
               */}
-              <h1 className="mt-6 text-[2rem] font-bold leading-tight text-white [text-shadow:0_2px_10px_rgba(17,16,12,0.55)] sm:text-5xl lg:text-7xl">
+              <h1 className="text-[2rem] font-bold leading-tight text-white [text-shadow:0_2px_10px_rgba(17,16,12,0.55)] sm:text-5xl lg:text-7xl">
                 {heroTitle ?? (
                   <>
                     {t("home.heroTitleLead")}{" "}

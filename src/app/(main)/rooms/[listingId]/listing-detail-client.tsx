@@ -1,116 +1,83 @@
 "use client";
 
 import {
+  BedDouble,
   CalendarDays,
   ExternalLink,
-  Heart,
   Home,
-  Mail,
   MapPin,
-  Pencil,
-  ShieldCheck,
-  UserCircle
+  ShowerHead,
+  Users
 } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
+import { ListingDescription } from "@/components/listings/listing-description";
 import { ListingGallery } from "@/components/listings/listing-gallery";
 import { ListingGrid } from "@/components/listings/listing-grid";
+import { ListingOwnerCard } from "@/components/listings/listing-owner-card";
 import { LazyMap } from "@/components/map/lazy-map";
-import { ContactLinks } from "@/components/shared/contact-links";
-import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
-import { createConversation } from "@/hooks/use-conversations";
-import { useFavorites } from "@/hooks/use-favorites";
 import { useListing } from "@/hooks/use-listing";
-import { useListings } from "@/hooks/use-listings";
-import {
-  getProfileById,
-  recordContactedListing,
-  recordViewedListing
-} from "@/lib/data/profiles";
-import { formatCurrency, formatDate, formatListingPrice } from "@/lib/utils/format";
-import { rankSimilarListings } from "@/lib/utils/similar-listings";
+import { formatCurrency, formatDate } from "@/lib/utils/format";
+import { AMENITY_GROUPS, amenityIcon, isKnownAmenity } from "@/lib/utils/amenities";
 import type { Listing } from "@/types/listing";
 import type { UserProfile } from "@/types/user";
+import { useEffect } from "react";
+import { recordViewedListing } from "@/lib/data/profiles";
 
-const KNOWN_AMENITIES = new Set([
-  "WiFi",
-  "Parking",
-  "AC",
-  "Kitchen",
-  "Washing Machine",
-  "Gym",
-  "Security",
-  "Furnished",
-  "Balcony",
-  "Hot Water"
-]);
-
+/**
+ * Listing detail page.
+ *
+ * READING ORDER (identical on mobile and desktop, which is the point):
+ *   gallery -> title -> address -> price -> key facts -> amenities ->
+ *   description -> contact -> location -> similar
+ *
+ * The description used to sit BELOW the map, so the one block explaining what
+ * the place actually is came after a 360px map the reader had to scroll past.
+ * A renter decides from the description; the map only answers "where", which is
+ * a later question. It now sits directly under the amenities, above both the
+ * host card and the map.
+ *
+ * On desktop the contact card is pulled into a sticky right column, so the
+ * content column keeps that same order while the primary action stays in view.
+ * On mobile there is no second column, so the card appears inline after the
+ * description — exactly where a reader who has just finished reading is ready
+ * to act.
+ *
+ * This is still a client component because the locale lives in React state
+ * (locale-context.tsx hydrates it from localStorage), so every translated
+ * string has to render on the client. Moving the static half to server
+ * components would require a cookie-driven i18n rewrite, which is a much larger
+ * change than this redesign. What HAS moved to the server is the data: the
+ * owner profile and the similar-listings pool now arrive as props instead of
+ * being fetched from effects after hydration.
+ */
 export default function ListingDetailClient({
   listingId,
   initialListing,
-  ownerContacts
+  owner,
+  ownerContacts,
+  similarListings
 }: {
   listingId: string;
   initialListing: Listing | null;
+  /** Resolved server-side — no post-hydration fetch, no layout shift. */
+  owner: UserProfile | null;
   /** WhatsApp/Instagram, resolved server-side (see lib/data/public-contacts). */
   ownerContacts?: { whatsapp: string; instagram: string };
+  /** Ranked server-side from the newest listings. */
+  similarListings: Listing[];
 }) {
-  const router = useRouter();
   const { user } = useAuth();
   const { t, locale } = useLocale();
+  const { listing, loading, error } = useListing(listingId, initialListing);
+
   const listingTypeLabels = {
     private_room: t("listingDetail.privateRoom"),
     shared_room: t("listingDetail.sharedRoom"),
     entire_place: t("listingDetail.entirePlace")
   } as const;
-  const { isFavorite, toggleFavorite } = useFavorites();
-  const { listing, loading, error } = useListing(listingId, initialListing);
-  const [owner, setOwner] = useState<UserProfile | null>(null);
-  const [messageLoading, setMessageLoading] = useState(false);
-  // Deliberately NOT filtered by city: rankSimilarListings scores city highest,
-  // so same-city results still come first, but a city with a single listing
-  // still gets suggestions instead of an empty section.
-  const related = useListings(listing ? { sort: "newest" } : {});
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadOwner() {
-      if (!listing?.ownerId) return;
-      const nextOwner = await getProfileById(listing.ownerId);
-      if (!cancelled) setOwner(nextOwner);
-    }
-
-    void loadOwner();
-    return () => {
-      cancelled = true;
-    };
-  }, [listing?.ownerId]);
-
-  async function handleMessage() {
-    if (!listing || !owner) return;
-    if (!user) {
-      router.push(`/sign-in?redirect=/rooms/${listing.id}`);
-      return;
-    }
-
-    setMessageLoading(true);
-    try {
-      const conversationId = await createConversation({
-        participantIds: [user.uid, owner.uid],
-        listingId: listing.id,
-        listingTitle: listing.title
-      });
-      router.push(`/inbox/${conversationId}`);
-    } finally {
-      setMessageLoading(false);
-    }
-  }
 
   useEffect(() => {
     if (!user?.uid || !listing?.id) return;
@@ -128,6 +95,11 @@ export default function ListingDetailClient({
       .join(", ");
   }, [listing]);
 
+  const groupedAmenities = useMemo(
+    () => (listing ? groupAmenities(listing.amenities) : []),
+    [listing]
+  );
+
   if (loading) {
     return <main className="mx-auto max-w-6xl px-4 py-10">{t("listingDetail.loadingListing")}</main>;
   }
@@ -135,245 +107,204 @@ export default function ListingDetailClient({
   if (error || !listing) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-10">
-        <div className="rounded-2xl bg-white p-8 shadow-soft">{t("listingDetail.listingNotFound")}</div>
+        <div className="rounded-2xl bg-card p-8 shadow-soft">{t("listingDetail.listingNotFound")}</div>
       </main>
     );
   }
 
-  const relatedListings = rankSimilarListings(listing, related.listings);
+  const location = [listing.city, listing.district].filter(Boolean).join(", ");
+
+  const ownerCard = (
+    <ListingOwnerCard listing={listing} owner={owner} ownerContacts={ownerContacts} />
+  );
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <main className="mx-auto max-w-6xl px-4 pb-12 pt-4 sm:px-6 sm:pt-6 lg:px-8">
       <ListingGallery photos={listing.photoUrls} title={listing.title} />
 
       {/*
-        Three grid children so the single owner <aside> can sit between
-        Amenities and Location in the mobile stacking order (Airbnb-style),
-        while explicit lg: column/row placement keeps the desktop layout
-        unchanged: main content left, sticky owner sidebar right.
+        One content column plus a sticky sidebar on lg+. Below lg the sidebar
+        collapses into the flow, and `order` places the contact card after the
+        description — the mobile hierarchy — without duplicating any markup.
       */}
-      <div className="mt-6 grid gap-6 sm:mt-8 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <section className="rounded-2xl bg-white p-4 shadow-soft sm:rounded-[2rem] sm:p-8 lg:col-start-1 lg:row-start-1">
-            <div className="flex flex-wrap gap-2">
-              <span className="rounded-full bg-[#dff8f1] px-3 py-1.5 text-xs font-semibold text-[#0d8f7a] sm:px-4 sm:py-2 sm:text-sm">
-                {listingTypeLabels[listing.listingType]}
+      <div className="mt-5 flex flex-col gap-8 sm:mt-7 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-10">
+        <div className="flex flex-col gap-7 lg:contents">
+          {/* --- 2/3/4/5: title, address, price, key facts ------------------ */}
+          <header className="lg:col-start-1 lg:row-start-1">
+            <span className="inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              {listingTypeLabels[listing.listingType]}
+            </span>
+
+            <h1 className="mt-2.5 break-words font-heading text-[1.6rem] font-bold leading-[1.2] tracking-tight text-foreground sm:text-[2.15rem]">
+              {listing.title}
+            </h1>
+
+            <p className="mt-1.5 flex items-center gap-1.5 text-sm text-foreground/60 sm:text-base">
+              <MapPin className="h-4 w-4 shrink-0 text-primary/70" aria-hidden="true" />
+              <span className="min-w-0 truncate">{location}</span>
+            </p>
+
+            {/* Price: the number renters scan for, so it gets its own line and
+                the largest type on the page after the title. */}
+            <div className="mt-4 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 border-y border-border py-3.5">
+              <span className="font-heading text-2xl font-bold text-foreground sm:text-3xl">
+                {formatCurrency(listing.monthlyRent)}
+              </span>
+              <span className="text-sm font-medium text-foreground/55 sm:text-base">
+                {t("listingDetail.perMonth")}
+              </span>
+              <span className="ml-auto text-xs font-medium text-foreground/55 sm:text-sm">
+                {listing.depositRequired
+                  ? `${t("listingDetail.depositPrefix")} ${formatCurrency(listing.depositAmount)} ${t("listingDetail.depositSuffix")}`
+                  : t("listingDetail.noDeposit")}
               </span>
             </div>
 
-            <h1 className="mt-3 text-2xl font-bold leading-tight sm:mt-5 sm:text-4xl">{listing.title}</h1>
-            <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-foreground/60 sm:mt-3 sm:text-lg">
-              <MapPin className="h-4 w-4 text-[#a98272] sm:h-5 sm:w-5" />
-              {listing.city}
-              {listing.district ? `, ${listing.district}` : ""}
-            </p>
+            {/* Key facts. 2 columns on the narrowest phones, 4 from sm up. */}
+            <dl className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
+              <Fact icon={<BedDouble className="h-4 w-4" />} label={t("listingDetail.bedrooms")} value={String(listing.bedrooms)} />
+              <Fact icon={<ShowerHead className="h-4 w-4" />} label={t("listingDetail.bathrooms")} value={String(listing.bathrooms)} />
+              <Fact icon={<Home className="h-4 w-4" />} label={t("listingDetail.type")} value={listingTypeLabels[listing.listingType]} />
+              <Fact
+                icon={<CalendarDays className="h-4 w-4" />}
+                label={t("listingDetail.available")}
+                value={formatDate(listing.availableFrom, locale)}
+              />
+              {listing.preferences.genderPreference !== "any" ? (
+                <Fact
+                  icon={<Users className="h-4 w-4" />}
+                  label={t("listingDetail.preferredGenderPrefix")}
+                  value={t(
+                    listing.preferences.genderPreference === "male" ? "listingForm.male" : "listingForm.female"
+                  )}
+                />
+              ) : null}
+            </dl>
+          </header>
 
-            {/* Price first — the number renters scan for. */}
-            <div className="mt-4 rounded-2xl bg-[#f7f1e7] px-4 py-4 sm:mt-6 sm:rounded-[2rem] sm:px-6 sm:py-6">
-              <div className="text-2xl font-bold text-foreground sm:text-4xl">
-                {formatCurrency(listing.monthlyRent)}
-                <span className="ml-1 text-sm font-medium text-foreground/70 sm:text-xl">{t("listingDetail.perMonth")}</span>
-              </div>
-              {listing.depositRequired ? (
-                <p className="mt-1.5 text-sm font-semibold text-[#8e6f5e] sm:mt-2 sm:text-base">
-                  {t("listingDetail.depositPrefix")} {formatCurrency(listing.depositAmount)} {t("listingDetail.depositSuffix")}
-                </p>
-              ) : (
-                <p className="mt-1.5 text-sm font-semibold text-[#8e6f5e] sm:mt-2 sm:text-base">{t("listingDetail.noDeposit")}</p>
-              )}
-            </div>
-
-            {/* Key facts immediately after price. */}
-            <div className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-6 sm:gap-4 xl:grid-cols-4">
-              <InfoCard icon={<Home className="h-5 w-5" />} label={t("listingDetail.bedrooms")} value={`${listing.bedrooms}`} />
-              <InfoCard label={t("listingDetail.bathrooms")} value={`${listing.bathrooms}`} />
-              <InfoCard icon={<CalendarDays className="h-5 w-5" />} label={t("listingDetail.available")} value={formatDate(listing.availableFrom, locale)} />
-              <InfoCard label={t("listingDetail.type")} value={listingTypeLabels[listing.listingType]} />
-            </div>
-
-            <div className="mt-6 sm:mt-8">
-              <h2 className="text-lg font-bold sm:text-2xl">{t("listingDetail.amenitiesTitle")}</h2>
-              <div className="mt-3 grid grid-cols-1 gap-2 sm:mt-4 sm:grid-cols-2 sm:gap-3">
-                {listing.amenities.map((amenity) => (
-                  <div
-                    key={amenity}
-                    className="flex items-center gap-2.5 rounded-xl bg-[#f7f1e7] px-3.5 py-2.5 text-sm font-medium sm:rounded-[1.25rem] sm:px-5 sm:py-3 sm:text-base"
-                  >
-                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#d2d0c6] text-primary sm:h-9 sm:w-9 sm:rounded-xl">
-                      <ShieldCheck className="h-4 w-4" />
-                    </span>
-                    {KNOWN_AMENITIES.has(amenity) ? t(`amenities.${amenity}`) : amenity}
+          {/* --- 6: amenities ---------------------------------------------- */}
+          {groupedAmenities.length ? (
+            <section aria-labelledby="amenities-heading" className="lg:col-start-1 lg:row-start-2">
+              <h2 id="amenities-heading" className="font-heading text-lg font-semibold sm:text-xl">
+                {t("listingDetail.amenitiesTitle")}
+              </h2>
+              <div className="mt-3 space-y-4">
+                {groupedAmenities.map((group) => (
+                  <div key={group.key}>
+                    {/* The label only earns its space once there is more than
+                        one group to tell apart. */}
+                    {groupedAmenities.length > 1 ? (
+                      <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-foreground/45">
+                        {t(`amenityGroups.${group.key}`)}
+                      </h3>
+                    ) : null}
+                    <ul className="mt-2 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+                      {group.items.map((amenity) => {
+                        const Icon = amenityIcon(amenity);
+                        return (
+                          <li key={amenity} className="flex items-center gap-2.5 text-sm text-foreground/80 sm:text-[15px]">
+                            <Icon className="h-4 w-4 shrink-0 text-primary/70" aria-hidden="true" />
+                            {/* `t` has no fallback argument, and an unknown key
+                                would render the key itself — so free-text
+                                amenities from imported posts print verbatim. */}
+                            <span className="min-w-0 break-words">
+                              {isKnownAmenity(amenity) ? t(`amenities.${amenity}`) : amenity}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </div>
                 ))}
               </div>
-            </div>
-          </section>
+            </section>
+          ) : null}
 
-          <aside className="space-y-4 lg:sticky lg:top-28 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-start">
-            <section className="rounded-2xl border border-[#eadfce] bg-white p-4 shadow-soft sm:rounded-[2rem] sm:p-6">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-[#9c7364]">
-                {t("listingDetail.currentRoommate")}
+          {/* --- 7: description, ABOVE the host card and the map ------------ */}
+          {listing.description?.trim() ? (
+            <section aria-labelledby="about-heading" className="lg:col-start-1 lg:row-start-3">
+              <h2 id="about-heading" className="font-heading text-lg font-semibold sm:text-xl">
+                {t("listingDetail.aboutTitle")}
               </h2>
-
-              <div className="mt-4 flex items-center gap-3 sm:mt-5 sm:gap-4">
-                <div className="relative h-14 w-14 overflow-hidden rounded-full bg-background sm:h-16 sm:w-16">
-                  {owner?.photoURL ? (
-                    <Image src={owner.photoURL} alt={owner.fullName} fill className="object-cover" sizes="64px" />
-                  ) : (
-                    <UserCircle className="h-full w-full text-primary" />
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-bold sm:text-2xl">{owner?.fullName ?? t("listingDetail.listingOwnerFallback")}</h3>
-                    <VerifiedBadge verified={owner?.verified} />
-                  </div>
-                  <p className="text-sm text-foreground/60 sm:text-lg">
-                    {owner?.age ? `${owner.age} ${t("listingDetail.yearsOld")}` : t("listingDetail.roomiMember")}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (user?.uid) void recordContactedListing(user.uid, listing.id);
-                  void handleMessage();
-                }}
-                disabled={messageLoading}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0f957d] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0d856f] disabled:opacity-60 sm:mt-6 sm:py-4 sm:text-lg"
-              >
-                <Mail className="h-5 w-5" />
-                {messageLoading ? t("listingDetail.openingChat") : t("listingDetail.messageOwner")}
-              </button>
-
-              {owner?.email ? (
-                <a
-                  href={`mailto:${owner.email}`}
-                  className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#eadfce] px-5 py-3 text-sm font-medium text-foreground/70 transition hover:bg-[#faf6ef]"
-                >
-                  {t("listingDetail.orEmailDirectly")}
-                </a>
-              ) : null}
-
-              {owner && !owner.contactsHidden ? (
-                <div className="mt-3 flex justify-center">
-                  <ContactLinks
-                    telegram={owner.telegram}
-                    phone={owner.phone}
-                    whatsapp={ownerContacts?.whatsapp}
-                    instagram={ownerContacts?.instagram}
-                    contactsHidden={owner.contactsHidden}
-                    size="sm"
-                  />
-                </div>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={() => void toggleFavorite(listing.id)}
-                className={`mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-medium transition sm:mt-4 sm:py-4 sm:text-lg ${
-                  isFavorite(listing.id)
-                    ? "bg-primary text-white"
-                    : "bg-[#f7f1e7] text-foreground/75 hover:bg-[#efe5d9]"
-                }`}
-              >
-                <Heart className={`h-5 w-5 ${isFavorite(listing.id) ? "fill-current" : ""}`} />
-                {isFavorite(listing.id) ? t("listingDetail.saved") : t("listingDetail.saveListing")}
-              </button>
-
-              <div className="mt-4 border-t border-[#efe5d9] pt-4 text-sm text-foreground/70 sm:mt-6 sm:pt-6 sm:text-base">
-                <div className="flex items-center justify-between">
-                  <span>{t("listingDetail.listed")}</span>
-                  <span className="font-semibold text-foreground">{formatDate(listing.createdAt, locale)}</span>
-                </div>
+              <div className="mt-3">
+                <ListingDescription
+                  description={listing.description}
+                  showMoreLabel={t("listingDetail.showMore")}
+                  showLessLabel={t("listingDetail.showLess")}
+                />
               </div>
             </section>
+          ) : null}
 
-            {user?.uid === listing.ownerId ? (
-              <Link
-                href={`/listings/${listing.id}/edit`}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-border bg-white px-5 py-3 text-sm font-semibold shadow-soft"
+          {/* --- 8: contact -------------------------------------------------
+              Inline here on mobile (right after the description, where a reader
+              is ready to act); on lg+ the same card is the sticky sidebar. */}
+          <div className="lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:sticky lg:top-24 lg:self-start">
+            {ownerCard}
+          </div>
+
+          {/* --- 9: location ------------------------------------------------ */}
+          <section aria-labelledby="location-heading" className="lg:col-start-1 lg:row-start-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 id="location-heading" className="font-heading text-lg font-semibold sm:text-xl">
+                {t("listingDetail.locationTitle")}
+              </h2>
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
               >
-                <Pencil className="h-4 w-4" />
-                {t("listingDetail.editListing")}
-              </Link>
-            ) : null}
+                {t("listingDetail.openInMaps")}
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              </a>
+            </div>
 
-            <section className="rounded-2xl border border-[#eadfce] bg-white p-4 shadow-soft sm:rounded-[2rem] sm:p-6">
-              <h3 className="text-base font-bold sm:text-lg">{t("listingDetail.listingSummary")}</h3>
-              <p className="mt-2 text-sm leading-6 text-foreground/65 sm:mt-3 sm:leading-7">
-                {formatListingPrice(listing.monthlyRent, listing.depositRequired, listing.depositAmount)}
-              </p>
-              <p className="mt-2 text-sm leading-6 text-foreground/65 sm:mt-3 sm:leading-7">
-                {listing.preferences.genderPreference === "any"
-                  ? t("listingDetail.anyGenderPreference")
-                  : `${t("listingDetail.preferredGenderPrefix")} ${t(
-                      listing.preferences.genderPreference === "male" ? "listingForm.male" : "listingForm.female"
-                    )}`}
-              </p>
-            </section>
-          </aside>
+            <p className="mt-1.5 break-words text-sm text-foreground/60">{mapQuery || location}</p>
 
-          <div className="space-y-6 sm:space-y-8 lg:col-start-1 lg:row-start-2">
-          <section className="rounded-2xl bg-white p-4 shadow-soft sm:rounded-[2rem] sm:p-8">
-            <div>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-bold sm:text-2xl">{t("listingDetail.locationTitle")}</h2>
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full border border-[#e6d8c6] bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
-                >
-                  {t("listingDetail.openInMaps")}
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              </div>
-
-              <div className="mt-3 overflow-hidden rounded-2xl border border-[#eadfce] bg-[#f7f1e7] sm:mt-4 sm:rounded-[2rem]">
-                {listing.lat != null && listing.lng != null ? (
-                  <div className="h-[260px] w-full sm:h-[360px]">
-                    <LazyMap
-                      markers={[
-                        {
-                          id: listing.id,
-                          lat: listing.lat,
-                          lng: listing.lng,
-                          title: listing.title,
-                          price: formatCurrency(listing.monthlyRent),
-                          district: listing.district,
-                          university: listing.university
-                        }
-                      ]}
-                      zoom={15}
-                    />
-                  </div>
-                ) : (
-                  <iframe
-                    title={`Map for ${listing.title}`}
-                    src={`https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=15&output=embed`}
-                    className="h-[260px] w-full border-0 sm:h-[360px]"
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
+            {/* Halved from 260/360px. The map answers "roughly where", and the
+                full-screen Maps link above covers real exploration — so it no
+                longer costs most of a phone screen to scroll past. */}
+            <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-surface-muted">
+              {listing.lat != null && listing.lng != null ? (
+                <div className="h-[170px] w-full sm:h-[220px]">
+                  <LazyMap
+                    markers={[
+                      {
+                        id: listing.id,
+                        lat: listing.lat,
+                        lng: listing.lng,
+                        title: listing.title,
+                        price: formatCurrency(listing.monthlyRent),
+                        district: listing.district,
+                        university: listing.university
+                      }
+                    ]}
+                    zoom={15}
                   />
-                )}
-              </div>
+                </div>
+              ) : (
+                <iframe
+                  title={`Map for ${listing.title}`}
+                  src={`https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=15&output=embed`}
+                  className="h-[170px] w-full border-0 sm:h-[220px]"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              )}
             </div>
 
-            {/* Description last — facts above are what renters scan first. */}
-            <div className="mt-6 sm:mt-8">
-              <h2 className="text-lg font-bold sm:text-2xl">{t("listingDetail.aboutTitle")}</h2>
-              <p className="mt-2 whitespace-pre-line text-sm leading-6 text-foreground/75 sm:mt-4 sm:text-base sm:leading-7">
-                {listing.description}
-              </p>
-            </div>
+            <p className="mt-2 text-xs text-foreground/50">{t("listingDetail.locationNote")}</p>
           </section>
 
-          {relatedListings.length ? (
-            <section>
-              <h2 className="text-xl font-bold sm:text-3xl">{t("listingDetail.similarListings")}</h2>
-              <div className="mt-4 sm:mt-5">
-                <ListingGrid listings={relatedListings} />
+          {/* --- 10: similar listings --------------------------------------- */}
+          {similarListings.length ? (
+            <section aria-labelledby="similar-heading" className="lg:col-start-1 lg:row-start-5">
+              <h2 id="similar-heading" className="font-heading text-lg font-semibold sm:text-xl">
+                {t("listingDetail.similarListings")}
+              </h2>
+              <div className="mt-3.5">
+                <ListingGrid listings={similarListings} />
               </div>
             </section>
           ) : null}
@@ -383,22 +314,35 @@ export default function ListingDetailClient({
   );
 }
 
-function InfoCard({
-  label,
-  value,
-  icon
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-}) {
+/** One key-fact cell. `dt`/`dd` so the label-value pairing is real semantics. */
+function Fact({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
-    <div className="rounded-xl bg-[#f7f1e7] p-3 text-center sm:rounded-[1.5rem] sm:p-5">
-      <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-[#9c7364] sm:gap-2 sm:text-sm">
-        {icon}
-        {label}
-      </div>
-      <div className="mt-1.5 text-lg font-bold sm:mt-3 sm:text-2xl">{value}</div>
+    <div className="rounded-xl border border-border bg-card px-3 py-2.5">
+      <dt className="flex items-center gap-1.5 text-xs font-medium text-foreground/50">
+        <span className="text-primary/70" aria-hidden="true">
+          {icon}
+        </span>
+        <span className="min-w-0 truncate">{label}</span>
+      </dt>
+      <dd className="mt-0.5 truncate text-sm font-semibold text-foreground sm:text-[15px]">{value}</dd>
     </div>
   );
+}
+
+/** Buckets a listing's amenities into the display groups, preserving order. */
+function groupAmenities(amenities: string[]) {
+  const remaining = new Set(amenities);
+  const groups: Array<{ key: string; items: string[] }> = [];
+
+  for (const [key, members] of Object.entries(AMENITY_GROUPS)) {
+    const items = members.filter((amenity) => remaining.has(amenity));
+    items.forEach((amenity) => remaining.delete(amenity));
+    if (items.length) groups.push({ key, items });
+  }
+
+  // Anything the listing carries that isn't a known amenity still gets shown —
+  // imported posts contain free-text extras and dropping them loses real detail.
+  if (remaining.size) groups.push({ key: "other", items: [...remaining] });
+
+  return groups;
 }

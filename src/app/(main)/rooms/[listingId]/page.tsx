@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { getListingByIdServer } from "@/lib/data/listings-server";
+import { getListingByIdServer, getListingsPageServer } from "@/lib/data/listings-server";
+import { getPublicProfileByIdServer } from "@/lib/data/profiles-server";
 import { getPublicContacts } from "@/lib/data/public-contacts";
 import { requirePageAuth } from "@/lib/supabase/page-auth";
 import { siteConfig } from "@/lib/site-config";
 import { formatCurrency } from "@/lib/utils/format";
+import { rankSimilarListings } from "@/lib/utils/similar-listings";
 
 import ListingDetailClient from "./listing-detail-client";
 
@@ -67,10 +69,29 @@ export default async function Page({ params }: PageProps) {
 
   if (!listing) notFound();
 
-  // WhatsApp and Instagram have no column on `profiles`, so they are read
-  // here, server-side, behind the auth guard above — the same "signed-in
-  // visitors only" rule the telegram/phone columns follow at the database.
-  const ownerContacts = await getPublicContacts(listing.ownerId);
+  // Everything the page needs, resolved server-side and in parallel.
+  //
+  // The owner profile and the "similar listings" pool used to be fetched from
+  // effects inside the client component, which cost two extra round-trips AFTER
+  // hydration and left the contact card — the page's primary call to action —
+  // rendering empty until the profile arrived, moving the layout when it did.
+  // Both are static per listing, so the server is the right place for them.
+  //
+  // Promise.all, not sequential awaits: these three are independent, and on a
+  // force-dynamic page every serial round-trip is added directly to TTFB.
+  const [ownerContacts, owner, similarPool] = await Promise.all([
+    // WhatsApp and Instagram have no column on `profiles`, so they are read
+    // here, server-side, behind the auth guard above — the same "signed-in
+    // visitors only" rule the telegram/phone columns follow at the database.
+    getPublicContacts(listing.ownerId),
+    getPublicProfileByIdServer(listing.ownerId),
+    // Deliberately unfiltered by city: rankSimilarListings scores city highest,
+    // so same-city results still lead, but a city with one listing still gets
+    // suggestions instead of an empty section.
+    getListingsPageServer({ sort: "newest" }, 1, 12)
+  ]);
+
+  const similarListings = rankSimilarListings(listing, similarPool.listings);
 
   // Product/Offer structured data for rich results.
   const structuredData = {
@@ -95,7 +116,13 @@ export default async function Page({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}
       />
-      <ListingDetailClient listingId={listing.id} initialListing={listing} ownerContacts={ownerContacts} />
+      <ListingDetailClient
+        listingId={listing.id}
+        initialListing={listing}
+        owner={owner}
+        ownerContacts={ownerContacts}
+        similarListings={similarListings}
+      />
     </>
   );
 }

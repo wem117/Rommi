@@ -191,7 +191,18 @@ const translations = {
       moveInTiming: "Move-in Timing",
       cleanlinessFit: "Cleanliness Fit"
     },
+    amenityGroups: {
+      essentials: "Essentials",
+      comfort: "Comfort",
+      building: "Building",
+      other: "Also included"
+    },
     listingDetail: {
+      memberSince: "Member since",
+      showMore: "Show more",
+      showLess: "Show less",
+      keyFacts: "Key facts",
+      locationNote: "Exact address is shared after you message the host.",
       privateRoom: "Private Room",
       sharedRoom: "Shared Room",
       entirePlace: "Entire Place",
@@ -761,7 +772,18 @@ const translations = {
       moveInTiming: "Сроки заезда",
       cleanlinessFit: "Совпадение по чистоте"
     },
+    amenityGroups: {
+      essentials: "Самое нужное",
+      comfort: "Комфорт",
+      building: "В доме",
+      other: "Также включено"
+    },
     listingDetail: {
+      memberSince: "На Roomi с",
+      showMore: "Показать полностью",
+      showLess: "Свернуть",
+      keyFacts: "Кратко о жилье",
+      locationNote: "Точный адрес хозяин пришлёт в переписке.",
       privateRoom: "Отдельная комната",
       sharedRoom: "Общая комната",
       entirePlace: "Целое жильё",
@@ -1329,7 +1351,18 @@ const translations = {
       moveInTiming: "Көшу мерзімі",
       cleanlinessFit: "Тазалық бойынша сәйкестік"
     },
+    amenityGroups: {
+      essentials: "Ең қажеттісі",
+      comfort: "Жайлылық",
+      building: "Үйде",
+      other: "Сондай-ақ бар"
+    },
     listingDetail: {
+      memberSince: "Roomi-де",
+      showMore: "Толық көрсету",
+      showLess: "Жию",
+      keyFacts: "Негізгі мәліметтер",
+      locationNote: "Нақты мекенжайды хабарласқаннан кейін иесі жібереді.",
       privateRoom: "Жеке бөлме",
       sharedRoom: "Ортақ бөлме",
       entirePlace: "Толық тұрғын үй",

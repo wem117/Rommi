@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { apiErrorResponse } from "@/lib/api/error-response";
-import { upsertListingAdminMeta } from "@/lib/data/listing-admin-meta";
+import { deleteListingAdminMeta, upsertListingAdminMeta } from "@/lib/data/listing-admin-meta";
 import { mapListingRow } from "@/lib/supabase/mappers";
 import { requireAdminUser } from "@/lib/supabase/admin";
 import { listingUpdateSchema } from "@/lib/validations/admin.schema";
@@ -66,6 +66,11 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     const { supabase } = await requireAdminUser();
     const { error } = await supabase.from("listings").delete().eq("id", id);
     if (error) throw error;
+
+    // The metadata lives in a separate settings row with no foreign key, so it
+    // has to be cleaned up explicitly or it outlives the listing it describes.
+    await deleteListingAdminMeta(id);
+
     return NextResponse.json({ ok: true });
   } catch (error) {
     return apiErrorResponse(error);

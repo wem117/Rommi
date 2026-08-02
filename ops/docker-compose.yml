@@ -1,0 +1,107 @@
+# Portable production definition of the Roomi web tier.
+#
+# WHY THIS EXISTS
+#   The live deployment is created by an imperative `docker run` inside
+#   .github/workflows/deploy.yml. That works, but the runtime contract — memory
+#   ceiling, pid limit, log rotation, health probe, which networks it joins —
+#   exists only inside a CI script. Nothing on the host describes what the
+#   container is supposed to look like, so rebuilding it by hand after an
+#   incident means reading YAML in a browser and retyping flags correctly under
+#   pressure.
+#
+#   This file is that description, in the form Docker can act on directly. It is
+#   the same container the workflow produces, so either path yields an identical
+#   runtime.
+#
+# WHAT IT DELIBERATELY DOES NOT DO
+#   It does not define Postgres or the Supabase services. Those are owned by the
+#   upstream Supabase compose project in /root/supabase/docker and must keep
+#   being managed there — duplicating them here would create two sources of
+#   truth for the database, which is exactly how a stack ends up with two
+#   half-configured Postgres instances and a data directory nobody trusts.
+#
+# USAGE
+#   cd ops
+#   cp ../.env.example .env.production     # then fill in the real values
+#   ROOMI_IMAGE=ghcr.io/yeraly218/roommatekz:sha-<commit> docker compose up -d
+#
+#   Roll back by re-running with an earlier :sha- tag. Because the tag is
+#   immutable, this always lands on one exact known build.
+#
+# PORTABILITY
+#   Nothing here is specific to this provider: no host paths, no provider
+#   volumes, no cloud metadata. On a fresh VPS this file plus .env.production
+#   plus a database restore (ops/README.md) reproduces the web tier.
+
+name: roomi
+
+services:
+  web:
+    # Pin to an immutable per-commit tag in production. `latest` is a moving
+    # target, which makes "roll back to what was working" unanswerable.
+    image: ${ROOMI_IMAGE:-ghcr.io/yeraly218/roommatekz:latest}
+    container_name: roomi-web
+    restart: unless-stopped
+
+    # Server-only secrets (SUPABASE_SERVICE_ROLE_KEY, ADMIN_EMAILS,
+    # SUPABASE_INTERNAL_URL, ...). Read from a 0600 file rather than inlined, so
+    # they never surface in `docker inspect` or the host process list.
+    #
+    # NEXT_PUBLIC_* values are NOT read here at runtime — Next inlines them into
+    # the client bundle at BUILD time. Changing one requires a rebuild, not a
+    # restart. See the Dockerfile.
+    env_file:
+      - .env.production
+
+    # Loopback only. Caddy terminates TLS and is the sole public entry point;
+    # binding 0.0.0.0 would expose the origin directly on port 3000, bypassing
+    # both Caddy and Cloudflare.
+    ports:
+      - "127.0.0.1:3000:3000"
+
+    # This host also runs PostgreSQL and ten other containers in ~5.8 GB. An
+    # unbounded web tier that leaks or forks can starve the database beside it;
+    # these caps turn that into one failed container instead of a dead host.
+    mem_limit: 1g
+    memswap_limit: 1g
+    pids_limit: 512
+
+    # Docker's default json-file driver has NO size cap. Left alone, container
+    # logs grow until the disk fills — and then every service on the box fails
+    # at once, for a reason that looks nothing like "logs".
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"
+
+    # Probes the cheap fixed endpoint rather than `/`, which would
+    # server-render a database-backed page every 30s forever.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+    # Next's standalone server handles SIGTERM and finishes in-flight requests.
+    # The default 10s grace period can cut a slow request off mid-flight.
+    stop_grace_period: 30s
+
+    security_opt:
+      - no-new-privileges:true
+
+    networks:
+      default:
+      # Lets the app resolve `kong` so SUPABASE_INTERNAL_URL=http://kong:8000
+      # keeps server-side database traffic on this host instead of routing it
+      # out through Cloudflare and back (200-800ms per call — see ops/README.md).
+      supabase:
+
+networks:
+  default:
+  supabase:
+    # Owned by the Supabase compose project; referenced, never created here, so
+    # `docker compose down` can never remove the database's network.
+    external: true
+    name: supabase_default

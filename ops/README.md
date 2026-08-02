@@ -5,6 +5,64 @@ is on call, including future-you at 3am.
 
 ---
 
+## 0. Fix register
+
+Findings from the production readiness audit, by severity. "Shipped" means the
+change is committed and verified; it does **not** mean it is live — see the
+deployment note under each. Anything marked *needs root* has exact commands in
+§5.
+
+### P0 — fix before the next growth push
+
+| # | Finding | Status |
+|---|---|---|
+| 1 | **No backups existed.** `/opt/backup.sh` was an unedited template containing the literal string `<postgres_container_name>`, referenced by no cron or timer. RPO was total data loss. | **Done and running** — nightly, encrypted, self-verifying; restore tested against live (§2) |
+| 2 | **Uploaded images were unprotected.** Storage runs `STORAGE_BACKEND=file`, so 64 images lived only on this host's disk. A DB-only backup would have restored rows pointing at files that no longer existed. | **Done** — included in the nightly run, decrypt + JPEG magic bytes verified |
+| 3 | **Server-side DB calls exit to Cloudflare and return** — 239–805 ms vs 3–24 ms locally, on every SSR page that touches the database. | Code **shipped** (inert by default); needs 2 host commands to activate — §5 |
+| 4 | **SSH accepts passwords** from the entire internet. | *Needs root* — §5 |
+| 5 | **Origin reachable bypassing Cloudflare**, defeating the WAF and making `CF-Connecting-IP` forgeable. | *Needs root* — §5 |
+
+### P1 — fix soon
+
+| # | Finding | Status |
+|---|---|---|
+| 6 | **A failed deploy had no way back.** Only `:latest` was pushed, so by the time a bad release was identified its tag had already been overwritten. | **Shipped** — immutable `:sha-<commit>` tags + automatic rollback on failed health check |
+| 7 | **Rate limiting counted the wrong thing.** Caddy overwrites `X-Forwarded-For` with its own peer — a Cloudflare edge — so every visitor behind an edge shared one bucket. One abuser could throttle unrelated users. | **Shipped** — prefers `cf-connecting-ip`, 9 tests |
+| 8 | **No resource limits or log rotation** on the web tier, sharing 5.8 GB with Postgres. Docker's default json-file driver has no size cap. | **Shipped** for the app; the 11 Supabase containers still *need root* — §5 |
+| 9 | **`anon` holds INSERT/UPDATE/DELETE/TRUNCATE on every public table.** RLS is the only control, and **RLS does not apply to TRUNCATE at all**. | Migration **written, NOT applied** — needs review, §4 |
+| 10 | **Caddy does not know Cloudflare is in front of it** (no `trusted_proxies`). | *Needs root* — §5 |
+| 11 | **Duplicate, conflicting security headers** — two `Strict-Transport-Security` values (31536000 and 63072000). | *Needs root* — §5 |
+
+### P2 / P3 — worth doing, not urgent
+
+| # | Finding | Status |
+|---|---|---|
+| 12 | Container healthcheck probed `/`, server-rendering a DB-backed page every 30 s. | **Shipped** — now `/api/health` |
+| 13 | **No declarative definition of the deployment** — the runtime contract existed only inside a CI script. | **Shipped** — `ops/docker-compose.yml` |
+| 14 | **Single Node process** caps throughput at ~113 rps while 3 of 4 vCPUs idle. | *Needs root* — a second container + Caddy load-balancing also buys zero-downtime deploys, §5 |
+| 15 | PostgreSQL on stock defaults (`effective_cache_size` 128 MB); no slow-query log, no statement timeout. | *Needs root* — §5 |
+| 16 | `authorized_keys` contains a literal `PASTE_YOUR_PUBLIC_KEY_HERE` line and a duplicated key. | *Needs root* — §5 |
+| 17 | `studio.roomi.kz` defined in Caddy with no DNS record. If DNS is ever added, note `basicauth /` matches that path **exactly** — subpaths would be unauthenticated. | Latent; §5 |
+| 18 | Leftover `certbot.timer` and `/etc/cron.d/certbot` — Caddy manages TLS. | *Needs root* — §5 |
+| 19 | `vm.swappiness=60` with a database on the box. | *Needs root* — §5 |
+
+### Not fixable from inside this box
+
+**CPU steal is 16% at idle** — the hypervisor is taking roughly two-thirds of a
+vCPU before the app does any work. No tuning changes this; it is the provider
+oversubscribing the host. Worth raising with them, and a reason to size the next
+VPS with headroom.
+
+### Deliberately not done
+
+**Observability.** There is no metrics stack, no error tracking (`SENTRY_DSN` is
+unset), and no readable request log — `journald` is not accessible to the app
+account and Next logs nothing per-request. This is the largest remaining gap and
+the highest-leverage next investment, but every option is a new running service,
+which is a change to make deliberately rather than fold into a hardening pass.
+
+---
+
 ## 1. Architecture as deployed
 
 One VPS runs **everything** — the web tier *and* the entire self-hosted Supabase
@@ -146,6 +204,21 @@ SSH deploy → health gate → **automatic rollback on failure**.
 
 Images are tagged `:latest` *and* `:sha-<commit>`. The container always runs the
 SHA tag, so what is live is traceable to one exact build.
+
+`ops/docker-compose.yml` describes the same container declaratively — the memory
+ceiling, pid limit, log rotation, health probe and networks that otherwise exist
+only inside the CI script. Use it to rebuild the web tier by hand (after an
+incident, or on a new host) without retyping `docker run` flags from memory:
+
+```bash
+cd ops
+cp ~/app/roomi/.env.production .env.production
+ROOMI_IMAGE=ghcr.io/yeraly218/roommatekz:sha-<commit> docker compose up -d
+```
+
+It intentionally does not define Postgres or the Supabase services — those stay
+owned by the upstream compose project in `/root/supabase/docker`, so there is
+only ever one source of truth for the database.
 
 **Manual rollback:**
 

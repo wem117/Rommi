@@ -64,6 +64,41 @@ describe("supabaseConfig.serverUrl", () => {
   });
 });
 
+describe("production topology (regression cover for the live deployment)", () => {
+  it("splits the two origins exactly as production runs them", async () => {
+    // These are the real deployed values. Server traffic stays on the container
+    // network; the browser keeps the public hostname it can actually resolve.
+    const cfg = await loadConfig({
+      NEXT_PUBLIC_SUPABASE_URL: "https://api.roomi.kz",
+      SUPABASE_INTERNAL_URL: "http://kong:8000"
+    });
+    expect(cfg.serverUrl).toBe("http://kong:8000");
+    expect(cfg.url).toBe("https://api.roomi.kz");
+  });
+
+  it("never lets the internal origin become the public one", async () => {
+    // `url` feeds the CSP, the next/image allow-list, auth redirects and every
+    // stored image URL. If the internal host ever leaked into it, browsers
+    // would be handed an address that does not resolve outside this host.
+    const cfg = await loadConfig({
+      NEXT_PUBLIC_SUPABASE_URL: "https://api.roomi.kz",
+      SUPABASE_INTERNAL_URL: "http://kong:8000"
+    });
+    expect(cfg.url).not.toContain("kong");
+    expect(cfg.url.startsWith("https://")).toBe(true);
+  });
+
+  it("keeps working when the internal route is removed (rollback path)", async () => {
+    // Deleting the env var and restarting must restore the previous behaviour
+    // with no code change — that is the documented rollback.
+    const cfg = await loadConfig({
+      NEXT_PUBLIC_SUPABASE_URL: "https://api.roomi.kz",
+      SUPABASE_INTERNAL_URL: undefined
+    });
+    expect(cfg.serverUrl).toBe("https://api.roomi.kz");
+  });
+});
+
 describe("public URL re-anchoring (upload route contract)", () => {
   // Mirrors the transform in src/app/api/upload/route.ts. A stored URL pointing
   // at an internal origin would be a permanently broken image link.

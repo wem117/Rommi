@@ -166,6 +166,28 @@ jobs:
             grep -q '^NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=' "$APP_DIR/.env.production" \
               || echo "NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=roommate-assets" >> "$APP_DIR/.env.production"
 
+            # --- Internal Supabase route --------------------------------------
+            # Server-side calls default to NEXT_PUBLIC_SUPABASE_URL, which
+            # resolves to Cloudflare — so a request that could stay on this host
+            # leaves it and comes back. Measured on this deployment:
+            # /api/health went 233ms -> 12ms once it used the gateway directly.
+            #
+            # The explicit secret wins. When it is absent we self-configure, but
+            # ONLY after proving this host actually runs the Supabase stack and
+            # its gateway answers. Guessing a topology that isn't there would
+            # point the app at a dead address and break every server render, so
+            # the probe is the whole point. `curl` without -f treats Kong's 401
+            # as success: an auth challenge proves it is listening.
+            if ! grep -q '^SUPABASE_INTERNAL_URL=' "$APP_DIR/.env.production"; then
+              if docker network inspect supabase_default >/dev/null 2>&1 \
+                 && curl -sS -o /dev/null --max-time 3 http://127.0.0.1:8000/rest/v1/ >/dev/null 2>&1; then
+                echo "SUPABASE_INTERNAL_URL=http://kong:8000" >> "$APP_DIR/.env.production"
+                echo "Internal Supabase route enabled: kong:8000 answered."
+              else
+                echo "::notice::No local Supabase gateway detected; server-side calls will use the public URL (correct, just slower)."
+              fi
+            fi
+
             if ! grep -q '^SUPABASE_SERVICE_ROLE_KEY=' "$APP_DIR/.env.production"; then
               echo "::warning::SUPABASE_SERVICE_ROLE_KEY secret is not set. Image uploads, the admin panel, moderation and terms-acceptance will fail until it is added."
             fi

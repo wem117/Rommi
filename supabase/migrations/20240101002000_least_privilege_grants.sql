@@ -60,14 +60,35 @@ revoke truncate, trigger, references
 --    Default privileges are per-granting-role, so this must be repeated for
 --    each role that creates tables here. `postgres` runs the migrations;
 --    `supabase_admin` owns the Supabase-managed objects.
+--    `postgres` owns the application tables here, so its defaults are the ones
+--    that govern anything a future migration creates.
 alter default privileges for role postgres in schema public
   revoke insert, update, delete, truncate, trigger, references on tables from anon;
 alter default privileges for role postgres in schema public
   revoke truncate, trigger, references on tables from authenticated;
 
-alter default privileges for role supabase_admin in schema public
-  revoke insert, update, delete, truncate, trigger, references on tables from anon;
-alter default privileges for role supabase_admin in schema public
-  revoke truncate, trigger, references on tables from authenticated;
+--    `supabase_admin` owns the Supabase-managed objects. Default privileges can
+--    only be altered by the role itself or a superuser, and on a hosted or
+--    self-hosted Supabase the migration role (`postgres`) is deliberately NOT a
+--    superuser — so this raises insufficient_privilege there and would abort the
+--    whole transaction, reverting the revokes above with it.
+--
+--    Best-effort by design: the application tables are covered by the postgres
+--    block, and failing the entire least-privilege migration over a default that
+--    only affects Supabase's own future objects would be the wrong trade.
+do $$
+begin
+  execute 'alter default privileges for role supabase_admin in schema public '
+       || 'revoke insert, update, delete, truncate, trigger, references on tables from anon';
+  execute 'alter default privileges for role supabase_admin in schema public '
+       || 'revoke truncate, trigger, references on tables from authenticated';
+exception
+  when insufficient_privilege then
+    raise notice
+      'Skipped supabase_admin default privileges (current role is not a superuser). '
+      'Application tables are owned by postgres and ARE covered. Re-run this block as '
+      'supabase_admin if Supabase-owned future tables must be covered too.';
+end
+$$;
 
 commit;

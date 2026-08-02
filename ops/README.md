@@ -218,6 +218,56 @@ sudo ufw default deny incoming
 sudo ufw enable
 ```
 
+### P0 — Server-side database traffic leaves the machine and comes back
+
+The single largest performance problem measured during the audit.
+
+`NEXT_PUBLIC_SUPABASE_URL` is `https://api.roomi.kz`, which resolves to
+Cloudflare. Server-side rendering uses that same hostname, so a request that
+could stay on loopback instead exits the VPS, crosses the internet to a
+Cloudflare PoP, and is routed straight back to this host:
+
+```
+measured from inside the roomi-web container
+  https://api.roomi.kz/rest/v1/    239 ms, 537 ms, 555 ms, 805 ms
+  http://127.0.0.1:8000/rest/v1/     3 ms,  10 ms,  22 ms,  24 ms
+```
+
+**Every server-rendered page that touches the database pays 200–800 ms of
+avoidable latency**, and the site's availability is needlessly coupled to
+Cloudflare and to public DNS.
+
+The application side is already done and shipped: server-side Supabase clients
+read `SUPABASE_INTERNAL_URL` when set (`src/lib/supabase/config.ts`), and the
+upload route re-anchors stored image URLs to the public origin so nothing
+user-facing changes. **It is inert until the two steps below are performed**, so
+the code is safe to deploy on its own.
+
+```bash
+# 1. Put the app on the Supabase network so it can resolve `kong` by name.
+#    Additive — the container keeps its existing bridge network and published port.
+docker network connect supabase_default roomi-web
+
+# 2. Add the internal origin and restart.
+echo 'SUPABASE_INTERNAL_URL=http://kong:8000' >> ~/app/roomi/.env.production
+docker restart roomi-web
+```
+
+Also add `SUPABASE_INTERNAL_URL` to the env block in
+`.github/workflows/deploy.yml` (and as a repository secret) so it survives the
+next deploy, and add `docker network connect supabase_default roomi-web || true`
+after `start_app`.
+
+Verify:
+
+```bash
+curl -s http://127.0.0.1:3000/api/health     # expect {"database":"ok"}
+curl -o /dev/null -w '%{time_total}\n' http://127.0.0.1:3000/   # expect a large drop
+```
+
+Rollback: remove the line from `.env.production` and `docker restart roomi-web`.
+The code falls back to the public URL automatically.
+
 ### P1 — Caddy does not know Cloudflare is in front of it
 
 Caddy overwrites `X-Forwarded-For` with its peer (a Cloudflare edge), so origin

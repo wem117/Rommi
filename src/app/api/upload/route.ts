@@ -88,11 +88,24 @@ export async function POST(request: Request) {
     }
 
     const { data: publicData } = supabase.storage.from(supabaseConfig.storageBucket).getPublicUrl(path);
+
+    // getPublicUrl builds its URL from the origin the CLIENT was constructed
+    // with — and server-side clients may be pointed at an internal origin
+    // (SUPABASE_INTERNAL_URL, e.g. http://kong:8000) to keep database traffic
+    // off the public internet. That origin is unreachable from a browser, so
+    // persisting it here would write permanently broken image links into the
+    // database. Re-anchor to the public origin, which is what the browser must
+    // eventually load.
+    const publicUrl =
+      supabaseConfig.serverUrl && supabaseConfig.serverUrl !== supabaseConfig.url
+        ? publicData.publicUrl.replace(supabaseConfig.serverUrl, supabaseConfig.url)
+        : publicData.publicUrl;
+
     const metadata = {
       owner_id: user.id,
       bucket: supabaseConfig.storageBucket,
       path,
-      public_url: publicData.publicUrl,
+      public_url: publicUrl,
       kind,
       is_public: true,
       created_at: new Date().toISOString()
@@ -107,7 +120,7 @@ export async function POST(request: Request) {
     if (insertError) {
       if (isMissingSupabaseTable(insertError, "images")) {
         return NextResponse.json({
-          url: publicData.publicUrl,
+          url: publicUrl,
           path,
           image: null,
           warning: "The image metadata table is missing, so the file was uploaded without a database record."
@@ -119,7 +132,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({
-      url: publicData.publicUrl,
+      url: publicUrl,
       path,
       image: imageRow
     });

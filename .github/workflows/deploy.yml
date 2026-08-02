@@ -151,6 +151,7 @@ jobs:
             NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
             NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
             NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET }}
+            SUPABASE_INTERNAL_URL=${{ secrets.SUPABASE_INTERNAL_URL }}
             SENTRY_DSN=${{ secrets.SENTRY_DSN }}
             UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }}
             UPSTASH_REDIS_REST_TOKEN=${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
@@ -215,6 +216,13 @@ jobs:
             docker rename roomi-web roomi-web-prev >/dev/null 2>&1 || true
 
             start_app "$IMAGE"
+
+            # Attach to the Supabase network so SUPABASE_INTERNAL_URL (e.g.
+            # http://kong:8000) can resolve. Additive — the container keeps its
+            # bridge network and its published 127.0.0.1:3000 port. A no-op when
+            # the network is absent, so this stays portable to hosts that run
+            # Supabase elsewhere.
+            docker network connect supabase_default roomi-web 2>/dev/null || true
 
             # --- Post-deploy verification -------------------------------------
             # Gate on LIVENESS (the new container boots and serves requests), not

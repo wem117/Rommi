@@ -22,7 +22,7 @@ export async function GET() {
   if (isSupabaseConfigured) {
     try {
       const res = await fetch(
-        `${supabaseConfig.url}/rest/v1/site_settings?select=key&limit=1`,
+        `${supabaseConfig.serverUrl}/rest/v1/site_settings?select=key&limit=1`,
         {
           headers: { apikey: supabaseConfig.anonKey, Authorization: `Bearer ${supabaseConfig.anonKey}` },
           signal: AbortSignal.timeout(3000),

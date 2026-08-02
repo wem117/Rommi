@@ -39,7 +39,7 @@ export async function createSupabaseServerClient(): Promise<SupabaseClient> {
 
   const cookieStore = await cookies();
 
-  return createServerClient(supabaseConfig.url, supabaseConfig.anonKey, {
+  return createServerClient(supabaseConfig.serverUrl, supabaseConfig.anonKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -66,7 +66,7 @@ export function createSupabaseAdminClient(): SupabaseClient {
     throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL. Add it to .env.local.");
   }
 
-  return createClient(supabaseConfig.url, requireServiceRoleKey(), {
+  return createClient(supabaseConfig.serverUrl, requireServiceRoleKey(), {
     auth: {
       persistSession: false,
       autoRefreshToken: false,

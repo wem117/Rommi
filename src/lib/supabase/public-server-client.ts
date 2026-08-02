@@ -12,7 +12,7 @@ import { supabaseConfig } from "@/lib/supabase/config";
 export function createSupabasePublicServerClient(): SupabaseClient | null {
   if (!supabaseConfig.url || !supabaseConfig.anonKey) return null;
 
-  return createClient(supabaseConfig.url, supabaseConfig.anonKey, {
+  return createClient(supabaseConfig.serverUrl, supabaseConfig.anonKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,

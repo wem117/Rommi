@@ -48,8 +48,45 @@ MIN_GLOBALS_BYTES="${MIN_GLOBALS_BYTES:-500}"
 
 mkdir -p "$BACKUP_DIR" "$(dirname "$LOG_FILE")"
 
+# --- Alerting ----------------------------------------------------------------
+# Optional, and kept OUT of the repo: secrets live in ~/.config/roomi/alerts.env
+#
+#   ALERT_WEBHOOK_URL   generic JSON POST — Slack, Discord and Mattermost all
+#                       accept {"text": "..."} unchanged
+#   HEALTHCHECK_URL     dead-man's switch (healthchecks.io, Better Stack, ...)
+#
+# The dead-man's switch is the important half. A webhook only fires when the
+# script RUNS and fails; it stays silent when cron is broken, the disk is full,
+# or the box is down — the cases where you most need to know. A switch that
+# expects a ping on a schedule alerts on silence, which covers all of them.
+ALERTS_ENV="${ALERTS_ENV:-$HOME/.config/roomi/alerts.env}"
+# shellcheck disable=SC1090
+[ -f "$ALERTS_ENV" ] && . "$ALERTS_ENV"
+ALERT_WEBHOOK_URL="${ALERT_WEBHOOK_URL:-}"
+HEALTHCHECK_URL="${HEALTHCHECK_URL:-}"
+
 log() { printf '%s [backup] %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*" | tee -a "$LOG_FILE" >&2; }
-fail() { log "ERROR: $*"; exit 1; }
+
+ping_healthcheck() {
+  [ -n "$HEALTHCHECK_URL" ] || return 0
+  curl -fsS -m 10 --retry 3 -o /dev/null "${HEALTHCHECK_URL}${1:-}" 2>/dev/null || true
+}
+
+alert() {
+  [ -n "$ALERT_WEBHOOK_URL" ] || return 0
+  # Escape for JSON: backslashes, quotes, then newlines.
+  local text
+  text=$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk '{printf "%s\\n", $0}')
+  curl -fsS -m 10 -X POST -H 'Content-Type: application/json' \
+    -d "{\"text\":\"$text\"}" -o /dev/null "$ALERT_WEBHOOK_URL" 2>/dev/null || true
+}
+
+fail() {
+  log "ERROR: $*"
+  alert "🔴 Roomi backup FAILED on $(hostname): $*"$'\n'"Log: $LOG_FILE"
+  ping_healthcheck "/fail"
+  exit 1
+}
 
 trap 'fail "aborted on line $LINENO"' ERR
 
@@ -67,6 +104,7 @@ docker inspect -f '{{.State.Running}}' "$DB_CONTAINER" 2>/dev/null | grep -qx tr
   || fail "container '$DB_CONTAINER' is not running"
 
 log "starting backup (container=$DB_CONTAINER db=$DB_NAME)"
+ping_healthcheck "/start"
 
 # --- Cluster globals ---------------------------------------------------------
 # -T: no TTY, or docker injects CRs and corrupts the byte stream.
@@ -142,3 +180,8 @@ kept=$(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'postgres_*' | wc -l)
 total=$(du -sh "$BACKUP_DIR" 2>/dev/null | cut -f1)
 
 log "done — pruned $deleted expired file(s), $kept dump(s) retained, $total on disk"
+
+# Success ping last, so the switch only resets once every check above has passed.
+# Pinging earlier would report a truncated or unverified dump as a good backup,
+# which is worse than no monitoring at all.
+ping_healthcheck

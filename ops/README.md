@@ -53,13 +53,32 @@ vCPU before the app does any work. No tuning changes this; it is the provider
 oversubscribing the host. Worth raising with them, and a reason to size the next
 VPS with headroom.
 
-### Deliberately not done
+### Observability — what exists, and the one thing left
 
-**Observability.** There is no metrics stack, no error tracking (`SENTRY_DSN` is
-unset), and no readable request log — `journald` is not accessible to the app
-account and Next logs nothing per-request. This is the largest remaining gap and
-the highest-leverage next investment, but every option is a new running service,
-which is a change to make deliberately rather than fold into a hardening pass.
+Deliberately lightweight: no Prometheus, Grafana, Loki or Alertmanager. That
+stack would want ~1–1.5 GB on a box with ~3 GB free and 16% CPU steal, to watch
+a service using 87 MB.
+
+| Capability | State |
+|---|---|
+| Structured JSON logs | **Built in** — `src/lib/observability/logger.ts`, one line per event, parseable by any aggregator |
+| Server error capture | **Built in** — `onRequestError` in `src/instrumentation.ts` catches every uncaught error in Server Components, route handlers and middleware |
+| Sentry forwarding | **Built in, inert** — posts via `fetch` to Sentry's store endpoint, so there is no `@sentry/*` dependency and no client bundle cost. Needs `SENTRY_DSN`. |
+| Health endpoint | **Built in** — `/api/health`, unauthenticated, 200/503, reports process and database separately |
+| Backup failure alerting | **Built in** — webhook + dead-man's switch, see §2 |
+| Uptime monitoring | **Needs an external account** — point any monitor at `https://roomi.kz/api/health` and alert on non-200 |
+
+**The one thing left is a DSN.** Error tracking is wired end to end and running
+in production right now, but with `SENTRY_DSN` unset it degrades to structured
+console output. Create a Sentry project, then add the DSN as a GitHub secret
+named `SENTRY_DSN` — the deploy workflow already passes it through. No code
+change, no redeploy of anything else.
+
+Note the Sentry forwarder is hand-rolled against the store endpoint and has
+**not** been exercised against a live DSN. Confirm the first event arrives after
+configuring it; if richer capture is wanted later (client-side errors,
+breadcrumbs, source-mapped stack traces), `@sentry/nextjs` is the upgrade path
+and this module is the thing it replaces.
 
 ---
 
@@ -134,6 +153,42 @@ Installed by `ops/install-backups.sh` — runs as the `roomi` user, no root need
 ~/ops/backup-db.sh            # take one now
 ~/ops/restore-db.sh verify    # prove the newest backup actually restores
 ```
+
+### Alerting on backup failure
+
+Silent failure is the only failure mode that matters here — a backup that stops
+running looks exactly like one that is working. Configure both channels in a
+file kept out of the repo:
+
+```bash
+install -m 600 /dev/null ~/.config/roomi/alerts.env
+cat > ~/.config/roomi/alerts.env <<'EOF'
+ALERT_WEBHOOK_URL=https://hooks.slack.com/services/...
+HEALTHCHECK_URL=https://hc-ping.com/<uuid-for-nightly-backup>
+RESTORE_HEALTHCHECK_URL=https://hc-ping.com/<uuid-for-weekly-restore>
+EOF
+```
+
+| | Fires when | Covers |
+|---|---|---|
+| `ALERT_WEBHOOK_URL` | the script runs and fails | a bad dump, a stopped container, a full disk |
+| `HEALTHCHECK_URL` | the script does **not** ping on schedule | broken cron, a dead box, a hung run |
+
+The second is the one that saves you. A webhook can only fire when the script
+executes; it stays silent in exactly the situations where you most need to hear
+something. The dead-man's switch alerts on *silence*.
+
+`{"text": "..."}` is accepted unchanged by Slack, Discord and Mattermost. Both
+are optional — with no config the scripts run exactly as before.
+
+The success ping is sent **last**, after the dump has been read back and every
+integrity check has passed, so a truncated or unverified backup can never reset
+the switch.
+
+Verified end to end against a local receiver: success pings `/start` then the
+base URL; a failed backup and a failed restore each POST the webhook and ping
+`/fail`. The restore test was confirmed to reject a deliberately corrupted dump
+(12/12 tables reported as differing) rather than passing it.
 
 ### ⚠ The key must live somewhere other than this server
 

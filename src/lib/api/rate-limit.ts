@@ -84,13 +84,38 @@ export async function consume(key: string, limit: number, windowMs: number): Pro
 }
 
 /**
- * Trusted client IP. On Vercel, `x-vercel-forwarded-for` is set by the platform
- * and cannot be spoofed by the client (unlike a raw `x-forwarded-for`, whose
- * first hop is attacker-controlled). We prefer platform-trusted headers and only
- * fall back to the LAST hop of x-forwarded-for (closest to our own infra),
- * never the client-controlled first hop.
+ * Trusted client IP.
+ *
+ * Header order matters, and it is dictated by the deployment topology:
+ *
+ *     browser -> Cloudflare -> Caddy -> this app
+ *
+ * `cf-connecting-ip` is FIRST because it is the only header carrying the real
+ * visitor address in production. Cloudflare overwrites it on every request, so a
+ * client cannot forge it, and it survives the hop through Caddy untouched.
+ *
+ * `x-forwarded-for` is deliberately LAST and is only a fallback. Caddy replaces
+ * XFF with the address of the peer it is talking to, and that peer is a
+ * Cloudflare edge node — so behind Cloudflare, XFF resolves to a Cloudflare IP,
+ * not the visitor. Keying limits on it collapses every visitor routed through
+ * the same edge into ONE bucket: one abusive client would throttle unrelated
+ * users (a self-inflicted denial of service), while per-visitor abuse went
+ * uncapped. `cf-connecting-ip` restores true per-visitor accounting.
+ *
+ * A direct-to-origin request that bypasses Cloudflare could forge
+ * `cf-connecting-ip`. That is contained by restricting inbound 80/443 to
+ * Cloudflare ranges at the firewall (see ops/README.md); the header order here
+ * is correct either way, because without Cloudflare there is no honest source
+ * for the visitor address anyway.
+ *
+ * `x-vercel-forwarded-for` and `x-real-ip` are kept so the limiter still behaves
+ * correctly if this app is moved to Vercel or put behind nginx — neither is set
+ * by the current stack, and keeping them costs nothing.
  */
 export function clientIp(request: Request): string {
+  const cloudflare = request.headers.get("cf-connecting-ip");
+  if (cloudflare) return cloudflare.trim();
+
   const vercel = request.headers.get("x-vercel-forwarded-for");
   if (vercel) return vercel.split(",")[0].trim();
 

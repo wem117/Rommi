@@ -90,7 +90,14 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.image.outputs.image }}:latest
+          # An immutable per-commit tag alongside the moving `latest`. Without a
+          # tag that pins one exact build, "roll back" has no target: `latest`
+          # has already been overwritten by the release that broke, and the
+          # previous image is unreachable by name. The deploy job pins the
+          # container to the SHA tag and keeps the prior one for rollback.
+          tags: |
+            ${{ steps.image.outputs.image }}:latest
+            ${{ steps.image.outputs.image }}:sha-${{ github.sha }}
           # Every NEXT_PUBLIC_* the browser needs must be passed here: Next inlines
           # them at build time, so runtime-only values never reach the client bundle.
           build-args: |
@@ -120,7 +127,10 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             set -euo pipefail
-            IMAGE="${{ needs.build-and-push.outputs.image }}:latest"
+            # Pin to the immutable per-commit tag, never the moving `latest`, so
+            # the running container is traceable to one exact build and the
+            # previously-running image stays addressable for rollback.
+            IMAGE="${{ needs.build-and-push.outputs.image }}:sha-${{ github.sha }}"
             APP_DIR=~/app/roomi
             mkdir -p "$APP_DIR"
             cd "$APP_DIR"
@@ -163,21 +173,52 @@ jobs:
             fi
 
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker pull "$IMAGE"
-            docker stop roomi-web || true
-            docker rm roomi-web || true
-            docker run -d \
-              --name roomi-web \
-              --restart unless-stopped \
-              --env-file "$APP_DIR/.env.production" \
-              -p 127.0.0.1:3000:3000 \
-              "$IMAGE"
-            docker image prune -f
-            docker logout ghcr.io || true
 
-            # --- Post-deploy verification -------------------------------------------
-            # Gate on LIVENESS (the new container boots and serves requests), not on
-            # database reachability: a transient Supabase blip must not mark an
+            # Remember what is serving right now. If the new release cannot pass
+            # its health check we put this exact image back, rather than leaving
+            # the site down until a human wakes up.
+            PREV_IMAGE="$(docker inspect -f '{{.Config.Image}}' roomi-web 2>/dev/null || true)"
+            echo "Currently running: ${PREV_IMAGE:-<nothing>}"
+
+            # Pull BEFORE stopping anything: a registry failure must not take the
+            # running site down.
+            docker pull "$IMAGE"
+
+            # start_app <image> — (re)creates the container with production
+            # resource guards applied.
+            #
+            #   --memory / --pids-limit  bound the blast radius: this VPS also
+            #     hosts the entire Supabase stack, so a leak or fork-bomb in the
+            #     web tier must not OOM the database next to it.
+            #   --log-opt                Docker's default json-file driver has NO
+            #     size cap, so container logs grow until the disk fills and every
+            #     service on the box fails at once.
+            start_app() {
+              docker run -d \
+                --name roomi-web \
+                --restart unless-stopped \
+                --env-file "$APP_DIR/.env.production" \
+                --memory 1g \
+                --memory-swap 1g \
+                --pids-limit 512 \
+                --log-driver json-file \
+                --log-opt max-size=20m \
+                --log-opt max-file=5 \
+                -p 127.0.0.1:3000:3000 \
+                "$1"
+            }
+
+            # Keep the old container (stopped) instead of deleting it, so the
+            # rollback path never depends on the registry being reachable.
+            docker rm -f roomi-web-prev >/dev/null 2>&1 || true
+            docker stop roomi-web >/dev/null 2>&1 || true
+            docker rename roomi-web roomi-web-prev >/dev/null 2>&1 || true
+
+            start_app "$IMAGE"
+
+            # --- Post-deploy verification -------------------------------------
+            # Gate on LIVENESS (the new container boots and serves requests), not
+            # on database reachability: a transient Supabase blip must not mark an
             # otherwise-good release as failed. Database health is still surfaced
             # below so degradation is visible in the deploy log.
             echo "Waiting for the app to answer /api/health..."
@@ -194,9 +235,30 @@ jobs:
               sleep 2
             done
 
+            # --- Automatic rollback -------------------------------------------
             if [ -z "$HEALTH_BODY" ]; then
               echo "Deploy FAILED: the container never served a healthy response." >&2
               docker logs --tail 80 roomi-web >&2 || true
+
+              if [ -n "$PREV_IMAGE" ]; then
+                echo "::error::Rolling back to $PREV_IMAGE"
+                docker rm -f roomi-web >/dev/null 2>&1 || true
+                docker rename roomi-web-prev roomi-web >/dev/null 2>&1 || true
+                docker start roomi-web || true
+
+                for i in $(seq 1 20); do
+                  if curl -fsS --max-time 5 http://127.0.0.1:3000/api/health >/dev/null 2>&1; then
+                    echo "::error::Rollback succeeded — site restored on the previous release. The new build was NOT deployed."
+                    docker logout ghcr.io || true
+                    exit 1
+                  fi
+                  sleep 2
+                done
+                echo "::error::ROLLBACK ALSO FAILED — the site is DOWN and needs manual attention." >&2
+              else
+                echo "::error::No previous container to roll back to." >&2
+              fi
+              docker logout ghcr.io || true
               exit 1
             fi
 
@@ -206,3 +268,12 @@ jobs:
                 echo "::warning::App is serving, but it cannot reach the database at NEXT_PUBLIC_SUPABASE_URL. Check that the container can resolve/reach the Supabase gateway."
                 ;;
             esac
+
+            # Healthy: retire the previous container. Its IMAGE is deliberately
+            # kept (prune only removes untagged layers) so a manual rollback to
+            # the prior SHA tag is still possible after this point.
+            docker rm -f roomi-web-prev >/dev/null 2>&1 || true
+            docker image prune -f
+            docker logout ghcr.io || true
+
+            echo "Deployed $IMAGE successfully."

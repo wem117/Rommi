@@ -26,6 +26,7 @@ import { getProfileById, getRoommateProfiles } from "@/lib/data/profiles";
 import { calculateCompatibilityScore, compatibilityTierKey } from "@/lib/utils/compatibility";
 import { formatCurrency, formatDateShort } from "@/lib/utils/format";
 import type { UserProfile } from "@/types/user";
+import { hasStatedAge, joinMeta } from "@/lib/utils/profile-display";
 
 const LIFESTYLE_LABEL_KEYS: Record<keyof UserProfile["lifestyle"], string> = {
   smoking: "onboarding.smokingLabel",
@@ -195,8 +196,13 @@ export default function RoommateDetailClient({
                 </div>
               ) : null}
 
+              {/* Age 0 means "not stated" on an imported profile — omit the
+                  segment rather than claim someone is 0 years old. */}
               <p className="mt-2 text-sm text-[#9a6e56] sm:mt-3 sm:text-lg">
-                {profile.age} {t("roommateDetail.yearsOld")} · {profile.occupation}
+                {joinMeta([
+                  hasStatedAge(profile.age) ? `${profile.age} ${t("roommateDetail.yearsOld")}` : null,
+                  profile.occupation
+                ])}
               </p>
               <p className="mt-1 flex items-center gap-1.5 text-sm text-[#9a6e56] sm:text-lg">
                 <MapPin className="h-4 w-4 shrink-0" />

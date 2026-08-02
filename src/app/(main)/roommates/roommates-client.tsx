@@ -8,6 +8,7 @@ import { RoommateCard } from "@/components/roommates/roommate-card";
 import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
+import { matchesAgeRange } from "@/lib/utils/profile-display";
 import { CITIES } from "@/lib/constants/cities";
 import { getUniversityCity } from "@/lib/constants/universities";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
@@ -62,13 +63,24 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
         const matchesUniversity =
           !universityQuery || (roommate.university ?? "").toLowerCase().includes(universityQuery);
         const matchesGender = gender === "all" || roommate.gender === gender;
-        const matchesMinAge = roommate.age >= parsedMinAge;
-        const matchesMaxAge = roommate.age <= parsedMaxAge;
+        // Age 0 is the documented "not stated" sentinel (admin-quick.schema.ts):
+        // posts imported from Telegram/WhatsApp/OLX rarely mention an age, and
+        // the admin must not invent one for a stranger.
+        //
+        // Comparing that sentinel against the range excluded every such profile
+        // — `0 >= 18` is false — and because the age inputs carry min="18" a
+        // visitor could not widen the range to reach them either. Imported
+        // roommates were saved correctly and then permanently unreachable in the
+        // directory, which is exactly the bug this guard removes.
+        //
+        // An unknown age cannot be judged against a range, so it is not filtered
+        // on. The alternative silently drops most imported inventory, which is
+        // far worse for a discovery page than showing a profile whose age is
+        // openly displayed as unstated.
+        const matchesAge = matchesAgeRange(roommate.age, parsedMinAge, parsedMaxAge);
         const matchesBudget = parsedBudget === null || roommate.maxBudget <= parsedBudget;
 
-        return (
-          matchesCity && matchesUniversity && matchesGender && matchesMinAge && matchesMaxAge && matchesBudget
-        );
+        return matchesCity && matchesUniversity && matchesGender && matchesAge && matchesBudget;
       })
       .sort((first, second) => {
         if (!profile) return second.createdAt.getTime() - first.createdAt.getTime();

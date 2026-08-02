@@ -12,6 +12,7 @@ import { getUniversityCity } from "@/lib/constants/universities";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
 import { formatCurrency, formatDateShort } from "@/lib/utils/format";
 import type { LifestylePreferences, UserProfile } from "@/types/user";
+import { ageSegment, joinMeta } from "@/lib/utils/profile-display";
 
 export function RoommateCard({
   profile,
@@ -62,11 +63,14 @@ export function RoommateCard({
             {/* fill green + white check strokes; same-color fill/stroke rendered as a solid blob */}
             {profile.verified ? <BadgeCheck className="h-5 w-5 shrink-0 fill-success text-white" /> : null}
           </div>
+          {/* Imported profiles often state only a name and a budget, so any of
+              these can be missing. joinMeta drops what is absent instead of
+              rendering "0 · " or a dangling separator. */}
           <p className="mt-1 break-words text-sm text-[#9a6e56] sm:mt-2 sm:text-[15px]">
-            {profile.age} · {profile.occupation}
+            {joinMeta([ageSegment(profile.age), profile.occupation])}
           </p>
           <p className="line-clamp-2 break-words text-sm text-[#9a6e56] sm:text-[15px]">
-            {profile.university} · {city}
+            {joinMeta([profile.university, city])}
           </p>
         </div>
 

@@ -14,6 +14,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { formatDate, formatListingPrice } from "@/lib/utils/format";
 import type { Listing } from "@/types/listing";
 import { useAuth } from "@/context/auth-context";
+import { hasStatedAge } from "@/lib/utils/profile-display";
 import { useRouter } from "next/navigation";
 
 export function ListingCard({ listing }: { listing: Listing }) {
@@ -132,8 +133,10 @@ export function ListingCard({ listing }: { listing: Listing }) {
               )}
             </div>
             <div>
+              {/* A host seeded from a Telegram/OLX post usually has no age;
+                  ", 0" after the name reads as broken data. */}
               <div className="text-xs font-semibold text-foreground">
-                {owner.fullName}, {owner.age}
+                {hasStatedAge(owner.age) ? `${owner.fullName}, ${owner.age}` : owner.fullName}
               </div>
               <p className="text-xs text-foreground/50">{t("listing.currentRoommate")}</p>
             </div>

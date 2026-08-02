@@ -1,9 +1,8 @@
-import { randomUUID } from "node:crypto";
-
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { apiErrorResponse } from "@/lib/api/error-response";
+import { newSeededHostUid } from "@/lib/data/seeded-hosts";
 import { requireAdminUser } from "@/lib/supabase/admin";
 import { mapProfileRow } from "@/lib/supabase/mappers";
 
@@ -34,9 +33,7 @@ export async function POST(request: Request) {
     const input = adminRoommateCreateSchema.parse(await request.json());
 
     const row = {
-      // Prefixed uid marks admin-created profiles; profiles.uid has no FK to
-      // auth.users, so standalone rows are valid (same as demo/seed profiles).
-      uid: `roomi-admin-${randomUUID()}`,
+      uid: newSeededHostUid(),
       full_name: input.fullName,
       age: input.age,
       gender: input.gender,

@@ -107,9 +107,10 @@ export default function AdminListingsPage() {
       if (!res.ok) throw new Error(json.error ?? "Could not load listings.");
       setListings(json.listings ?? []);
       setMetaAvailable(json.metaAvailable !== false);
-      // Candidate hosts for seeded listings. Admin-created profiles carry a
-      // `roomi-admin-` uid and exist precisely so seeded inventory has a public
-      // face that is not the administrator's personal account.
+      // Candidate hosts for seeded listings. Admin-created profiles exist so
+      // seeded inventory has a public face that is not the administrator's
+      // personal account; nothing on them marks them as admin-created, which
+      // is the point.
       try {
         const rr = await fetch("/api/admin/roommates");
         const rj = await rr.json();

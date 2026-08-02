@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { LISTING_META_KEY_PREFIX } from "@/lib/data/listing-admin-meta";
+import { newSeededHostUid } from "@/lib/data/seeded-hosts";
 import { mapListingRow } from "@/lib/supabase/mappers";
 
 /**
@@ -36,7 +37,7 @@ describe("seeded listings are indistinguishable", () => {
   function row(over: Record<string, unknown> = {}) {
     return {
       id: "l1",
-      owner_id: "roomi-admin-1234",
+      owner_id: "a1b2c3d4-0000-4000-8000-000000000001",
       title: "Room",
       description: "d",
       property_type: "apartment",
@@ -68,9 +69,20 @@ describe("seeded listings are indistinguishable", () => {
 
   it("maps an admin-owned listing to the same shape as a user-owned one", () => {
     // Identical keys means a public page has nothing to branch on.
-    const seeded = Object.keys(mapListingRow(row({ owner_id: "roomi-admin-1234" })) as object).sort();
-    const organic = Object.keys(mapListingRow(row({ owner_id: "9f0b-real-user" })) as object).sort();
+    const seeded = Object.keys(mapListingRow(row({ owner_id: "a1b2c3d4-0000-4000-8000-000000000001" })) as object).sort();
+    const organic = Object.keys(mapListingRow(row({ owner_id: "a1b2c3d4-0000-4000-8000-000000000002" })) as object).sort();
     expect(seeded).toEqual(organic);
+  });
+
+  it("gives a seeded host a uid that reads like any other account id", () => {
+    // The owner uid travels in the listing payload and in the profile URL, so a
+    // marker prefix ("roomi-admin-…") let any visitor read "admin" off a seeded
+    // listing. It must stay a bare UUID, indistinguishable from an auth.users id.
+    for (let i = 0; i < 20; i += 1) {
+      const uid = newSeededHostUid();
+      expect(uid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+      expect(uid).not.toMatch(/admin|roomi|seed|staff/i);
+    }
   });
 
   it("stores metadata under a key the site_settings SELECT policy does not whitelist", () => {

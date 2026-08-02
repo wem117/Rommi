@@ -3,7 +3,7 @@
 import { ArrowRight, List, Map as MapIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ListingFiltersBar } from "@/components/listings/listing-filters";
 import { ListingGrid } from "@/components/listings/listing-grid";
@@ -45,36 +45,42 @@ export default function RoomsClient({
   // authoritative: it is rewritten from this state, and re-syncs from the server
   // props whenever a navigation lands.
   const [filters, setFilters] = useState<ListingQueryFilters>(serverFilters);
-  const serverKey = JSON.stringify(serverFilters);
-  useEffect(() => {
-    setFilters(serverFilters);
-    // Compare by value: the object identity changes on every server render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serverKey]);
 
   // Search is debounced so a navigation isn't fired per keystroke; everything
   // else (selects, sliders) applies as soon as it changes.
   const debouncedSearch = useDebounce(filters.search ?? "", 350);
-  const pendingFilters = useMemo(
-    () => ({ ...filters, search: debouncedSearch }),
-    [filters, debouncedSearch]
-  );
+  const pendingFilters = useMemo(() => ({ ...filters, search: debouncedSearch }), [filters, debouncedSearch]);
+
+  // Both sides are compared as their canonical query strings, which normalises
+  // away empty values and key order, so this is an equality test on the FILTERS
+  // and nothing else.
+  const pendingQuery = buildListingQueryString(pendingFilters, 1);
+  const serverQuery = buildListingQueryString(serverFilters, 1);
+
+  // Re-seed local state whenever a navigation lands on different filters (back
+  // button, a shared link, a filter reset).
+  useEffect(() => {
+    setFilters(serverFilters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverQuery]);
+
+  /**
+   * Pushes a filter change into the URL, resetting to page 1 — staying on page
+   * 7 of a result set that just shrank to two pages would show an empty grid.
+   *
+   * Deliberately keyed on the FILTERS only. Keying it on the full URL (filters
+   * + page) meant that landing on /rooms?page=2 saw a mismatch against the
+   * page-1 URL this effect wants to build, and immediately navigated back to
+   * page 1 — the page number was unreachable except by winning a race.
+   */
+  useEffect(() => {
+    if (pendingQuery === serverQuery) return;
+    // `replace` so filter tweaks don't fill the back stack with near-identical
+    // entries; the page links below are real navigations and use push.
+    router.replace(`${pathname}${pendingQuery}`, { scroll: false });
+  }, [pendingQuery, serverQuery, pathname, router]);
 
   const hrefFor = (page: number) => `${pathname}${buildListingQueryString(pendingFilters, page)}`;
-
-  // Any filter change resets to page 1: staying on page 7 of a result set that
-  // just shrank to two pages would show an empty grid.
-  const targetUrl = `${pathname}${buildListingQueryString(pendingFilters, 1)}`;
-  const currentUrl = `${pathname}${buildListingQueryString(serverFilters, initial.page)}`;
-  const lastPushed = useRef(currentUrl);
-
-  useEffect(() => {
-    if (targetUrl === currentUrl || targetUrl === lastPushed.current) return;
-    lastPushed.current = targetUrl;
-    // `replace` so filter tweaks don't fill the back stack with near-identical
-    // entries; page links below are real navigations and use push.
-    router.replace(targetUrl, { scroll: false });
-  }, [targetUrl, currentUrl, router]);
 
   const { listings, total, page, pageSize, totalPages } = initial;
 

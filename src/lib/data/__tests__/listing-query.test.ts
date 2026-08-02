@@ -91,6 +91,16 @@ describe("buildListingQueryString", () => {
     expect(buildListingQueryString({ sort: "newest" }, 1)).toBe("");
   });
 
+  it("gives the same key for the same filters on any page", () => {
+    // The browse client decides "did the user change a filter?" by comparing
+    // these two strings. If the page number leaked into the comparison, landing
+    // on page 2 would look like a filter change and bounce back to page 1.
+    const filters = { city: "Almaty", maxRent: 200000, sort: "rent_asc" as const };
+    expect(buildListingQueryString(filters, 1)).toBe(buildListingQueryString(filters, 1));
+    // ...and a page-1 key never carries a page parameter to compare against.
+    expect(buildListingQueryString(filters, 1)).not.toContain("page=");
+  });
+
   it("preserves filters when only the page changes", () => {
     const filters = { city: "Almaty", listingType: "private_room" as const };
     expect(buildListingQueryString(filters, 2)).toContain("city=Almaty");

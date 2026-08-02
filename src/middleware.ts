@@ -1,7 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { ADMIN_ROLE, isAdminEmail } from "@/lib/auth/admin-access";
 import { resolvePostAuthDestination } from "@/lib/utils/auth-destination";
 import { safeRedirect } from "@/lib/utils/safe-redirect";
 
@@ -99,11 +98,11 @@ async function isMaintenanceModeOn(supabaseUrl: string, anonKey: string): Promis
  * inconclusive" (`ambiguous: true` below). Callers fail OPEN on ambiguous
  * results for ordinary pages — the client-side auth guard (`useAuth()` +
  * `(main)/layout.tsx`) makes the authoritative call using its own independent
- * session read — and fail CLOSED only where identity truly can't be assumed
- * (the `/admin` check). This is safe because middleware here is a
- * navigation/UX gate, not the security boundary: every actual mutation is
- * separately authorized server-side via `requireSessionUser()` /
- * `requireAdminUser()`, which perform their own fresh `getUser()` check.
+ * session read — and fail CLOSED for `/admin`, where identity truly can't be
+ * assumed. This is safe because middleware here is a navigation/UX gate, not the
+ * security boundary: every page and mutation is separately authorized
+ * server-side via `requireSessionUser()` / `requireAdminUser()` (including
+ * `src/app/admin/layout.tsx`), each performing its own fresh `getUser()` check.
  */
 async function resolveSession(
   supabase: ReturnType<typeof createServerClient>
@@ -212,23 +211,30 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  if (isAdminPath && !isAdminEmail(user.email)) {
-    const { data: profile } = await supabase.from("profiles").select("role").eq("uid", user.id).maybeSingle();
-
-    if (profile?.role !== ADMIN_ROLE) {
-      // RLS only lets a signed-in user read this row when their own email
-      // is inside admin_emails, so a non-empty result confirms access.
-      const { data: setting } = await supabase
-        .from("site_settings")
-        .select("key")
-        .eq("key", "admin_emails")
-        .maybeSingle();
-
-      if (!setting) {
-        return NextResponse.redirect(new URL("/rooms", request.url));
-      }
-    }
-  }
+  // Admin AUTHORIZATION is deliberately not decided here.
+  //
+  // Middleware runs in the Edge runtime, and Next only injects a fixed set of
+  // variables into that sandbox — inspected on the running build, the list is
+  // __NEXT_BUILD_ID, NEXT_SERVER_ACTIONS_ENCRYPTION_KEY and the preview-mode
+  // keys. `ADMIN_EMAILS` is not among them, so `process.env.ADMIN_EMAILS` is
+  // undefined in here no matter what the container env says.
+  //
+  // `getAllowlist()` fails closed in production, so the env allowlist silently
+  // evaluated to EMPTY and this block redirected a genuine administrator to
+  // /rooms — while the very same check passed in every admin API route, which
+  // runs in Node and can read the variable. An authorization rule that depends
+  // on state its runtime cannot see is not a rule, it is a coin flip.
+  //
+  // The authoritative guard is `requireAdminUser()` in src/app/admin/layout.tsx.
+  // It runs in Node with the full environment and a service-role client, and it
+  // evaluates all three gates — env allowlist, profiles.role, and the
+  // admin-managed site_settings list — then redirects non-admins to /rooms
+  // exactly as this block intended. Every admin API route calls it independently,
+  // so data access is protected whatever a page does.
+  //
+  // Middleware keeps what it CAN decide correctly: that /admin requires a signed-
+  // in user (handled above). Nothing here is weakened — the check that was
+  // removed was strictly weaker than the one that remains, and broken besides.
 
   return response;
 }

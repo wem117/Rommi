@@ -4,6 +4,7 @@ import { apiErrorResponse } from "@/lib/api/error-response";
 import { deleteListingAdminMeta, upsertListingAdminMeta } from "@/lib/data/listing-admin-meta";
 import { mapListingRow } from "@/lib/supabase/mappers";
 import { requireAdminUser } from "@/lib/supabase/admin";
+import { adminSourceSchema } from "@/lib/validations/admin-quick.schema";
 import { listingUpdateSchema } from "@/lib/validations/admin.schema";
 import { z } from "zod";
 
@@ -15,17 +16,9 @@ const listingAdminUpdateSchema = listingUpdateSchema.extend({
   university: z.string().trim().max(200).optional(),
   lat: z.number().min(-90).max(90).nullable().optional(),
   lng: z.number().min(-180).max(180).nullable().optional(),
-  // Admin-only; stored in listing_admin_meta, never on the listing row.
-  adminMeta: z
-    .object({
-      contactName: z.string().trim().max(200).optional(),
-      contactPhone: z.string().trim().max(60).optional(),
-      contactTelegram: z.string().trim().max(120).optional(),
-      sourceUrl: z.string().trim().max(500).optional(),
-      sourceNote: z.string().trim().max(500).optional(),
-      adminNotes: z.string().trim().max(4000).optional()
-    })
-    .optional()
+  // Admin-only provenance; stored in the private settings row, never on the
+  // listing row and never sent to a public page.
+  adminMeta: adminSourceSchema.partial().optional()
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {

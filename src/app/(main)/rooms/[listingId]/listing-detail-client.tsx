@@ -52,10 +52,13 @@ const KNOWN_AMENITIES = new Set([
 
 export default function ListingDetailClient({
   listingId,
-  initialListing
+  initialListing,
+  ownerContacts
 }: {
   listingId: string;
   initialListing: Listing | null;
+  /** WhatsApp/Instagram, resolved server-side (see lib/data/public-contacts). */
+  ownerContacts?: { whatsapp: string; instagram: string };
 }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -116,7 +119,13 @@ export default function ListingDetailClient({
 
   const mapQuery = useMemo(() => {
     if (!listing) return "";
-    return `${listing.address}, ${listing.city}${listing.district ? `, ${listing.district}` : ""}`;
+    // Plenty of listings carry no street address — the source post never had
+    // one. Empty parts are dropped so the query stays a clean "district, city"
+    // instead of starting with a comma, which Maps resolves badly.
+    return [listing.address, listing.district, listing.city]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(", ");
   }, [listing]);
 
   if (loading) {
@@ -246,9 +255,16 @@ export default function ListingDetailClient({
                 </a>
               ) : null}
 
-              {owner && (owner.telegram || owner.phone) && !owner.contactsHidden ? (
+              {owner && !owner.contactsHidden ? (
                 <div className="mt-3 flex justify-center">
-                  <ContactLinks telegram={owner.telegram} phone={owner.phone} contactsHidden={owner.contactsHidden} size="sm" />
+                  <ContactLinks
+                    telegram={owner.telegram}
+                    phone={owner.phone}
+                    whatsapp={ownerContacts?.whatsapp}
+                    instagram={ownerContacts?.instagram}
+                    contactsHidden={owner.contactsHidden}
+                    size="sm"
+                  />
                 </div>
               ) : null}
 

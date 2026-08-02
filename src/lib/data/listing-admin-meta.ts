@@ -31,19 +31,25 @@ import { createSupabaseAdminClient } from "@/lib/supabase/server";
  * seeded listing indistinguishable from an organic one.
  */
 export interface ListingAdminMeta {
-  contactName: string;
-  contactPhone: string;
-  contactTelegram: string;
+  /** Link to the original advert. */
   sourceUrl: string;
+  /** Telegram channel or group it was posted in. */
+  sourceTelegram: string;
+  /** WhatsApp group it was posted in. */
+  sourceWhatsapp: string;
+  /** Facebook group or page it was posted in. */
+  sourceFacebook: string;
+  /** Anything else about where it came from. */
   sourceNote: string;
+  /** Private working notes: "called, still free", "asked for photos". */
   adminNotes: string;
 }
 
 export const EMPTY_LISTING_ADMIN_META: ListingAdminMeta = {
-  contactName: "",
-  contactPhone: "",
-  contactTelegram: "",
   sourceUrl: "",
+  sourceTelegram: "",
+  sourceWhatsapp: "",
+  sourceFacebook: "",
   sourceNote: "",
   adminNotes: ""
 };
@@ -56,10 +62,10 @@ const metaKey = (listingId: string) => `${LISTING_META_KEY_PREFIX}${listingId}`;
 function normalise(value: unknown): ListingAdminMeta {
   const v = (value ?? {}) as Partial<ListingAdminMeta>;
   return {
-    contactName: String(v.contactName ?? ""),
-    contactPhone: String(v.contactPhone ?? ""),
-    contactTelegram: String(v.contactTelegram ?? ""),
     sourceUrl: String(v.sourceUrl ?? ""),
+    sourceTelegram: String(v.sourceTelegram ?? ""),
+    sourceWhatsapp: String(v.sourceWhatsapp ?? ""),
+    sourceFacebook: String(v.sourceFacebook ?? ""),
     sourceNote: String(v.sourceNote ?? ""),
     adminNotes: String(v.adminNotes ?? "")
   };

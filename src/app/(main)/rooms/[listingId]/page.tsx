@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { getListingByIdServer } from "@/lib/data/listings-server";
+import { getPublicContacts } from "@/lib/data/public-contacts";
 import { requirePageAuth } from "@/lib/supabase/page-auth";
 import { siteConfig } from "@/lib/site-config";
 import { formatCurrency } from "@/lib/utils/format";
@@ -66,6 +67,11 @@ export default async function Page({ params }: PageProps) {
 
   if (!listing) notFound();
 
+  // WhatsApp and Instagram have no column on `profiles`, so they are read
+  // here, server-side, behind the auth guard above — the same "signed-in
+  // visitors only" rule the telegram/phone columns follow at the database.
+  const ownerContacts = await getPublicContacts(listing.ownerId);
+
   // Product/Offer structured data for rich results.
   const structuredData = {
     "@context": "https://schema.org",
@@ -89,7 +95,7 @@ export default async function Page({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}
       />
-      <ListingDetailClient listingId={listing.id} initialListing={listing} />
+      <ListingDetailClient listingId={listing.id} initialListing={listing} ownerContacts={ownerContacts} />
     </>
   );
 }

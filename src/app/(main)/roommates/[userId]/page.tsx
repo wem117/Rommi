@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { getPublicProfileByIdServer } from "@/lib/data/profiles-server";
+import { getPublicContacts } from "@/lib/data/public-contacts";
 import { requirePageAuth } from "@/lib/supabase/page-auth";
 
 import RoommateDetailClient from "./roommate-detail-client";
@@ -46,5 +47,10 @@ export default async function Page({ params }: PageProps) {
 
   if (!profile) notFound();
 
-  return <RoommateDetailClient userId={profile.uid} initialProfile={profile} />;
+  // WhatsApp and Instagram have no column on `profiles`, so they are read here,
+  // server-side, behind the auth guard above — the same "signed-in visitors
+  // only" rule the telegram/phone columns follow at the database.
+  const contacts = await getPublicContacts(profile.uid);
+
+  return <RoommateDetailClient userId={profile.uid} initialProfile={profile} contacts={contacts} />;
 }

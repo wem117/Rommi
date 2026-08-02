@@ -56,10 +56,13 @@ const LIFESTYLE_VALUE_KEYS: Record<string, string> = {
 
 export default function RoommateDetailClient({
   userId,
-  initialProfile
+  initialProfile,
+  contacts
 }: {
   userId: string;
   initialProfile: UserProfile | null;
+  /** WhatsApp/Instagram, resolved server-side (see lib/data/public-contacts). */
+  contacts?: { whatsapp: string; instagram: string };
 }) {
   const router = useRouter();
   const { user, profile: currentProfile } = useAuth();
@@ -304,7 +307,13 @@ export default function RoommateDetailClient({
             </div>
 
             <div className="mt-3 flex justify-center">
-              <ContactLinks telegram={profile.telegram} phone={profile.phone} contactsHidden={profile.contactsHidden} />
+              <ContactLinks
+                telegram={profile.telegram}
+                phone={profile.phone}
+                whatsapp={contacts?.whatsapp}
+                instagram={contacts?.instagram}
+                contactsHidden={profile.contactsHidden}
+              />
             </div>
           </div>
         </aside>

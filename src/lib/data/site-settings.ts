@@ -48,13 +48,15 @@ const KEY_MAP: Record<keyof SiteSettings, string> = {
 export async function getSiteSettings(): Promise<SiteSettings> {
   try {
     const supabase = createSupabaseAdminClient();
-    // `listing_meta:*` rows live in this table too (see lib/data/listing-admin-meta.ts).
-    // They are per-listing data, not site settings, so they are excluded here to
-    // keep this response bounded as the seeded inventory grows.
+    // `listing_meta:*` and `contact:*` rows live in this table too (see
+    // lib/data/listing-admin-meta.ts and lib/data/public-contacts.ts). They are
+    // per-record data, not site settings, so they are excluded here to keep this
+    // response bounded as the seeded inventory grows.
     const { data, error } = await supabase
       .from("site_settings")
       .select("key, value")
-      .not("key", "like", "listing_meta:%");
+      .not("key", "like", "listing_meta:%")
+      .not("key", "like", "contact:%");
     if (error || !data) return DEFAULT_SITE_SETTINGS;
 
     const byKey = new Map(data.map((row) => [row.key as string, row.value]));

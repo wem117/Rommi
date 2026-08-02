@@ -44,6 +44,39 @@ export function phoneLink(input: string): string {
   return `tel:${normalizePhone(input)}`;
 }
 
+/**
+ * WhatsApp uses the same numbers as `phone`, so it reuses `isValidPhone`.
+ * wa.me wants digits only — no plus, no spaces, no dashes.
+ */
+export function whatsappLink(input: string): string {
+  return `https://wa.me/${input.replace(/\D/g, "")}`;
+}
+
+/** Strip @, a profile URL, and any trailing slash, leaving the bare handle. */
+export function normalizeInstagram(input: string): string {
+  return input
+    .trim()
+    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
+    .replace(/^@/, "")
+    .replace(/\/+$/, "")
+    .split(/[?#]/)[0]
+    .trim();
+}
+
+/** Instagram handles are 1–30 chars: letters, digits, underscore, full stop. */
+export function isValidInstagram(input: string): boolean {
+  return /^[a-zA-Z0-9_.]{1,30}$/.test(normalizeInstagram(input));
+}
+
+export function instagramHandle(input: string): string {
+  const username = normalizeInstagram(input);
+  return username ? `@${username}` : "";
+}
+
+export function instagramLink(input: string): string {
+  return `https://instagram.com/${normalizeInstagram(input)}`;
+}
+
 /** Pretty display for Kazakhstani numbers, otherwise a best-effort grouping. */
 export function formatPhone(input: string): string {
   const digits = input.replace(/[^\d]/g, "");

@@ -1,75 +1,77 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 
 import { apiErrorResponse } from "@/lib/api/error-response";
-import { newSeededHostUid } from "@/lib/data/seeded-hosts";
+import { upsertListingAdminMeta } from "@/lib/data/listing-admin-meta";
+import { getPublicContactsMap } from "@/lib/data/public-contacts";
+import { createSeededProfile } from "@/lib/data/seeded-hosts";
 import { requireAdminUser } from "@/lib/supabase/admin";
 import { mapProfileRow } from "@/lib/supabase/mappers";
+import { adminQuickRoommateSchema } from "@/lib/validations/admin-quick.schema";
 
-// Admin-created roommate profile (standalone — not linked to an auth account).
-const adminRoommateCreateSchema = z.object({
-  fullName: z.string().trim().min(2, "Enter the full name").max(120),
-  age: z.number().int().min(16, "Minimum age is 16").max(80, "Enter a valid age"),
-  gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
-  university: z.string().trim().min(1, "Select a university").max(160),
-  occupation: z.string().trim().min(2, "Enter an occupation").max(120),
-  maxBudget: z.number().int().min(0).max(10_000_000),
-  bio: z.string().trim().max(1000).default(""),
-  photoURL: z.string().trim().url("Photo must be a valid URL").optional().or(z.literal("")),
-  lifestyle: z
-    .object({
-      smoking: z.enum(["no", "yes", "outside", "no_preference"]).default("no"),
-      pets: z.enum(["no_pets", "pet_friendly", "has_pets", "no_preference"]).default("no_preference"),
-      cleanliness: z.enum(["relaxed", "moderate", "very_clean"]).default("moderate"),
-      sleepSchedule: z.enum(["early_bird", "balanced", "night_owl"]).default("balanced"),
-      guests: z.enum(["rarely", "sometimes", "often"]).default("sometimes")
-    })
-    .default({ smoking: "no", pets: "no_preference", cleanliness: "moderate", sleepSchedule: "balanced", guests: "sometimes" })
-});
-
+/**
+ * Admin quick-create for a roommate profile.
+ *
+ * Real posts read "Ищу соседку, бюджет 90к, пишите в вотсап" — a name, a few
+ * sentences and a budget. Those three are required; everything else defaults,
+ * because the alternative is the admin inventing an age and a university for a
+ * stranger. See `adminQuickRoommateSchema`.
+ */
 export async function POST(request: Request) {
   try {
-    const { supabase } = await requireAdminUser();
-    const input = adminRoommateCreateSchema.parse(await request.json());
+    await requireAdminUser();
+    const input = adminQuickRoommateSchema.parse(await request.json());
 
-    const row = {
-      uid: newSeededHostUid(),
-      full_name: input.fullName,
+    const uid = await createSeededProfile({
+      fullName: input.fullName,
+      bio: input.bio,
       age: input.age,
       gender: input.gender,
       university: input.university,
       occupation: input.occupation,
-      max_budget: input.maxBudget,
-      bio: input.bio,
-      photo_url: input.photoURL || null,
+      minBudget: input.minBudget,
+      maxBudget: input.maxBudget,
+      preferredMoveInDate: input.preferredMoveInDate || undefined,
+      photoURL: input.photoURL,
       lifestyle: input.lifestyle,
-      onboarding_complete: true,
-      looking_for_apartment: true,
-      roommate_status: "approved",
-      profile_completion: 80
-    };
+      contacts: input,
+      // A roommate profile is exactly what the /roommates directory is for.
+      lookingForApartment: true
+    });
 
-    const { data, error } = await supabase.from("profiles").insert(row).select("*").single();
-    if (error) throw error;
+    // Provenance is keyed by record id in the same private store the listings
+    // use, so "where did this come from" works the same for both.
+    if (input.source && Object.values(input.source).some((v) => String(v ?? "").trim())) {
+      await upsertListingAdminMeta(uid, input.source);
+    }
 
-    return NextResponse.json({ roommate: mapProfileRow(data) }, { status: 201 });
+    return NextResponse.json({ roommate: { uid, fullName: input.fullName } }, { status: 201 });
   } catch (error) {
     return apiErrorResponse(error);
   }
 }
 
-export async function GET() {
+/**
+ * `scope=roommates` (default) lists the roommate directory.
+ * `scope=all` lists every profile, which is what the listing host picker needs:
+ * a landlord is created with `looking_for_apartment = false` so they stay out of
+ * roommate search, and would otherwise be unpickable as a host.
+ */
+export async function GET(request: Request) {
   try {
     const { supabase } = await requireAdminUser();
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("onboarding_complete", true)
-      .eq("looking_for_apartment", true)
-      .order("created_at", { ascending: false });
+    const scope = new URL(request.url).searchParams.get("scope");
 
+    let query = supabase.from("profiles").select("*").eq("onboarding_complete", true);
+    if (scope !== "all") query = query.eq("looking_for_apartment", true);
+
+    const { data, error } = await query.order("created_at", { ascending: false });
     if (error) throw error;
-    return NextResponse.json({ roommates: (data ?? []).map(mapProfileRow) });
+
+    const roommates = (data ?? []).map(mapProfileRow);
+    // WhatsApp/Instagram have no column; the admin list still has to show them.
+    const contacts = await getPublicContactsMap(roommates.map((r) => r.uid));
+
+    return NextResponse.json({ roommates, contacts });
   } catch (error) {
     return apiErrorResponse(error);
   }

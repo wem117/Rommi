@@ -5,8 +5,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPhotoList } from "@/components/admin/admin-photo-list";
+import {
+  applyExtraction,
+  CollapsibleSection,
+  ContactFields,
+  InternalBadge,
+  PastePostBox,
+  type ContactValues
+} from "@/components/admin/quick-create";
 import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { CITIES } from "@/lib/constants/cities";
+import type { ExtractedPost } from "@/lib/utils/post-parser";
 
 import {
   AlertDialog,
@@ -42,12 +51,14 @@ const EDIT_EMPTY = {
 };
 
 const CREATE_EMPTY = {
+  // What the admin cannot avoid supplying: without these the listing cannot be
+  // read, priced or found. Everything else has a defensible default.
   title: "",
   description: "",
   monthlyRent: 0,
-  depositRequired: false,
-  depositAmount: 0,
   city: "Almaty",
+
+  // Optional detail, all behind a disclosure in the form.
   district: "",
   address: "",
   university: "",
@@ -55,22 +66,26 @@ const CREATE_EMPTY = {
   listingType: "private_room" as "private_room" | "shared_room" | "entire_place",
   bedrooms: 1,
   bathrooms: 1,
+  depositRequired: false,
+  depositAmount: 0,
   availableFrom: "",
   genderPreference: "any" as "any" | "male" | "female",
   smoking: "no" as "no" | "yes",
   pets: "no_pets" as "no_pets" | "allowed",
   photoUrls: [] as string[],
-  // Which profile the listing belongs to. Left blank the listing would be filed
-  // under the administrator's own account, and the public detail page renders
-  // the owner's name, avatar and verified badge — so a seeded listing would
-  // openly display the administrator's identity. Chosen explicitly instead.
+
+  // Who the listing is published as. Landlords in these posts have no Roomi
+  // account, so the default is to create a lightweight public profile for them
+  // from the contacts in the post; `ownerId` reuses one already created.
+  hostName: "",
   ownerId: "",
-  // Admin-only. Stored in listing_admin_meta, never on the listing row, and
-  // never sent to a public page.
-  contactName: "",
-  contactPhone: "",
-  contactTelegram: "",
+
+  // Admin-only provenance. Stored in a private settings row, never on the
+  // listing and never sent to a public page.
   sourceUrl: "",
+  sourceTelegram: "",
+  sourceWhatsapp: "",
+  sourceFacebook: "",
   sourceNote: "",
   adminNotes: ""
 };
@@ -87,6 +102,15 @@ export default function AdminListingsPage() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState(CREATE_EMPTY);
+  const [createContacts, setCreateContacts] = useState<ContactValues>({
+    phone: "",
+    whatsapp: "",
+    telegram: "",
+    instagram: ""
+  });
+  // "new" builds a public profile from the contacts in the post (the normal
+  // case — these landlords have no account); "existing" reuses one.
+  const [hostMode, setHostMode] = useState<"new" | "existing">("new");
   const [creating, setCreating] = useState(false);
   const [duplicates, setDuplicates] = useState<Array<{ id: string; title: string; address: string; city: string }>>([]);
   // False until the listing_admin_meta migration is applied. The internal block
@@ -112,7 +136,9 @@ export default function AdminListingsPage() {
       // personal account; nothing on them marks them as admin-created, which
       // is the point.
       try {
-        const rr = await fetch("/api/admin/roommates");
+        // scope=all: a landlord is stored with looking_for_apartment=false so
+        // they stay out of roommate search, and the default list would omit them.
+        const rr = await fetch("/api/admin/roommates?scope=all");
         const rj = await rr.json();
         if (rr.ok) setOwners((rj.roommates ?? []).map((r: { uid: string; fullName: string }) => ({ uid: r.uid, fullName: r.fullName })));
       } catch {
@@ -272,8 +298,16 @@ export default function AdminListingsPage() {
     }
   }
 
+  /**
+   * Opens the dialog on a clean form, so a cancelled entry never leaks into the
+   * next one. `availableFrom` is deliberately left blank: an absent move-in date
+   * means "available now" on the server, and pre-filling today's date would
+   * either be overwritten by the pasted post or publish a date nobody stated.
+   */
   function startCreate() {
-    setCreateForm({ ...CREATE_EMPTY, availableFrom: new Date().toISOString().slice(0, 10) });
+    setCreateForm(CREATE_EMPTY);
+    setCreateContacts({ phone: "", whatsapp: "", telegram: "", instagram: "" });
+    setHostMode("new");
     setDuplicates([]);
     setCreateOpen(true);
   }
@@ -286,19 +320,33 @@ export default function AdminListingsPage() {
   async function createNew(publish: boolean, ignoreDuplicates = false) {
     setCreating(true);
     try {
-      const { contactName, contactPhone, contactTelegram, sourceUrl, sourceNote, adminNotes, ownerId, ...listing } = createForm;
+      const {
+        hostName,
+        ownerId,
+        sourceUrl,
+        sourceTelegram,
+        sourceWhatsapp,
+        sourceFacebook,
+        sourceNote,
+        adminNotes,
+        ...listing
+      } = createForm;
+
       const res = await fetch("/api/admin/listings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...listing,
-          amenities: [],
-          lat: null,
-          lng: null,
-          ...(ownerId ? { ownerId } : {}),
           publish,
           ignoreDuplicates,
-          adminMeta: { contactName, contactPhone, contactTelegram, sourceUrl, sourceNote, adminNotes }
+          // A new public profile built from the post, or an existing one. Both
+          // omitted, the server files it under the admin account and the form
+          // has already warned about that.
+          ...(hostMode === "new" && hostName.trim()
+            ? { host: { displayName: hostName.trim(), ...createContacts } }
+            : {}),
+          ...(hostMode === "existing" && ownerId ? { ownerId } : {}),
+          source: { sourceUrl, sourceTelegram, sourceWhatsapp, sourceFacebook, sourceNote, adminNotes }
         })
       });
       const json = await res.json().catch(() => ({}));
@@ -317,6 +365,25 @@ export default function AdminListingsPage() {
     } finally {
       setCreating(false);
     }
+  }
+
+  /**
+   * Fills blanks from a pasted post. Contact fields and listing fields live in
+   * two pieces of state, so each is merged separately; `applyExtraction` never
+   * overwrites a value the admin has already typed.
+   */
+  function fillFromPost(extracted: ExtractedPost) {
+    const listingPart = applyExtraction(
+      { monthlyRent: createForm.monthlyRent, genderPreference: createForm.genderPreference, availableFrom: createForm.availableFrom },
+      extracted,
+      (key, v) => (key === "genderPreference" ? v === "any" : v === "" || v === 0)
+    );
+    const contactPart = applyExtraction(createContacts, extracted);
+
+    if (listingPart.filled.length) setCreateForm((current) => ({ ...current, ...listingPart.next }));
+    if (contactPart.filled.length) setCreateContacts(contactPart.next);
+
+    return [...listingPart.filled, ...contactPart.filled];
   }
 
   async function remove(id: string) {
@@ -560,105 +627,48 @@ export default function AdminListingsPage() {
       </div>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+        <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>New listing</DialogTitle>
+            <p className="text-sm text-foreground/60">
+              Paste the post, check the four fields below, publish. Everything else is optional.
+            </p>
           </DialogHeader>
-          <div className="grid gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="create-title">Title</Label>
-              <Input
-                id="create-title"
-                value={createForm.title}
-                placeholder="At least 8 characters"
-                onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="create-description">Description</Label>
-              <Textarea
-                id="create-description"
-                rows={3}
-                placeholder="At least 30 characters"
-                value={createForm.description}
-                onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+
+          <div className="grid gap-5">
+            {/* 1. The paste box. It is the description AND the source of every
+                auto-filled field, so it comes first — pasting is the first
+                thing that happens in this workflow. */}
+            <PastePostBox
+              id="create-description"
+              label="Paste the post"
+              value={createForm.description}
+              placeholder={"Сдаётся комната, Алматы, Бостандыкский р-н.\nДля девушки. 150 000 тг.\nЗаселение с 1 сентября.\n+7 701 234 56 78, есть WhatsApp"}
+              onChange={(description) => setCreateForm((current) => ({ ...current, description }))}
+              onExtract={fillFromPost}
+            />
+
+            {/* 2. The three things that cannot be defaulted. */}
+            <div className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr]">
               <div className="space-y-1.5">
-                <Label>Property type</Label>
-                <Select
-                  value={createForm.propertyType}
-                  onValueChange={(v) => setCreateForm({ ...createForm, propertyType: v as typeof createForm.propertyType })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="apartment">Apartment</SelectItem>
-                    <SelectItem value="house">House</SelectItem>
-                    <SelectItem value="dorm">Dorm</SelectItem>
-                    <SelectItem value="studio">Studio</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="create-title">Title</Label>
+                <Input
+                  id="create-title"
+                  value={createForm.title}
+                  placeholder="Room near KBTU"
+                  onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+                />
               </div>
               <div className="space-y-1.5">
-                <Label>Listing type</Label>
-                <Select
-                  value={createForm.listingType}
-                  onValueChange={(v) => setCreateForm({ ...createForm, listingType: v as typeof createForm.listingType })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="private_room">Private room</SelectItem>
-                    <SelectItem value="shared_room">Shared room</SelectItem>
-                    <SelectItem value="entire_place">Entire place</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="create-rent">Monthly rent (₸)</Label>
+                <Label htmlFor="create-rent">Rent (₸)</Label>
                 <Input
                   id="create-rent"
                   type="number"
                   min={0}
-                  value={createForm.monthlyRent}
+                  value={createForm.monthlyRent || ""}
                   onChange={(e) => setCreateForm({ ...createForm, monthlyRent: Number(e.target.value) })}
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="create-available">Available from</Label>
-                <Input
-                  id="create-available"
-                  type="date"
-                  value={createForm.availableFrom}
-                  onChange={(e) => setCreateForm({ ...createForm, availableFrom: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="create-deposit"
-                checked={createForm.depositRequired}
-                onCheckedChange={(checked) => setCreateForm({ ...createForm, depositRequired: checked === true })}
-              />
-              <Label htmlFor="create-deposit">Deposit required</Label>
-              {createForm.depositRequired ? (
-                <Input
-                  type="number"
-                  min={0}
-                  aria-label="Deposit amount (₸)"
-                  className="ml-2 w-36"
-                  value={createForm.depositAmount}
-                  onChange={(e) => setCreateForm({ ...createForm, depositAmount: Number(e.target.value) })}
-                />
-              ) : null}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>City</Label>
                 <Select value={createForm.city} onValueChange={(v) => setCreateForm({ ...createForm, city: v })}>
@@ -674,207 +684,309 @@ export default function AdminListingsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="create-district">District</Label>
-                <Input
-                  id="create-district"
-                  value={createForm.district}
-                  onChange={(e) => setCreateForm({ ...createForm, district: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="create-address">Address</Label>
-              <Input
-                id="create-address"
-                value={createForm.address}
-                onChange={(e) => setCreateForm({ ...createForm, address: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="create-university">Nearest university</Label>
-              <UniversityCombobox
-                id="create-university"
-                value={createForm.university}
-                onChange={(value) => setCreateForm({ ...createForm, university: value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="create-bedrooms">Bedrooms</Label>
-                <Input
-                  id="create-bedrooms"
-                  type="number"
-                  min={0}
-                  max={20}
-                  value={createForm.bedrooms}
-                  onChange={(e) => setCreateForm({ ...createForm, bedrooms: Number(e.target.value) })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="create-bathrooms">Bathrooms</Label>
-                <Input
-                  id="create-bathrooms"
-                  type="number"
-                  min={0}
-                  max={20}
-                  value={createForm.bathrooms}
-                  onChange={(e) => setCreateForm({ ...createForm, bathrooms: Number(e.target.value) })}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label>Roommate gender</Label>
-                <Select
-                  value={createForm.genderPreference}
-                  onValueChange={(v) => setCreateForm({ ...createForm, genderPreference: v as typeof createForm.genderPreference })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="any">Any</SelectItem>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Smoking</Label>
-                <Select
-                  value={createForm.smoking}
-                  onValueChange={(v) => setCreateForm({ ...createForm, smoking: v as typeof createForm.smoking })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="no">No</SelectItem>
-                    <SelectItem value="yes">Yes</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Pets</Label>
-                <Select
-                  value={createForm.pets}
-                  onValueChange={(v) => setCreateForm({ ...createForm, pets: v as typeof createForm.pets })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="no_pets">No pets</SelectItem>
-                    <SelectItem value="allowed">Allowed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Photos (optional)</Label>
-              <AdminPhotoList
-                value={createForm.photoUrls}
-                onChange={(urls) => setCreateForm({ ...createForm, photoUrls: urls })}
-                onUploadingChange={setPhotoUploading}
-              />
             </div>
 
-            {/*
-              Admin-only block. These values are stored in listing_admin_meta,
-              which RLS restricts to admins — they are never returned to a
-              public page, so a seeded listing is indistinguishable from an
-              organic one to a regular user.
-            */}
-            <div className="space-y-1.5">
-              <Label htmlFor="create-owner">Publish as (listing host)</Label>
-              <Select
-                value={createForm.ownerId || "__self__"}
-                onValueChange={(v) => setCreateForm({ ...createForm, ownerId: v === "__self__" ? "" : v })}
-              >
-                <SelectTrigger id="create-owner">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__self__">My own account (not recommended)</SelectItem>
-                  {owners.map((o) => (
-                    <SelectItem key={o.uid} value={o.uid}>
-                      {o.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {createForm.ownerId ? null : (
-                <p className="text-xs text-destructive">
-                  The room page shows the host&apos;s name, photo and verified badge. Left as your own account, visitors
-                  see YOUR profile on this listing. Pick a host profile instead — create one under Admin → Roommates.
-                </p>
+            {/* 3. Who it is published as. Almost nobody in these posts has a
+                Roomi account, so creating a public profile for them is the
+                default path, not an afterthought. */}
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold">Who is renting it out?</p>
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-primary underline-offset-2 hover:underline"
+                  onClick={() => setHostMode(hostMode === "new" ? "existing" : "new")}
+                >
+                  {hostMode === "new" ? "Use a contact I already added" : "Add a new contact"}
+                </button>
+              </div>
+
+              {hostMode === "new" ? (
+                <div className="mt-3 space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="create-host-name">Display name</Label>
+                    <Input
+                      id="create-host-name"
+                      value={createForm.hostName}
+                      placeholder="Aigerim"
+                      onChange={(e) => setCreateForm({ ...createForm, hostName: e.target.value })}
+                    />
+                  </div>
+                  <ContactFields idPrefix="create-host" value={createContacts} onChange={setCreateContacts} />
+                  <p className="text-xs text-foreground/55">
+                    Creates a normal public profile — no account, no e-mail, no password. Visitors see the name and
+                    contacts exactly as they would for any other host.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-3 space-y-1.5">
+                  <Label htmlFor="create-owner">Existing contact</Label>
+                  <Select
+                    value={createForm.ownerId || "__self__"}
+                    onValueChange={(v) => setCreateForm({ ...createForm, ownerId: v === "__self__" ? "" : v })}
+                  >
+                    <SelectTrigger id="create-owner">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__self__">My own account (not recommended)</SelectItem>
+                      {owners.map((o) => (
+                        <SelectItem key={o.uid} value={o.uid}>
+                          {o.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
+
+              {hostMode === "existing" && !createForm.ownerId ? (
+                <p className="mt-2 text-xs text-destructive">
+                  The room page shows the host&apos;s name and photo. Left as your own account, visitors see YOUR
+                  profile on this listing.
+                </p>
+              ) : null}
             </div>
 
+            {/* 4. Everything that has a sane default, out of the way. */}
+            <CollapsibleSection title="More details" hint="all optional">
+              <div className="grid gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="create-district">District</Label>
+                    <Input
+                      id="create-district"
+                      value={createForm.district}
+                      onChange={(e) => setCreateForm({ ...createForm, district: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="create-address">Address</Label>
+                    <Input
+                      id="create-address"
+                      value={createForm.address}
+                      placeholder="Leave blank if the post has none"
+                      onChange={(e) => setCreateForm({ ...createForm, address: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Property type</Label>
+                    <Select
+                      value={createForm.propertyType}
+                      onValueChange={(v) => setCreateForm({ ...createForm, propertyType: v as typeof createForm.propertyType })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="apartment">Apartment</SelectItem>
+                        <SelectItem value="house">House</SelectItem>
+                        <SelectItem value="dorm">Dorm</SelectItem>
+                        <SelectItem value="studio">Studio</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Listing type</Label>
+                    <Select
+                      value={createForm.listingType}
+                      onValueChange={(v) => setCreateForm({ ...createForm, listingType: v as typeof createForm.listingType })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="private_room">Private room</SelectItem>
+                        <SelectItem value="shared_room">Shared room</SelectItem>
+                        <SelectItem value="entire_place">Entire place</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="create-university">Nearest university</Label>
+                  <UniversityCombobox
+                    id="create-university"
+                    value={createForm.university}
+                    onChange={(value) => setCreateForm({ ...createForm, university: value })}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="create-available">Available from</Label>
+                    <Input
+                      id="create-available"
+                      type="date"
+                      value={createForm.availableFrom}
+                      onChange={(e) => setCreateForm({ ...createForm, availableFrom: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="create-bedrooms">Bedrooms</Label>
+                    <Input
+                      id="create-bedrooms"
+                      type="number"
+                      min={0}
+                      max={20}
+                      value={createForm.bedrooms}
+                      onChange={(e) => setCreateForm({ ...createForm, bedrooms: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="create-bathrooms">Bathrooms</Label>
+                    <Input
+                      id="create-bathrooms"
+                      type="number"
+                      min={0}
+                      max={20}
+                      value={createForm.bathrooms}
+                      onChange={(e) => setCreateForm({ ...createForm, bathrooms: Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Tenant gender</Label>
+                    <Select
+                      value={createForm.genderPreference}
+                      onValueChange={(v) => setCreateForm({ ...createForm, genderPreference: v as typeof createForm.genderPreference })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Any</SelectItem>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Smoking</Label>
+                    <Select
+                      value={createForm.smoking}
+                      onValueChange={(v) => setCreateForm({ ...createForm, smoking: v as typeof createForm.smoking })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no">No</SelectItem>
+                        <SelectItem value="yes">Yes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Pets</Label>
+                    <Select
+                      value={createForm.pets}
+                      onValueChange={(v) => setCreateForm({ ...createForm, pets: v as typeof createForm.pets })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no_pets">No pets</SelectItem>
+                        <SelectItem value="allowed">Allowed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Checkbox
+                    id="create-deposit"
+                    checked={createForm.depositRequired}
+                    onCheckedChange={(checked) => setCreateForm({ ...createForm, depositRequired: checked === true })}
+                  />
+                  <Label htmlFor="create-deposit">Deposit required</Label>
+                  {createForm.depositRequired ? (
+                    <Input
+                      type="number"
+                      min={0}
+                      aria-label="Deposit amount (₸)"
+                      className="ml-2 w-36"
+                      value={createForm.depositAmount}
+                      onChange={(e) => setCreateForm({ ...createForm, depositAmount: Number(e.target.value) })}
+                    />
+                  ) : null}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Photos</Label>
+                  <AdminPhotoList
+                    value={createForm.photoUrls}
+                    onChange={(urls) => setCreateForm({ ...createForm, photoUrls: urls })}
+                    onUploadingChange={setPhotoUploading}
+                  />
+                </div>
+              </div>
+            </CollapsibleSection>
+
+            {/* 5. Provenance. Stored in a private settings row that the
+                site_settings SELECT policy does not expose, so none of it can
+                reach a public page. */}
             {metaAvailable ? (
-            <div className="rounded-xl border border-dashed border-border bg-surface-muted/40 p-4">
-              <p className="text-sm font-semibold">Internal — admins only</p>
-              <p className="mt-0.5 text-xs text-foreground/60">
-                Never shown on the site. Use this for the landlord&apos;s real contact details and where you found the
-                listing.
-              </p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="create-contact-name">Landlord name</Label>
-                  <Input
-                    id="create-contact-name"
-                    value={createForm.contactName}
-                    onChange={(e) => setCreateForm({ ...createForm, contactName: e.target.value })}
-                  />
+              <CollapsibleSection title="Where it came from" icon={<InternalBadge />}>
+                <div className="grid gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="create-source-url" className="text-xs font-medium text-foreground/70">
+                        Original post link
+                      </Label>
+                      <Input
+                        id="create-source-url"
+                        placeholder="https://t.me/…"
+                        value={createForm.sourceUrl}
+                        onChange={(e) => setCreateForm({ ...createForm, sourceUrl: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="create-source-telegram" className="text-xs font-medium text-foreground/70">
+                        Telegram channel
+                      </Label>
+                      <Input
+                        id="create-source-telegram"
+                        placeholder="KBTU chat"
+                        value={createForm.sourceTelegram}
+                        onChange={(e) => setCreateForm({ ...createForm, sourceTelegram: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="create-source-whatsapp" className="text-xs font-medium text-foreground/70">
+                        WhatsApp group
+                      </Label>
+                      <Input
+                        id="create-source-whatsapp"
+                        value={createForm.sourceWhatsapp}
+                        onChange={(e) => setCreateForm({ ...createForm, sourceWhatsapp: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="create-source-facebook" className="text-xs font-medium text-foreground/70">
+                        Facebook group
+                      </Label>
+                      <Input
+                        id="create-source-facebook"
+                        value={createForm.sourceFacebook}
+                        onChange={(e) => setCreateForm({ ...createForm, sourceFacebook: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="create-admin-notes" className="text-xs font-medium text-foreground/70">
+                      Internal notes
+                    </Label>
+                    <Textarea
+                      id="create-admin-notes"
+                      rows={2}
+                      placeholder="Called, still free. Asked for photos."
+                      value={createForm.adminNotes}
+                      onChange={(e) => setCreateForm({ ...createForm, adminNotes: e.target.value })}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="create-contact-phone">Phone</Label>
-                  <Input
-                    id="create-contact-phone"
-                    value={createForm.contactPhone}
-                    onChange={(e) => setCreateForm({ ...createForm, contactPhone: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="create-contact-telegram">Telegram</Label>
-                  <Input
-                    id="create-contact-telegram"
-                    value={createForm.contactTelegram}
-                    onChange={(e) => setCreateForm({ ...createForm, contactTelegram: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="create-source-url">Source link</Label>
-                  <Input
-                    id="create-source-url"
-                    placeholder="https://t.me/…"
-                    value={createForm.sourceUrl}
-                    onChange={(e) => setCreateForm({ ...createForm, sourceUrl: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="create-source-note">Where it came from</Label>
-                  <Input
-                    id="create-source-note"
-                    placeholder="KBTU chat, WhatsApp group…"
-                    value={createForm.sourceNote}
-                    onChange={(e) => setCreateForm({ ...createForm, sourceNote: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="mt-3 space-y-1.5">
-                <Label htmlFor="create-admin-notes">Private notes</Label>
-                <Textarea
-                  id="create-admin-notes"
-                  rows={2}
-                  value={createForm.adminNotes}
-                  onChange={(e) => setCreateForm({ ...createForm, adminNotes: e.target.value })}
-                />
-              </div>
-            </div>
+              </CollapsibleSection>
             ) : null}
 
             {duplicates.length ? (
@@ -895,6 +1007,7 @@ export default function AdminListingsPage() {
               </div>
             ) : null}
           </div>
+
           <DialogFooter className="flex-col gap-2 sm:flex-row">
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
               Cancel
@@ -909,7 +1022,7 @@ export default function AdminListingsPage() {
             </Button>
             <Button onClick={() => void createNew(true, duplicates.length > 0)} disabled={creating || photoUploading}>
               {creating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
-              {photoUploading ? "Uploading photo…" : duplicates.length ? "Create anyway" : "Create & publish"}
+              {photoUploading ? "Uploading photo…" : duplicates.length ? "Publish anyway" : "Publish"}
             </Button>
           </DialogFooter>
         </DialogContent>

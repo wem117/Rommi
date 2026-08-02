@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { LISTING_META_KEY_PREFIX } from "@/lib/data/listing-admin-meta";
+import { PUBLIC_CONTACT_KEY_PREFIX } from "@/lib/data/public-contacts";
 import { newSeededHostUid } from "@/lib/data/seeded-hosts";
 import { mapListingRow } from "@/lib/supabase/mappers";
 
@@ -17,16 +18,16 @@ import { mapListingRow } from "@/lib/supabase/mappers";
  */
 describe("seeded listings are indistinguishable", () => {
   const ADMIN_ONLY_FIELDS = [
-    "contactName",
-    "contactPhone",
-    "contactTelegram",
     "sourceUrl",
+    "sourceTelegram",
+    "sourceWhatsapp",
+    "sourceFacebook",
     "sourceNote",
     "adminNotes",
-    "contact_name",
-    "contact_phone",
-    "contact_telegram",
     "source_url",
+    "source_telegram",
+    "source_whatsapp",
+    "source_facebook",
     "source_note",
     "admin_notes",
     "createdByAdmin",
@@ -92,5 +93,17 @@ describe("seeded listings are indistinguishable", () => {
     const key = `${LISTING_META_KEY_PREFIX}some-listing-id`;
     expect(WHITELISTED).not.toContain(key);
     expect(key.startsWith("listing_meta:")).toBe(true);
+  });
+
+  it("keeps WhatsApp/Instagram out of anything anon can select", () => {
+    // These two have no column on `profiles`, so they live in site_settings.
+    // That is also the only no-DDL home that preserves the privacy boundary:
+    // the `lifestyle` jsonb is granted to `anon`, this key is not whitelisted
+    // by the site_settings SELECT policy, so only the service role reads it —
+    // and it reaches a visitor only through an auth-guarded server component.
+    const WHITELISTED = ["homepage_hero", "homepage_sections", "maintenance_mode", "admin_emails"];
+    const key = `${PUBLIC_CONTACT_KEY_PREFIX}some-uid`;
+    expect(WHITELISTED).not.toContain(key);
+    expect(key.startsWith("contact:")).toBe(true);
   });
 });

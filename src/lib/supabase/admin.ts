@@ -1,6 +1,7 @@
 import "server-only";
 
 import { ADMIN_ROLE, isAdminEmail } from "@/lib/auth/admin-access";
+import { deletePublicContacts } from "@/lib/data/public-contacts";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { requireSessionUser } from "@/lib/supabase/session";
 
@@ -45,6 +46,10 @@ export async function deleteUserAccount(uid: string) {
 
   const { error: profileError } = await supabase.from("profiles").delete().eq("uid", uid);
   if (profileError) throw profileError;
+
+  // The WhatsApp/Instagram row lives in site_settings with no foreign key, so
+  // it has to be removed explicitly or it outlives the profile it describes.
+  await deletePublicContacts(uid);
 
   try {
     await supabase.auth.admin.deleteUser(uid);

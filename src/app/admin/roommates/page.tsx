@@ -21,6 +21,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import {
+  applyExtraction,
+  CollapsibleSection,
+  ContactFields,
+  InternalBadge,
+  PastePostBox,
+  type ContactValues
+} from "@/components/admin/quick-create";
+import type { ExtractedPost } from "@/lib/utils/post-parser";
+
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -54,21 +64,34 @@ import type { UserProfile } from "@/types/user";
 const EDIT_EMPTY = { fullName: "", university: "", occupation: "", bio: "" };
 
 const CREATE_EMPTY = {
+  // The three a post always carries, and without which the profile is useless.
   fullName: "",
-  age: 20,
+  bio: "",
+  maxBudget: 0,
+
+  // Optional detail. Age 0 means "not stated": the profile card and the listing
+  // sidebar already treat a falsy age that way and show a neutral label.
+  age: 0,
   gender: "prefer_not_to_say" as "male" | "female" | "other" | "prefer_not_to_say",
   university: "",
-  occupation: "Student",
-  maxBudget: 100000,
-  bio: "",
+  occupation: "",
+  preferredMoveInDate: "",
   photoURL: "",
   lifestyle: {
-    smoking: "no" as const,
+    smoking: "no_preference" as const,
     pets: "no_preference" as const,
     cleanliness: "moderate" as "relaxed" | "moderate" | "very_clean",
     sleepSchedule: "balanced" as "early_bird" | "balanced" | "night_owl",
     guests: "sometimes" as "rarely" | "sometimes" | "often"
-  }
+  },
+
+  // Admin-only provenance; stored privately, never sent to a public page.
+  sourceUrl: "",
+  sourceTelegram: "",
+  sourceWhatsapp: "",
+  sourceFacebook: "",
+  sourceNote: "",
+  adminNotes: ""
 };
 
 export default function AdminRoommatesPage() {
@@ -82,6 +105,12 @@ export default function AdminRoommatesPage() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState(CREATE_EMPTY);
+  const [createContacts, setCreateContacts] = useState<ContactValues>({
+    phone: "",
+    whatsapp: "",
+    telegram: "",
+    instagram: ""
+  });
   const [creating, setCreating] = useState(false);
   const [activityUser, setActivityUser] = useState<UserProfile | null>(null);
   const [reportsUser, setReportsUser] = useState<UserProfile | null>(null);
@@ -288,22 +317,68 @@ export default function AdminRoommatesPage() {
   async function createNew() {
     setCreating(true);
     try {
+      const { sourceUrl, sourceTelegram, sourceWhatsapp, sourceFacebook, sourceNote, adminNotes, ...profile } =
+        createForm;
       const res = await fetch("/api/admin/roommates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(createForm)
+        body: JSON.stringify({
+          ...profile,
+          ...createContacts,
+          source: { sourceUrl, sourceTelegram, sourceWhatsapp, sourceFacebook, sourceNote, adminNotes }
+        })
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "Create failed");
-      toast.success("Roommate profile created");
+      toast.success("Roommate published");
       setCreateOpen(false);
       setCreateForm(CREATE_EMPTY);
+      setCreateContacts({ phone: "", whatsapp: "", telegram: "", instagram: "" });
       await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Create failed");
     } finally {
       setCreating(false);
     }
+  }
+
+  /**
+   * Fills blanks from a pasted post. The post's budget maps to `maxBudget` and
+   * its move-in date to `preferredMoveInDate`, so those two are renamed before
+   * merging; `applyExtraction` never overwrites what the admin already typed.
+   */
+  function fillFromPost(extracted: ExtractedPost) {
+    const renamed: ExtractedPost = {
+      ...extracted,
+      found: extracted.found.map((f) =>
+        f === "monthlyRent" ? "maxBudget" : f === "availableFrom" ? "preferredMoveInDate" : f
+      )
+    };
+    const asRecord = renamed as unknown as Record<string, unknown>;
+    if (extracted.monthlyRent !== undefined) asRecord.maxBudget = extracted.monthlyRent;
+    if (extracted.availableFrom !== undefined) asRecord.preferredMoveInDate = extracted.availableFrom;
+    // A post that says "для девушки" is describing the person, so it maps to the
+    // profile's own gender rather than to a preference.
+    if (extracted.genderPreference && extracted.genderPreference !== "any") {
+      asRecord.gender = extracted.genderPreference;
+      renamed.found = renamed.found.map((f) => (f === "genderPreference" ? "gender" : f));
+    }
+
+    const profilePart = applyExtraction(
+      {
+        maxBudget: createForm.maxBudget,
+        preferredMoveInDate: createForm.preferredMoveInDate,
+        gender: createForm.gender
+      },
+      renamed,
+      (key, v) => (key === "gender" ? v === "prefer_not_to_say" : v === "" || v === 0)
+    );
+    const contactPart = applyExtraction(createContacts, renamed);
+
+    if (profilePart.filled.length) setCreateForm((current) => ({ ...current, ...profilePart.next }));
+    if (contactPart.filled.length) setCreateContacts(contactPart.next);
+
+    return [...profilePart.filled, ...contactPart.filled];
   }
 
   return (
@@ -489,167 +564,264 @@ export default function AdminRoommatesPage() {
       </div>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>New roommate profile</DialogTitle>
+            <DialogTitle>New roommate</DialogTitle>
+            <p className="text-sm text-foreground/60">
+              Paste the post, check the name and budget, publish. Everything else is optional.
+            </p>
           </DialogHeader>
-          <div className="grid gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="rc-name">Full name</Label>
-              <Input
-                id="rc-name"
-                value={createForm.fullName}
-                onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+
+          <div className="grid gap-5">
+            {/* The paste box doubles as the bio and as the source of every
+                auto-filled field, so it comes first. */}
+            <PastePostBox
+              id="rc-bio"
+              label="Paste the post"
+              value={createForm.bio}
+              placeholder={"Ищу соседку в квартиру рядом с КБТУ.\nБюджет до 90 000 тг.\nЗаселение с 1 сентября.\nWhatsApp +7 700 111 22 33"}
+              onChange={(bio) => setCreateForm((current) => ({ ...current, bio }))}
+              onExtract={fillFromPost}
+            />
+
+            {/* The two things that cannot be defaulted. A nickname is a valid
+                name here — plenty of posts are signed "Аружан" and no more. */}
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="rc-age">Age</Label>
+                <Label htmlFor="rc-name">Name or nickname</Label>
                 <Input
-                  id="rc-age"
-                  type="number"
-                  min={16}
-                  max={80}
-                  value={createForm.age}
-                  onChange={(e) => setCreateForm({ ...createForm, age: Number(e.target.value) })}
+                  id="rc-name"
+                  value={createForm.fullName}
+                  placeholder="Aruzhan"
+                  onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Gender</Label>
-                <Select
-                  value={createForm.gender}
-                  onValueChange={(v) => setCreateForm({ ...createForm, gender: v as typeof createForm.gender })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                    <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="rc-university">University</Label>
-              <UniversityCombobox
-                id="rc-university"
-                value={createForm.university}
-                onChange={(value) => setCreateForm({ ...createForm, university: value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="rc-occupation">Occupation</Label>
-                <Input
-                  id="rc-occupation"
-                  value={createForm.occupation}
-                  onChange={(e) => setCreateForm({ ...createForm, occupation: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="rc-budget">Max budget (₸)</Label>
+                <Label htmlFor="rc-budget">Budget (₸)</Label>
                 <Input
                   id="rc-budget"
                   type="number"
                   min={0}
-                  value={createForm.maxBudget}
+                  value={createForm.maxBudget || ""}
                   onChange={(e) => setCreateForm({ ...createForm, maxBudget: Number(e.target.value) })}
                 />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="rc-bio">Bio</Label>
-              <Textarea
-                id="rc-bio"
-                rows={3}
-                value={createForm.bio}
-                onChange={(e) => setCreateForm({ ...createForm, bio: e.target.value })}
-              />
+
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-sm font-semibold">How to reach them</p>
+              <p className="mb-3 mt-0.5 text-xs text-foreground/55">
+                Copy whatever the post carried. All optional; only signed-in visitors ever see these.
+              </p>
+              <ContactFields idPrefix="rc" value={createContacts} onChange={setCreateContacts} />
             </div>
-            <div className="space-y-1.5">
-              <Label>Photo</Label>
-              <AdminImageUpload
-                value={createForm.photoURL}
-                onChange={(url) => setCreateForm({ ...createForm, photoURL: url })}
-                placeholder="Photo URL (optional)"
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label>Cleanliness</Label>
-                <Select
-                  value={createForm.lifestyle.cleanliness}
-                  onValueChange={(v) =>
-                    setCreateForm({
-                      ...createForm,
-                      lifestyle: { ...createForm.lifestyle, cleanliness: v as typeof createForm.lifestyle.cleanliness }
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="relaxed">Relaxed</SelectItem>
-                    <SelectItem value="moderate">Moderate</SelectItem>
-                    <SelectItem value="very_clean">Very clean</SelectItem>
-                  </SelectContent>
-                </Select>
+
+            <CollapsibleSection title="More details" hint="all optional">
+              <div className="grid gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="rc-age">Age</Label>
+                    <Input
+                      id="rc-age"
+                      type="number"
+                      min={0}
+                      max={80}
+                      placeholder="Not stated"
+                      value={createForm.age || ""}
+                      onChange={(e) => setCreateForm({ ...createForm, age: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Gender</Label>
+                    <Select
+                      value={createForm.gender}
+                      onValueChange={(v) => setCreateForm({ ...createForm, gender: v as typeof createForm.gender })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="rc-university">University</Label>
+                  <UniversityCombobox
+                    id="rc-university"
+                    value={createForm.university}
+                    onChange={(value) => setCreateForm({ ...createForm, university: value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="rc-occupation">Occupation</Label>
+                    <Input
+                      id="rc-occupation"
+                      value={createForm.occupation}
+                      placeholder="Student"
+                      onChange={(e) => setCreateForm({ ...createForm, occupation: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="rc-movein">Move-in date</Label>
+                    <Input
+                      id="rc-movein"
+                      type="date"
+                      value={createForm.preferredMoveInDate}
+                      onChange={(e) => setCreateForm({ ...createForm, preferredMoveInDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Photo</Label>
+                  <AdminImageUpload
+                    value={createForm.photoURL}
+                    onChange={(url) => setCreateForm({ ...createForm, photoURL: url })}
+                    placeholder="Photo URL (optional)"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Cleanliness</Label>
+                    <Select
+                      value={createForm.lifestyle.cleanliness}
+                      onValueChange={(v) =>
+                        setCreateForm({
+                          ...createForm,
+                          lifestyle: { ...createForm.lifestyle, cleanliness: v as typeof createForm.lifestyle.cleanliness }
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="relaxed">Relaxed</SelectItem>
+                        <SelectItem value="moderate">Moderate</SelectItem>
+                        <SelectItem value="very_clean">Very clean</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Sleep</Label>
+                    <Select
+                      value={createForm.lifestyle.sleepSchedule}
+                      onValueChange={(v) =>
+                        setCreateForm({
+                          ...createForm,
+                          lifestyle: { ...createForm.lifestyle, sleepSchedule: v as typeof createForm.lifestyle.sleepSchedule }
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="early_bird">Early bird</SelectItem>
+                        <SelectItem value="balanced">Balanced</SelectItem>
+                        <SelectItem value="night_owl">Night owl</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Guests</Label>
+                    <Select
+                      value={createForm.lifestyle.guests}
+                      onValueChange={(v) =>
+                        setCreateForm({
+                          ...createForm,
+                          lifestyle: { ...createForm.lifestyle, guests: v as typeof createForm.lifestyle.guests }
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="rarely">Rarely</SelectItem>
+                        <SelectItem value="sometimes">Sometimes</SelectItem>
+                        <SelectItem value="often">Often</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label>Sleep</Label>
-                <Select
-                  value={createForm.lifestyle.sleepSchedule}
-                  onValueChange={(v) =>
-                    setCreateForm({
-                      ...createForm,
-                      lifestyle: { ...createForm.lifestyle, sleepSchedule: v as typeof createForm.lifestyle.sleepSchedule }
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="early_bird">Early bird</SelectItem>
-                    <SelectItem value="balanced">Balanced</SelectItem>
-                    <SelectItem value="night_owl">Night owl</SelectItem>
-                  </SelectContent>
-                </Select>
+            </CollapsibleSection>
+
+            {/* Provenance. Private settings row; never reaches a public page. */}
+            <CollapsibleSection title="Where it came from" icon={<InternalBadge />}>
+              <div className="grid gap-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="rc-source-url" className="text-xs font-medium text-foreground/70">
+                      Original post link
+                    </Label>
+                    <Input
+                      id="rc-source-url"
+                      placeholder="https://t.me/…"
+                      value={createForm.sourceUrl}
+                      onChange={(e) => setCreateForm({ ...createForm, sourceUrl: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="rc-source-telegram" className="text-xs font-medium text-foreground/70">
+                      Telegram channel
+                    </Label>
+                    <Input
+                      id="rc-source-telegram"
+                      placeholder="KBTU chat"
+                      value={createForm.sourceTelegram}
+                      onChange={(e) => setCreateForm({ ...createForm, sourceTelegram: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="rc-source-whatsapp" className="text-xs font-medium text-foreground/70">
+                      WhatsApp group
+                    </Label>
+                    <Input
+                      id="rc-source-whatsapp"
+                      value={createForm.sourceWhatsapp}
+                      onChange={(e) => setCreateForm({ ...createForm, sourceWhatsapp: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="rc-source-facebook" className="text-xs font-medium text-foreground/70">
+                      Facebook group
+                    </Label>
+                    <Input
+                      id="rc-source-facebook"
+                      value={createForm.sourceFacebook}
+                      onChange={(e) => setCreateForm({ ...createForm, sourceFacebook: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="rc-admin-notes" className="text-xs font-medium text-foreground/70">
+                    Internal notes
+                  </Label>
+                  <Textarea
+                    id="rc-admin-notes"
+                    rows={2}
+                    value={createForm.adminNotes}
+                    onChange={(e) => setCreateForm({ ...createForm, adminNotes: e.target.value })}
+                  />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label>Guests</Label>
-                <Select
-                  value={createForm.lifestyle.guests}
-                  onValueChange={(v) =>
-                    setCreateForm({
-                      ...createForm,
-                      lifestyle: { ...createForm.lifestyle, guests: v as typeof createForm.lifestyle.guests }
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="rarely">Rarely</SelectItem>
-                    <SelectItem value="sometimes">Sometimes</SelectItem>
-                    <SelectItem value="often">Often</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            </CollapsibleSection>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
               Cancel
             </Button>
             <Button onClick={createNew} disabled={creating}>
               {creating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
-              Create profile
+              Publish
             </Button>
           </DialogFooter>
         </DialogContent>

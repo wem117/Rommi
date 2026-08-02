@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { Footer } from "@/components/layout/footer";
 import { Navbar } from "@/components/layout/navbar";
 import { useAuth } from "@/context/auth-context";
+import { canEnterProtectedPage, needsOnboarding } from "@/lib/utils/onboarding-gate";
 
 // The browse LIST pages (/rooms, /roommates, /universities) stay public for SEO.
 // These prefixes require an authenticated, onboarded user.
@@ -34,7 +35,7 @@ function isAuthOnlyDetailPath(pathname: string) {
 }
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, profileStatus, loading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const requiresAuth = isProtectedPath(pathname);
@@ -59,10 +60,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       return;
     }
 
-    if (!profile?.onboardingComplete) {
+    // Only on positive evidence that onboarding is unfinished. A profile that
+    // is still loading, or whose read failed, says nothing — see
+    // lib/utils/onboarding-gate.ts for the loop this prevents.
+    if (needsOnboarding(profileStatus, profile)) {
       router.replace("/onboarding/step-1");
     }
-  }, [loading, pathname, profile?.onboardingComplete, requiresAuth, requiresAuthOnly, router, user]);
+  }, [loading, pathname, profile, profileStatus, requiresAuth, requiresAuthOnly, router, user]);
 
   if (requiresAuthOnly && (loading || !user)) {
     return (
@@ -72,7 +76,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     );
   }
 
-  if (requiresAuth && (loading || !user || !profile?.onboardingComplete)) {
+  if (requiresAuth && (loading || !user || !canEnterProtectedPage(profileStatus, profile))) {
     return (
       <main className="grid min-h-screen place-items-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

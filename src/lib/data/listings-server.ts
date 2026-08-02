@@ -1,6 +1,15 @@
 import "server-only";
 
 import { demoListings } from "@/lib/data/demo";
+import {
+  applyListingFilters,
+  EMPTY_LISTING_PAGE,
+  LISTINGS_PAGE_SIZE,
+  rangeFor,
+  totalPagesFor,
+  type ListingPage,
+  type ListingQueryFilters
+} from "@/lib/data/listing-query";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { mapListingRow } from "@/lib/supabase/mappers";
 import { createSupabasePublicServerClient } from "@/lib/supabase/public-server-client";
@@ -27,28 +36,64 @@ export async function getListingByIdServer(listingId: string): Promise<Listing |
 }
 
 /**
- * First page of the public /rooms browse (newest, no filters), for SSR. Mirrors
- * the default query in getListings() so the server-rendered HTML matches what the
- * client shows before any filter is applied.
+ * One page of the public /rooms browse, for SSR.
+ *
+ * Uses the same `applyListingFilters` as the client, so the server-rendered
+ * HTML and any later client fetch cannot drift apart, and returns the same
+ * `count: "exact"` total — which is what makes the counter correct in the very
+ * first byte of HTML rather than after hydration.
+ *
+ * Runs through the anon public client (no cookies), so RLS returns exactly what
+ * an anonymous crawler should see.
  */
-export async function getListingsFirstPageServer(
-  pageSize = 9
-): Promise<{ listings: Listing[]; hasMore: boolean }> {
+export async function getListingsPageServer(
+  filters: ListingQueryFilters = {},
+  page = 1,
+  pageSize = LISTINGS_PAGE_SIZE
+): Promise<ListingPage> {
+  const safePage = Math.max(1, page);
+  const { from, to } = rangeFor(safePage, pageSize);
+
   if (!isSupabaseConfigured) {
     const visible = demoListings.filter((listing) => !listing.removed);
-    return { listings: visible.slice(0, pageSize), hasMore: visible.length > pageSize };
+    return {
+      listings: visible.slice(from, from + pageSize),
+      total: visible.length,
+      page: safePage,
+      pageSize,
+      totalPages: totalPagesFor(visible.length, pageSize)
+    };
   }
 
   const supabase = createSupabasePublicServerClient();
-  if (!supabase) return { listings: [], hasMore: false };
+  if (!supabase) return { ...EMPTY_LISTING_PAGE, page: safePage, pageSize };
 
-  // Fetch one extra row instead of a COUNT to determine hasMore.
-  const { data, error } = await supabase
-    .from("listings")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .range(0, pageSize);
+  const run = (includeRemovedFilter: boolean) =>
+    applyListingFilters(
+      supabase.from("listings").select("*", { count: "exact" }),
+      filters,
+      includeRemovedFilter
+    ).range(from, to);
 
-  if (error || !data) return { listings: [], hasMore: false };
-  return { listings: data.slice(0, pageSize).map(mapListingRow), hasMore: data.length > pageSize };
+  let { data, error, count } = await run(true);
+
+  if (error && /removed/i.test(String(error.message ?? ""))) {
+    const retried = await run(false);
+    data = retried.data;
+    error = retried.error;
+    count = retried.count;
+  }
+
+  // SSR must not 500 the whole browse page over a listings read; an empty page
+  // still renders the filter bar and the shell.
+  if (error || !data) return { ...EMPTY_LISTING_PAGE, page: safePage, pageSize };
+
+  const total = count ?? 0;
+  return {
+    listings: data.map(mapListingRow),
+    total,
+    page: safePage,
+    pageSize,
+    totalPages: totalPagesFor(total, pageSize)
+  };
 }

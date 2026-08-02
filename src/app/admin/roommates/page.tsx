@@ -2,8 +2,11 @@
 
 import {
   Activity,
+  Archive,
+  ArchiveRestore,
   ArrowDown,
   ArrowUp,
+  Eye,
   EyeOff,
   Flag,
   Loader2,
@@ -12,7 +15,6 @@ import {
   Phone,
   Plus,
   RotateCcw,
-  ShieldBan,
   ShieldCheck,
   Star,
   Trash2
@@ -43,6 +45,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils/format";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -61,7 +64,25 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Report } from "@/types/report";
 import type { UserProfile } from "@/types/user";
 
-const EDIT_EMPTY = { fullName: "", university: "", occupation: "", bio: "" };
+const EDIT_EMPTY = {
+  fullName: "",
+  bio: "",
+  age: 0,
+  gender: "prefer_not_to_say" as "male" | "female" | "other" | "prefer_not_to_say",
+  university: "",
+  occupation: "",
+  minBudget: 0,
+  maxBudget: 0,
+  preferredMoveInDate: "",
+  photoURL: "",
+  phone: "",
+  telegram: "",
+  whatsapp: "",
+  instagram: "",
+  lookingForApartment: true,
+  onboardingComplete: true,
+  contactsHidden: false
+};
 
 const CREATE_EMPTY = {
   // The three a post always carries, and without which the profile is useless.
@@ -101,6 +122,9 @@ export default function AdminRoommatesPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editing, setEditing] = useState<UserProfile | null>(null);
   const [editForm, setEditForm] = useState(EDIT_EMPTY);
+  // WhatsApp/Instagram have no profile column, so the list endpoint returns
+  // them separately; without this the edit dialog would blank them on save.
+  const [contactsByUid, setContactsByUid] = useState<Record<string, { whatsapp: string; instagram: string }>>({});
   const [saving, setSaving] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -124,6 +148,7 @@ export default function AdminRoommatesPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to load");
       setItems(json.roommates);
+      setContactsByUid(json.contacts ?? {});
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load roommates");
     } finally {
@@ -277,20 +302,57 @@ export default function AdminRoommatesPage() {
   }
 
   function startEdit(item: UserProfile) {
+    const extra = contactsByUid[item.uid] ?? { whatsapp: "", instagram: "" };
     setEditing(item);
     setEditForm({
       fullName: item.fullName,
-      university: item.university,
-      occupation: item.occupation,
-      bio: item.bio ?? ""
+      bio: item.bio ?? "",
+      age: item.age ?? 0,
+      gender: item.gender,
+      university: item.university ?? "",
+      occupation: item.occupation ?? "",
+      minBudget: item.minBudget ?? 0,
+      maxBudget: item.maxBudget ?? 0,
+      preferredMoveInDate: item.preferredMoveInDate
+        ? new Date(item.preferredMoveInDate).toISOString().slice(0, 10)
+        : "",
+      photoURL: item.photoURL ?? "",
+      phone: item.phone ?? "",
+      telegram: item.telegram ?? "",
+      whatsapp: extra.whatsapp,
+      instagram: extra.instagram,
+      lookingForApartment: item.lookingForApartment ?? true,
+      onboardingComplete: item.onboardingComplete ?? true,
+      contactsHidden: item.contactsHidden ?? false
     });
+  }
+
+  /**
+   * Publish / unpublish.
+   *
+   * `looking_for_apartment` is what the /roommates directory selects on, so
+   * clearing it is precisely "unpublish": the profile page still exists and
+   * every link to it keeps working, but the profile stops appearing in search.
+   */
+  async function togglePublished(item: UserProfile) {
+    const next = !(item.lookingForApartment ?? true);
+    setBusyId(item.uid);
+    try {
+      await patch(item.uid, { lookingForApartment: next });
+      toast.success(next ? "Published to roommate search" : "Unpublished — hidden from roommate search");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Update failed");
+    } finally {
+      setBusyId(null);
+    }
   }
 
   async function saveEdit() {
     if (!editing) return;
     setSaving(true);
     try {
-      await patch(editing.uid, editForm);
+      await patch(editing.uid, { ...editForm });
       toast.success("Profile updated");
       setEditing(null);
       await load();
@@ -519,9 +581,20 @@ export default function AdminRoommatesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => void togglePublished(item)}>
+                            {item.lookingForApartment === false ? (
+                              <Eye className="mr-2 h-4 w-4" />
+                            ) : (
+                              <EyeOff className="mr-2 h-4 w-4" />
+                            )}
+                            {item.lookingForApartment === false ? "Publish" : "Unpublish"}
+                          </DropdownMenuItem>
+                          {/* Archive/restore for a profile is `suspended`: hidden
+                              everywhere, reversible, timestamped. There is no
+                              separate archive column and no way to add one. */}
                           <DropdownMenuItem onClick={() => toggleSuspend(item.uid, !item.suspended)}>
-                            <ShieldBan className="mr-2 h-4 w-4" />
-                            {item.suspended ? "Unsuspend" : "Suspend"}
+                            {item.suspended ? <ArchiveRestore className="mr-2 h-4 w-4" /> : <Archive className="mr-2 h-4 w-4" />}
+                            {item.suspended ? "Restore (unsuspend)" : "Archive (suspend)"}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => resetVerification(item.uid)}>
                             <RotateCcw className="mr-2 h-4 w-4" />
@@ -828,27 +901,156 @@ export default function AdminRoommatesPage() {
       </Dialog>
 
       <Dialog open={Boolean(editing)} onOpenChange={(open) => !open && setEditing(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit profile</DialogTitle>
+            <p className="text-sm text-foreground/60">Every field is editable.</p>
           </DialogHeader>
-          <div className="grid gap-3">
+          <div className="grid gap-5">
             <div className="space-y-1.5">
-              <Label htmlFor="edit-name">Full name</Label>
+              <Label htmlFor="edit-name">Name</Label>
               <Input id="edit-name" value={editForm.fullName} onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="edit-university">University</Label>
-              <Input id="edit-university" value={editForm.university} onChange={(e) => setEditForm({ ...editForm, university: e.target.value })} />
+              <Label htmlFor="edit-bio">Description</Label>
+              <Textarea id="edit-bio" rows={5} value={editForm.bio} onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-occupation">Occupation</Label>
-              <Input id="edit-occupation" value={editForm.occupation} onChange={(e) => setEditForm({ ...editForm, occupation: e.target.value })} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-maxbudget">Budget (₸)</Label>
+                <Input
+                  id="edit-maxbudget"
+                  type="number"
+                  min={0}
+                  value={editForm.maxBudget}
+                  onChange={(e) => setEditForm({ ...editForm, maxBudget: Number(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-minbudget">Minimum budget (₸)</Label>
+                <Input
+                  id="edit-minbudget"
+                  type="number"
+                  min={0}
+                  value={editForm.minBudget}
+                  onChange={(e) => setEditForm({ ...editForm, minBudget: Number(e.target.value) })}
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-bio">Bio</Label>
-              <Textarea id="edit-bio" rows={4} value={editForm.bio} onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} />
+
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="mb-3 text-sm font-semibold">How to reach them</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-phone" className="text-xs font-medium text-foreground/70">Phone</Label>
+                  <Input id="edit-phone" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-whatsapp" className="text-xs font-medium text-foreground/70">WhatsApp</Label>
+                  <Input id="edit-whatsapp" value={editForm.whatsapp} onChange={(e) => setEditForm({ ...editForm, whatsapp: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-telegram" className="text-xs font-medium text-foreground/70">Telegram</Label>
+                  <Input id="edit-telegram" value={editForm.telegram} onChange={(e) => setEditForm({ ...editForm, telegram: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-instagram" className="text-xs font-medium text-foreground/70">Instagram</Label>
+                  <Input id="edit-instagram" value={editForm.instagram} onChange={(e) => setEditForm({ ...editForm, instagram: e.target.value })} />
+                </div>
+              </div>
+              <label className="mt-3 flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={editForm.contactsHidden}
+                  onCheckedChange={(checked) => setEditForm({ ...editForm, contactsHidden: checked === true })}
+                />
+                Hide contacts from visitors
+              </label>
             </div>
+
+            <CollapsibleSection title="More details" hint="all optional">
+              <div className="grid gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-age">Age</Label>
+                    <Input
+                      id="edit-age"
+                      type="number"
+                      min={0}
+                      max={80}
+                      placeholder="Not stated"
+                      value={editForm.age || ""}
+                      onChange={(e) => setEditForm({ ...editForm, age: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Gender</Label>
+                    <Select
+                      value={editForm.gender}
+                      onValueChange={(v) => setEditForm({ ...editForm, gender: v as typeof editForm.gender })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-university">University</Label>
+                  <UniversityCombobox
+                    id="edit-university"
+                    value={editForm.university}
+                    onChange={(value) => setEditForm({ ...editForm, university: value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-occupation">Occupation</Label>
+                    <Input
+                      id="edit-occupation"
+                      value={editForm.occupation}
+                      onChange={(e) => setEditForm({ ...editForm, occupation: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-movein">Move-in date</Label>
+                    <Input
+                      id="edit-movein"
+                      type="date"
+                      value={editForm.preferredMoveInDate}
+                      onChange={(e) => setEditForm({ ...editForm, preferredMoveInDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Photo</Label>
+                  <AdminImageUpload
+                    value={editForm.photoURL}
+                    onChange={(url) => setEditForm({ ...editForm, photoURL: url })}
+                    placeholder="Photo URL (optional)"
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={editForm.lookingForApartment}
+                    onCheckedChange={(checked) => setEditForm({ ...editForm, lookingForApartment: checked === true })}
+                  />
+                  Published in roommate search
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={editForm.onboardingComplete}
+                    onCheckedChange={(checked) => setEditForm({ ...editForm, onboardingComplete: checked === true })}
+                  />
+                  Onboarding complete
+                </label>
+              </div>
+            </CollapsibleSection>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(null)}>

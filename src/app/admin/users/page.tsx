@@ -18,12 +18,32 @@ import { ADMIN_ROLE } from "@/lib/auth/admin-access";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { CollapsibleSection } from "@/components/admin/quick-create";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { UserProfile } from "@/types/user";
 
-const EDIT_EMPTY = { fullName: "", email: "", university: "" };
+const EDIT_EMPTY = {
+  fullName: "",
+  email: "",
+  bio: "",
+  age: 0,
+  university: "",
+  occupation: "",
+  maxBudget: 0,
+  phone: "",
+  telegram: "",
+  whatsapp: "",
+  instagram: "",
+  contactsHidden: false,
+  onboardingComplete: true,
+  suspended: false,
+  verified: false,
+  lookingForApartment: true
+};
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -34,6 +54,9 @@ export default function AdminUsersPage() {
   const [editForm, setEditForm] = useState(EDIT_EMPTY);
   const [saving, setSaving] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  // WhatsApp/Instagram have no profile column; the list endpoint returns them
+  // separately so the dialog can open with them filled rather than blank.
+  const [contactsByUid, setContactsByUid] = useState<Record<string, { whatsapp: string; instagram: string }>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -42,6 +65,7 @@ export default function AdminUsersPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Could not load users.");
       setUsers(json.users ?? []);
+      setContactsByUid(json.contacts ?? {});
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not load users.");
     } finally {
@@ -118,8 +142,26 @@ export default function AdminUsersPage() {
   }
 
   function startEdit(user: UserProfile) {
+    const extra = contactsByUid[user.uid] ?? { whatsapp: "", instagram: "" };
     setEditing(user);
-    setEditForm({ fullName: user.fullName, email: user.email ?? "", university: user.university });
+    setEditForm({
+      fullName: user.fullName,
+      email: user.email ?? "",
+      bio: user.bio ?? "",
+      age: user.age ?? 0,
+      university: user.university ?? "",
+      occupation: user.occupation ?? "",
+      maxBudget: user.maxBudget ?? 0,
+      phone: user.phone ?? "",
+      telegram: user.telegram ?? "",
+      whatsapp: extra.whatsapp,
+      instagram: extra.instagram,
+      contactsHidden: user.contactsHidden ?? false,
+      onboardingComplete: user.onboardingComplete ?? true,
+      suspended: user.suspended ?? false,
+      verified: user.verified ?? false,
+      lookingForApartment: user.lookingForApartment ?? true
+    });
   }
 
   async function saveEdit() {
@@ -255,23 +297,137 @@ export default function AdminUsersPage() {
       </div>
 
       <Dialog open={Boolean(editing)} onOpenChange={(open) => !open && setEditing(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit user</DialogTitle>
+            <p className="text-sm text-foreground/60">Every field is editable, including onboarding and contacts.</p>
           </DialogHeader>
-          <div className="grid gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-user-name">Full name</Label>
-              <Input id="edit-user-name" value={editForm.fullName} onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })} />
+          <div className="grid gap-5">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-user-name">Full name</Label>
+                <Input id="edit-user-name" value={editForm.fullName} onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-user-email">Email</Label>
+                <Input id="edit-user-email" type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+              </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="edit-user-email">Email</Label>
-              <Input id="edit-user-email" type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+              <Label htmlFor="edit-user-bio">Bio</Label>
+              <Textarea id="edit-user-bio" rows={3} value={editForm.bio} onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-user-university">University</Label>
-              <Input id="edit-user-university" value={editForm.university} onChange={(e) => setEditForm({ ...editForm, university: e.target.value })} />
+
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="mb-3 text-sm font-semibold">Contacts</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-user-phone" className="text-xs font-medium text-foreground/70">Phone</Label>
+                  <Input id="edit-user-phone" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-user-whatsapp" className="text-xs font-medium text-foreground/70">WhatsApp</Label>
+                  <Input id="edit-user-whatsapp" value={editForm.whatsapp} onChange={(e) => setEditForm({ ...editForm, whatsapp: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-user-telegram" className="text-xs font-medium text-foreground/70">Telegram</Label>
+                  <Input id="edit-user-telegram" value={editForm.telegram} onChange={(e) => setEditForm({ ...editForm, telegram: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-user-instagram" className="text-xs font-medium text-foreground/70">Instagram</Label>
+                  <Input id="edit-user-instagram" value={editForm.instagram} onChange={(e) => setEditForm({ ...editForm, instagram: e.target.value })} />
+                </div>
+              </div>
+              <label className="mt-3 flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={editForm.contactsHidden}
+                  onCheckedChange={(checked) => setEditForm({ ...editForm, contactsHidden: checked === true })}
+                />
+                Hide contacts from visitors
+              </label>
             </div>
+
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="mb-3 text-sm font-semibold">Account state</p>
+              <div className="grid gap-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={editForm.onboardingComplete}
+                    onCheckedChange={(checked) => setEditForm({ ...editForm, onboardingComplete: checked === true })}
+                  />
+                  Onboarding complete
+                  <span className="text-xs text-foreground/50">— clearing this sends them back through setup</span>
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={editForm.suspended}
+                    onCheckedChange={(checked) => setEditForm({ ...editForm, suspended: checked === true })}
+                  />
+                  Suspended
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={editForm.verified}
+                    onCheckedChange={(checked) => setEditForm({ ...editForm, verified: checked === true })}
+                  />
+                  Verified
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={editForm.lookingForApartment}
+                    onCheckedChange={(checked) => setEditForm({ ...editForm, lookingForApartment: checked === true })}
+                  />
+                  Published in roommate search
+                </label>
+              </div>
+            </div>
+
+            <CollapsibleSection title="Profile details" hint="all optional">
+              <div className="grid gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-user-age">Age</Label>
+                    <Input
+                      id="edit-user-age"
+                      type="number"
+                      min={0}
+                      max={80}
+                      placeholder="Not stated"
+                      value={editForm.age || ""}
+                      onChange={(e) => setEditForm({ ...editForm, age: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-user-university">University</Label>
+                    <Input
+                      id="edit-user-university"
+                      value={editForm.university}
+                      onChange={(e) => setEditForm({ ...editForm, university: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-user-occupation">Occupation</Label>
+                    <Input
+                      id="edit-user-occupation"
+                      value={editForm.occupation}
+                      onChange={(e) => setEditForm({ ...editForm, occupation: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-user-budget">Budget (₸)</Label>
+                    <Input
+                      id="edit-user-budget"
+                      type="number"
+                      min={0}
+                      value={editForm.maxBudget}
+                      onChange={(e) => setEditForm({ ...editForm, maxBudget: Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+              </div>
+            </CollapsibleSection>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(null)}>

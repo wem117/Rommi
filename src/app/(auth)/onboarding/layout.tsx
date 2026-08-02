@@ -11,7 +11,7 @@ import { useLocale } from "@/context/locale-context";
 export default function OnboardingLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, profile, loading } = useAuth();
+  const { user, profile, profileStatus, loading } = useAuth();
   const { t } = useLocale();
   const steps = [
     { href: "/onboarding/step-1", label: t("onboarding.stepBasicsLabel") },
@@ -29,12 +29,14 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
       router.replace(`/sign-in?redirect=${encodeURIComponent(pathname)}`);
       return;
     }
-    if (profile?.onboardingComplete) {
+    // A completed user must always be shown the way out, including when they
+    // arrived here from a stale guard elsewhere.
+    if (profileStatus === "ready" && profile?.onboardingComplete) {
       router.replace("/rooms");
     }
-  }, [loading, pathname, profile?.onboardingComplete, router, user]);
+  }, [loading, pathname, profile, profileStatus, router, user]);
 
-  if (loading || !user || profile?.onboardingComplete) {
+  if (loading || !user || (profileStatus === "ready" && profile?.onboardingComplete)) {
     return (
       <div className="grid min-h-screen place-items-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

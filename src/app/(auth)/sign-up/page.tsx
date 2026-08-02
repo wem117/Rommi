@@ -29,7 +29,7 @@ async function resolveDestination(uid: string, redirectTo: string) {
 function SignUpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, profile, loading } = useAuth();
+  const { user, profile, profileStatus, loading } = useAuth();
   const { t } = useLocale();
   const redirectTo = safeRedirect(searchParams.get("redirect"));
 
@@ -44,8 +44,12 @@ function SignUpContent() {
 
   useEffect(() => {
     if (loading || !user) return;
+    // Wait for a definite answer: sending a signed-in user onward while their
+    // profile read is still in flight resolves `onboardingComplete` to false and
+    // drops a completed user into onboarding.
+    if (profileStatus === "loading") return;
     router.replace(resolvePostAuthDestination(Boolean(profile?.onboardingComplete), redirectTo));
-  }, [loading, profile?.onboardingComplete, redirectTo, router, user]);
+  }, [loading, profile?.onboardingComplete, profileStatus, redirectTo, router, user]);
 
   async function handleEmailSignUp() {
     if (!acceptedTerms) {

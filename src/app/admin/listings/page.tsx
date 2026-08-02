@@ -1,6 +1,19 @@
 "use client";
 
-import { Archive, ArchiveRestore, ArrowDown, ArrowUp, Eye, EyeOff, Loader2, Pencil, Plus, Star, Trash2 } from "lucide-react";
+import {
+  Archive,
+  ArchiveRestore,
+  ArrowDown,
+  ArrowUp,
+  Copy,
+  Eye,
+  EyeOff,
+  Loader2,
+  Pencil,
+  Plus,
+  Star,
+  Trash2
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -37,6 +50,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import type { ListingAdminMeta } from "@/lib/data/listing-admin-meta";
 import type { Listing } from "@/types/listing";
 
 const EDIT_EMPTY = {
@@ -46,8 +60,26 @@ const EDIT_EMPTY = {
   city: "",
   district: "",
   address: "",
+  university: "",
+  propertyType: "apartment" as "apartment" | "house" | "dorm" | "studio",
+  listingType: "private_room" as "private_room" | "shared_room" | "entire_place",
+  bedrooms: 1,
+  bathrooms: 1,
+  depositRequired: false,
+  depositAmount: 0,
+  availableFrom: "",
+  genderPreference: "any" as "any" | "male" | "female",
+  smoking: "no" as "no" | "yes",
+  pets: "no_pets" as "no_pets" | "allowed",
+  photoUrls: [] as string[],
   lat: "" as string,
-  lng: "" as string
+  lng: "" as string,
+  sourceUrl: "",
+  sourceTelegram: "",
+  sourceWhatsapp: "",
+  sourceFacebook: "",
+  sourceNote: "",
+  adminNotes: ""
 };
 
 const CREATE_EMPTY = {
@@ -116,6 +148,9 @@ export default function AdminListingsPage() {
   // False until the listing_admin_meta migration is applied. The internal block
   // is hidden rather than shown-and-broken, so nothing the admin types is lost.
   const [metaAvailable, setMetaAvailable] = useState(true);
+  // Provenance per listing id, so the edit dialog opens with what is stored
+  // rather than blanking it on save.
+  const [meta, setMeta] = useState<Record<string, ListingAdminMeta>>({});
   const [owners, setOwners] = useState<Array<{ uid: string; fullName: string }>>([]);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [search, setSearch] = useState("");
@@ -131,6 +166,7 @@ export default function AdminListingsPage() {
       if (!res.ok) throw new Error(json.error ?? "Could not load listings.");
       setListings(json.listings ?? []);
       setMetaAvailable(json.metaAvailable !== false);
+      setMeta(json.meta ?? {});
       // Candidate hosts for seeded listings. Admin-created profiles exist so
       // seeded inventory has a public face that is not the administrator's
       // personal account; nothing on them marks them as admin-created, which
@@ -272,9 +308,29 @@ export default function AdminListingsPage() {
       monthlyRent: listing.monthlyRent,
       city: listing.city,
       district: listing.district ?? "",
-      address: listing.address,
+      address: listing.address ?? "",
+      university: listing.university ?? "",
+      propertyType: listing.propertyType,
+      listingType: listing.listingType,
+      bedrooms: listing.bedrooms,
+      bathrooms: listing.bathrooms,
+      depositRequired: listing.depositRequired,
+      depositAmount: listing.depositAmount,
+      availableFrom: listing.availableFrom ? new Date(listing.availableFrom).toISOString().slice(0, 10) : "",
+      genderPreference: listing.preferences?.genderPreference ?? "any",
+      smoking: listing.preferences?.smoking ?? "no",
+      pets: listing.preferences?.pets ?? "no_pets",
+      photoUrls: listing.photoUrls ?? [],
       lat: listing.lat != null ? String(listing.lat) : "",
-      lng: listing.lng != null ? String(listing.lng) : ""
+      lng: listing.lng != null ? String(listing.lng) : "",
+      ...(meta[listing.id] ?? {
+        sourceUrl: "",
+        sourceTelegram: "",
+        sourceWhatsapp: "",
+        sourceFacebook: "",
+        sourceNote: "",
+        adminNotes: ""
+      })
     });
   }
 
@@ -282,11 +338,13 @@ export default function AdminListingsPage() {
     if (!editing) return;
     setSaving(true);
     try {
-      const { lat, lng, ...rest } = editForm;
+      const { lat, lng, sourceUrl, sourceTelegram, sourceWhatsapp, sourceFacebook, sourceNote, adminNotes, ...rest } =
+        editForm;
       await patch(editing.id, {
         ...rest,
         lat: lat.trim() === "" ? null : Number(lat),
-        lng: lng.trim() === "" ? null : Number(lng)
+        lng: lng.trim() === "" ? null : Number(lng),
+        adminMeta: { sourceUrl, sourceTelegram, sourceWhatsapp, sourceFacebook, sourceNote, adminNotes }
       });
       toast.success("Listing updated");
       setEditing(null);
@@ -295,6 +353,29 @@ export default function AdminListingsPage() {
       toast.error(error instanceof Error ? error.message : "Save failed");
     } finally {
       setSaving(false);
+    }
+  }
+
+  /**
+   * Copies a listing as a hidden draft.
+   *
+   * The same landlord routinely lists several near-identical rooms; this turns
+   * a twenty-field re-entry into one click plus the two fields that differ. The
+   * copy is never published — see the route handler for why.
+   */
+  async function duplicate(listing: Listing) {
+    setBusyId(listing.id);
+    try {
+      const res = await fetch(`/api/admin/listings/${listing.id}/duplicate`, { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Duplicate failed");
+      toast.success("Copied as a hidden draft — edit it, then publish");
+      await load();
+      if (json.listing) startEdit(json.listing as Listing);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Duplicate failed");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -607,6 +688,16 @@ export default function AdminListingsPage() {
                       </Button>
                       <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => startEdit(listing)}>
                         <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Duplicate"
+                        title="Duplicate as a hidden draft"
+                        onClick={() => void duplicate(listing)}
+                        disabled={busyId === listing.id}
+                      >
+                        <Copy className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -1029,11 +1120,15 @@ export default function AdminListingsPage() {
       </Dialog>
 
       <Dialog open={Boolean(editing)} onOpenChange={(open) => !open && setEditing(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit listing</DialogTitle>
+            <p className="text-sm text-foreground/60">
+              Every field is editable. The essentials are here; the rest is one click away.
+            </p>
           </DialogHeader>
-          <div className="grid gap-3">
+
+          <div className="grid gap-5">
             <div className="space-y-1.5">
               <Label htmlFor="edit-title">Title</Label>
               <Input id="edit-title" value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} />
@@ -1042,66 +1137,301 @@ export default function AdminListingsPage() {
               <Label htmlFor="edit-description">Description</Label>
               <Textarea
                 id="edit-description"
-                rows={4}
+                rows={5}
                 value={editForm.description}
                 onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-1.5">
-                <Label htmlFor="edit-rent">Monthly rent (₸)</Label>
+                <Label htmlFor="edit-rent">Rent (₸)</Label>
                 <Input
                   id="edit-rent"
                   type="number"
+                  min={0}
                   value={editForm.monthlyRent}
                   onChange={(e) => setEditForm({ ...editForm, monthlyRent: Number(e.target.value) })}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="edit-city">City</Label>
-                <Input id="edit-city" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
+                <Label>City</Label>
+                <Select value={editForm.city} onValueChange={(v) => setEditForm({ ...editForm, city: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CITIES.map((city) => (
+                      <SelectItem key={city} value={city}>
+                        {city}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="edit-district">District</Label>
-                <Input id="edit-district" value={editForm.district} onChange={(e) => setEditForm({ ...editForm, district: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-address">Address</Label>
-                <Input id="edit-address" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-lat">Latitude</Label>
                 <Input
-                  id="edit-lat"
-                  type="number"
-                  step="any"
-                  placeholder="43.238"
-                  value={editForm.lat}
-                  onChange={(e) => setEditForm({ ...editForm, lat: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-lng">Longitude</Label>
-                <Input
-                  id="edit-lng"
-                  type="number"
-                  step="any"
-                  placeholder="76.945"
-                  value={editForm.lng}
-                  onChange={(e) => setEditForm({ ...editForm, lng: e.target.value })}
+                  id="edit-district"
+                  value={editForm.district}
+                  onChange={(e) => setEditForm({ ...editForm, district: e.target.value })}
                 />
               </div>
             </div>
+
+            <CollapsibleSection title="More details" hint="all optional">
+              <div className="grid gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-address">Address</Label>
+                  <Input
+                    id="edit-address"
+                    value={editForm.address}
+                    placeholder="Leave blank if the post had none"
+                    onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Property type</Label>
+                    <Select
+                      value={editForm.propertyType}
+                      onValueChange={(v) => setEditForm({ ...editForm, propertyType: v as typeof editForm.propertyType })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="apartment">Apartment</SelectItem>
+                        <SelectItem value="house">House</SelectItem>
+                        <SelectItem value="dorm">Dorm</SelectItem>
+                        <SelectItem value="studio">Studio</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Listing type</Label>
+                    <Select
+                      value={editForm.listingType}
+                      onValueChange={(v) => setEditForm({ ...editForm, listingType: v as typeof editForm.listingType })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="private_room">Private room</SelectItem>
+                        <SelectItem value="shared_room">Shared room</SelectItem>
+                        <SelectItem value="entire_place">Entire place</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-university">Nearest university</Label>
+                  <UniversityCombobox
+                    id="edit-university"
+                    value={editForm.university}
+                    onChange={(value) => setEditForm({ ...editForm, university: value })}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-available">Available from</Label>
+                    <Input
+                      id="edit-available"
+                      type="date"
+                      value={editForm.availableFrom}
+                      onChange={(e) => setEditForm({ ...editForm, availableFrom: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-bedrooms">Bedrooms</Label>
+                    <Input
+                      id="edit-bedrooms"
+                      type="number"
+                      min={0}
+                      max={20}
+                      value={editForm.bedrooms}
+                      onChange={(e) => setEditForm({ ...editForm, bedrooms: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-bathrooms">Bathrooms</Label>
+                    <Input
+                      id="edit-bathrooms"
+                      type="number"
+                      min={0}
+                      max={20}
+                      value={editForm.bathrooms}
+                      onChange={(e) => setEditForm({ ...editForm, bathrooms: Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Tenant gender</Label>
+                    <Select
+                      value={editForm.genderPreference}
+                      onValueChange={(v) => setEditForm({ ...editForm, genderPreference: v as typeof editForm.genderPreference })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Any</SelectItem>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Smoking</Label>
+                    <Select
+                      value={editForm.smoking}
+                      onValueChange={(v) => setEditForm({ ...editForm, smoking: v as typeof editForm.smoking })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no">No</SelectItem>
+                        <SelectItem value="yes">Yes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Pets</Label>
+                    <Select
+                      value={editForm.pets}
+                      onValueChange={(v) => setEditForm({ ...editForm, pets: v as typeof editForm.pets })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no_pets">No pets</SelectItem>
+                        <SelectItem value="allowed">Allowed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Checkbox
+                    id="edit-deposit"
+                    checked={editForm.depositRequired}
+                    onCheckedChange={(checked) => setEditForm({ ...editForm, depositRequired: checked === true })}
+                  />
+                  <Label htmlFor="edit-deposit">Deposit required</Label>
+                  {editForm.depositRequired ? (
+                    <Input
+                      type="number"
+                      min={0}
+                      aria-label="Deposit amount (₸)"
+                      className="ml-2 w-36"
+                      value={editForm.depositAmount}
+                      onChange={(e) => setEditForm({ ...editForm, depositAmount: Number(e.target.value) })}
+                    />
+                  ) : null}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Photos</Label>
+                  <AdminPhotoList
+                    value={editForm.photoUrls}
+                    onChange={(urls) => setEditForm({ ...editForm, photoUrls: urls })}
+                    onUploadingChange={setPhotoUploading}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-lat">Latitude</Label>
+                    <Input
+                      id="edit-lat"
+                      type="number"
+                      step="any"
+                      placeholder="43.238"
+                      value={editForm.lat}
+                      onChange={(e) => setEditForm({ ...editForm, lat: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-lng">Longitude</Label>
+                    <Input
+                      id="edit-lng"
+                      type="number"
+                      step="any"
+                      placeholder="76.945"
+                      value={editForm.lng}
+                      onChange={(e) => setEditForm({ ...editForm, lng: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+            </CollapsibleSection>
+
+            {metaAvailable ? (
+              <CollapsibleSection title="Where it came from" icon={<InternalBadge />}>
+                <div className="grid gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="edit-source-url" className="text-xs font-medium text-foreground/70">
+                        Original post link
+                      </Label>
+                      <Input
+                        id="edit-source-url"
+                        value={editForm.sourceUrl}
+                        onChange={(e) => setEditForm({ ...editForm, sourceUrl: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="edit-source-telegram" className="text-xs font-medium text-foreground/70">
+                        Telegram channel
+                      </Label>
+                      <Input
+                        id="edit-source-telegram"
+                        value={editForm.sourceTelegram}
+                        onChange={(e) => setEditForm({ ...editForm, sourceTelegram: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="edit-source-whatsapp" className="text-xs font-medium text-foreground/70">
+                        WhatsApp group
+                      </Label>
+                      <Input
+                        id="edit-source-whatsapp"
+                        value={editForm.sourceWhatsapp}
+                        onChange={(e) => setEditForm({ ...editForm, sourceWhatsapp: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="edit-source-facebook" className="text-xs font-medium text-foreground/70">
+                        Facebook group
+                      </Label>
+                      <Input
+                        id="edit-source-facebook"
+                        value={editForm.sourceFacebook}
+                        onChange={(e) => setEditForm({ ...editForm, sourceFacebook: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-admin-notes" className="text-xs font-medium text-foreground/70">
+                      Internal notes
+                    </Label>
+                    <Textarea
+                      id="edit-admin-notes"
+                      rows={2}
+                      value={editForm.adminNotes}
+                      onChange={(e) => setEditForm({ ...editForm, adminNotes: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </CollapsibleSection>
+            ) : null}
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(null)}>
               Cancel
             </Button>
-            <Button onClick={saveEdit} disabled={saving}>
+            <Button onClick={saveEdit} disabled={saving || photoUploading}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Save changes
             </Button>

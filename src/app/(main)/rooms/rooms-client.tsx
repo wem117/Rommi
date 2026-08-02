@@ -1,44 +1,82 @@
 "use client";
 
-import { ArrowRight, List, Loader2, Map as MapIcon, RefreshCcw } from "lucide-react";
+import { ArrowRight, List, Map as MapIcon } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ListingFiltersBar } from "@/components/listings/listing-filters";
 import { ListingGrid } from "@/components/listings/listing-grid";
+import { Pagination } from "@/components/listings/pagination";
 import { LazyMap, type MapMarker } from "@/components/map/lazy-map";
 import { useLocale } from "@/context/locale-context";
+import { useDebounce } from "@/hooks/use-debounce";
+import { buildListingQueryString, type ListingPage, type ListingQueryFilters } from "@/lib/data/listing-query";
 import { formatCurrency } from "@/lib/utils/format";
-import { type ListingFilters, useListings } from "@/hooks/use-listings";
-import type { Listing } from "@/types/listing";
 
-const FILTERS_STORAGE_KEY = "roomi:rooms:filters";
-const URL_FILTER_KEYS = ["university", "city", "listingType", "propertyType", "maxRent", "minRent", "search"];
-
-type InitialData = { listings: Listing[]; hasMore: boolean };
-
-function buildInitialFilters(searchParams: URLSearchParams): ListingFilters {
-  const university = searchParams.get("university");
-  const city = searchParams.get("city");
-
-  return {
-    sort: "newest",
-    city: !university && city ? city : undefined,
-    university: university || undefined,
-    listingType: (searchParams.get("listingType") as ListingFilters["listingType"]) || "",
-    maxRent: searchParams.get("maxRent") ? Number(searchParams.get("maxRent")) : "",
-    search: searchParams.get("search") ?? ""
-  };
-}
-
-function RoomsPageContent({ initial }: { initial: InitialData }) {
-  const searchParams = useSearchParams();
-  const [filters, setFilters] = useState<ListingFilters>(() => buildInitialFilters(searchParams));
-  const restoredRef = useRef(false);
-  const [view, setView] = useState<"list" | "map">("list");
+/**
+ * Browse UI.
+ *
+ * The server owns the data: this component renders the page it was handed and
+ * navigates to a new URL whenever the filters or the page change. It holds no
+ * copy of the listings and never fetches them.
+ *
+ * That is a deliberate reversal of the previous design, where the list lived in
+ * client state and grew by appending. Three bugs came from that one decision —
+ * a counter that could only report what had been loaded, a page number that
+ * existed nowhere but memory, and a server render that had to guess which
+ * filters the client would end up applying. With the URL as the single source
+ * of truth all three stop being possible: refresh, back/forward, a shared link
+ * and a crawler all resolve to exactly the same page.
+ */
+export default function RoomsClient({
+  initial,
+  filters: serverFilters
+}: {
+  initial: ListingPage;
+  filters: ListingQueryFilters;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
   const { t } = useLocale();
-  const { listings, loading, loadingMore, error, hasMore, reload, loadMore } = useListings(filters, initial);
+  const [view, setView] = useState<"list" | "map">("list");
+
+  // Local echo of the server's filters so typing feels instant. The URL remains
+  // authoritative: it is rewritten from this state, and re-syncs from the server
+  // props whenever a navigation lands.
+  const [filters, setFilters] = useState<ListingQueryFilters>(serverFilters);
+  const serverKey = JSON.stringify(serverFilters);
+  useEffect(() => {
+    setFilters(serverFilters);
+    // Compare by value: the object identity changes on every server render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverKey]);
+
+  // Search is debounced so a navigation isn't fired per keystroke; everything
+  // else (selects, sliders) applies as soon as it changes.
+  const debouncedSearch = useDebounce(filters.search ?? "", 350);
+  const pendingFilters = useMemo(
+    () => ({ ...filters, search: debouncedSearch }),
+    [filters, debouncedSearch]
+  );
+
+  const hrefFor = (page: number) => `${pathname}${buildListingQueryString(pendingFilters, page)}`;
+
+  // Any filter change resets to page 1: staying on page 7 of a result set that
+  // just shrank to two pages would show an empty grid.
+  const targetUrl = `${pathname}${buildListingQueryString(pendingFilters, 1)}`;
+  const currentUrl = `${pathname}${buildListingQueryString(serverFilters, initial.page)}`;
+  const lastPushed = useRef(currentUrl);
+
+  useEffect(() => {
+    if (targetUrl === currentUrl || targetUrl === lastPushed.current) return;
+    lastPushed.current = targetUrl;
+    // `replace` so filter tweaks don't fill the back stack with near-identical
+    // entries; page links below are real navigations and use push.
+    router.replace(targetUrl, { scroll: false });
+  }, [targetUrl, currentUrl, router]);
+
+  const { listings, total, page, pageSize, totalPages } = initial;
 
   const mapMarkers = useMemo<MapMarker[]>(
     () =>
@@ -58,32 +96,8 @@ function RoomsPageContent({ initial }: { initial: InitialData }) {
     [listings]
   );
 
-  // Restore the last-used filters when the user opens /rooms with no explicit
-  // search params (arriving via nav rather than a homepage search). URL params
-  // always win. Runs once, after mount, to avoid any SSR/hydration mismatch.
-  useEffect(() => {
-    const hasUrlParams = URL_FILTER_KEYS.some((key) => searchParams.get(key));
-    if (!hasUrlParams) {
-      try {
-        const saved = window.localStorage.getItem(FILTERS_STORAGE_KEY);
-        if (saved) setFilters((current) => ({ ...current, ...(JSON.parse(saved) as ListingFilters) }));
-      } catch {
-        // ignore malformed storage
-      }
-    }
-    restoredRef.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Persist filters (after the initial restore) so they survive navigation.
-  useEffect(() => {
-    if (!restoredRef.current) return;
-    try {
-      window.localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
-    } catch {
-      // ignore quota/serialization errors
-    }
-  }, [filters]);
+  const firstOnPage = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const lastOnPage = Math.min(page * pageSize, total);
 
   return (
     <main className="min-h-[70vh] bg-[#faf6ef]">
@@ -107,10 +121,22 @@ function RoomsPageContent({ initial }: { initial: InitialData }) {
           </div>
 
           <div className="mt-5 sm:mt-8">
-            <ListingFiltersBar filters={filters} onChange={setFilters} count={listings.length} />
+            {/* `total`, never `listings.length` — the whole point of the fix. */}
+            <ListingFiltersBar filters={filters} onChange={setFilters} count={total} />
           </div>
 
-          <div className="mt-3 flex justify-end sm:mt-4">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 sm:mt-4">
+            {totalPages > 1 ? (
+              <p className="text-xs text-foreground/55 sm:text-sm">
+                {t("rooms.showingRange")
+                  .replace("{from}", String(firstOnPage))
+                  .replace("{to}", String(lastOnPage))
+                  .replace("{total}", String(total))}
+              </p>
+            ) : (
+              <span />
+            )}
+
             <div className="inline-flex rounded-full border border-[#e6daca] bg-white p-1 text-sm font-semibold">
               <button
                 type="button"
@@ -140,7 +166,7 @@ function RoomsPageContent({ initial }: { initial: InitialData }) {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-10 lg:px-8">
-        {!loading && !error && view === "map" ? (
+        {view === "map" ? (
           mapMarkers.length > 0 ? (
             <div className="h-[70vh] overflow-hidden rounded-[1.75rem] border border-[#ece1d3] shadow-soft">
               <LazyMap markers={mapMarkers} openLabel={t("rooms.openListing")} />
@@ -152,66 +178,37 @@ function RoomsPageContent({ initial }: { initial: InitialData }) {
           )
         ) : null}
 
-        {view === "list" && loading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="h-[330px] animate-pulse rounded-[1.75rem] bg-white shadow-soft sm:h-[390px]" />
-            ))}
-          </div>
-        ) : null}
-
-        {!loading && error ? (
-          <div className="rounded-[1.75rem] bg-white p-6 shadow-soft">
-            <h2 className="font-heading text-xl font-bold">{t("rooms.unavailableTitle")}</h2>
-            <p className="mt-2 text-sm text-foreground/65">{error}</p>
-            <button
-              type="button"
-              onClick={reload}
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white"
-            >
-              <RefreshCcw className="h-4 w-4" />
-              {t("rooms.retry")}
-            </button>
-          </div>
-        ) : null}
-
-        {view === "list" && !loading && !error && listings.length === 0 ? (
+        {view === "list" && listings.length === 0 ? (
           <div className="rounded-[1.75rem] bg-white p-8 text-center shadow-soft">
-            <h2 className="font-heading text-2xl font-bold">{t("rooms.emptyTitle")}</h2>
-            <p className="mt-2 text-sm text-foreground/60">
-              {t("rooms.emptyText")}
-            </p>
+            {/* An out-of-range page is a different situation from "nothing
+                matches", and telling a visitor their filters found nothing when
+                the filters found plenty would send them off to change them. */}
+            {total > 0 ? (
+              <>
+                <h2 className="font-heading text-2xl font-bold">{t("rooms.pageEmptyTitle")}</h2>
+                <Link
+                  href={hrefFor(1)}
+                  className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white"
+                >
+                  {t("rooms.backToFirstPage")}
+                </Link>
+              </>
+            ) : (
+              <>
+                <h2 className="font-heading text-2xl font-bold">{t("rooms.emptyTitle")}</h2>
+                <p className="mt-2 text-sm text-foreground/60">{t("rooms.emptyText")}</p>
+              </>
+            )}
           </div>
         ) : null}
 
-        {view === "list" && !loading && !error && listings.length > 0 ? (
+        {view === "list" && listings.length > 0 ? (
           <>
             <ListingGrid listings={listings} />
-
-            {hasMore ? (
-              <div className="mt-8 flex justify-center">
-                <button
-                  type="button"
-                  onClick={loadMore}
-                  disabled={loadingMore}
-                  className="inline-flex items-center gap-2 rounded-full border border-[#e6daca] bg-white px-6 py-3 text-sm font-semibold shadow-soft disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {t("rooms.loadMore")}
-                </button>
-              </div>
-            ) : null}
+            <Pagination page={page} totalPages={totalPages} buildHref={hrefFor} />
           </>
         ) : null}
       </section>
     </main>
-  );
-}
-
-export default function RoomsClient({ initial }: { initial: InitialData }) {
-  return (
-    <Suspense fallback={null}>
-      <RoomsPageContent initial={initial} />
-    </Suspense>
   );
 }

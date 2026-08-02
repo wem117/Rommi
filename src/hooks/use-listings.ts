@@ -95,7 +95,7 @@ export function useListings(
           }
         );
         pageRef.current = nextPage;
-        setHasMore(response.hasMore);
+        setHasMore(nextPage < response.totalPages);
         setListings((current) => (mode === "more" ? [...current, ...response.listings] : response.listings));
         setStatus("success");
       } catch (loadError) {

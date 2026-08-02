@@ -36,13 +36,40 @@ export const listingModerationSchema = z.object({
   status: z.enum(["pending", "approved", "rejected"])
 });
 
+/**
+ * Every editable field of a listing.
+ *
+ * The bounds match `adminQuickListingSchema`, NOT the public `listingSchema`:
+ * an admin editing an imported advert is working with whatever the source post
+ * contained, so a listing published without an address must still be saveable
+ * after a title tweak. The old schema demanded `address.min(5)` on any update,
+ * which made those listings uneditable.
+ *
+ * Every field is optional — this is a PATCH — and only the keys present are
+ * written, so an edit dialog that shows six fields cannot blank the other
+ * fourteen.
+ */
 export const listingUpdateSchema = z.object({
-  title: z.string().trim().min(8).max(100).optional(),
-  description: z.string().trim().min(30).max(2000).optional(),
+  title: z.string().trim().min(3).max(140).optional(),
+  description: z.string().trim().min(10).max(4000).optional(),
   monthlyRent: z.number().int().min(0).optional(),
   city: z.string().trim().min(1).optional(),
-  district: z.string().trim().optional(),
-  address: z.string().trim().min(5).optional()
+  district: z.string().trim().max(120).optional(),
+  address: z.string().trim().max(300).optional(),
+  propertyType: z.enum(["apartment", "house", "dorm", "studio"]).optional(),
+  listingType: z.enum(["private_room", "shared_room", "entire_place"]).optional(),
+  depositRequired: z.boolean().optional(),
+  depositAmount: z.number().int().min(0).optional(),
+  bedrooms: z.number().int().min(0).max(20).optional(),
+  bathrooms: z.number().min(0).max(20).optional(),
+  availableFrom: z.string().trim().optional(),
+  amenities: z.array(z.string()).max(20).optional(),
+  genderPreference: z.enum(["any", "male", "female"]).optional(),
+  smoking: z.enum(["no", "yes"]).optional(),
+  pets: z.enum(["no_pets", "allowed"]).optional(),
+  photoUrls: z.array(z.string().url()).max(10).optional(),
+  removed: z.boolean().optional(),
+  ownerId: z.string().trim().min(1).optional()
 });
 
 export const featureSchema = z.object({

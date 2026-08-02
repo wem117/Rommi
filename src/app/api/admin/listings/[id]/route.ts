@@ -41,6 +41,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (input.archived !== undefined) payload.archived = input.archived;
     if (input.featured !== undefined) payload.featured = input.featured;
     if (input.featuredPosition !== undefined) payload.featured_position = input.featuredPosition;
+    if (input.propertyType !== undefined) payload.property_type = input.propertyType;
+    if (input.listingType !== undefined) payload.listing_type = input.listingType;
+    if (input.depositRequired !== undefined) payload.deposit_required = input.depositRequired;
+    if (input.depositAmount !== undefined) payload.deposit_amount = input.depositAmount;
+    if (input.bedrooms !== undefined) payload.bedrooms = input.bedrooms;
+    if (input.bathrooms !== undefined) payload.bathrooms = input.bathrooms;
+    if (input.availableFrom) payload.available_from = new Date(input.availableFrom).toISOString();
+    if (input.amenities !== undefined) payload.amenities = input.amenities;
+    if (input.photoUrls !== undefined) payload.photo_urls = input.photoUrls;
+    if (input.removed !== undefined) {
+      payload.removed = input.removed;
+      payload.removed_at = input.removed ? new Date().toISOString() : null;
+    }
+    if (input.ownerId !== undefined) payload.owner_id = input.ownerId;
+
+    // `preferences` is a single jsonb column, so a partial edit has to be merged
+    // into the stored object — writing only the changed key would silently drop
+    // the other two.
+    if (input.genderPreference !== undefined || input.smoking !== undefined || input.pets !== undefined) {
+      const { data: current } = await supabase.from("listings").select("preferences").eq("id", id).maybeSingle();
+      const existing = (current?.preferences ?? {}) as Record<string, string>;
+      payload.preferences = {
+        genderPreference: input.genderPreference ?? existing.genderPreference ?? "any",
+        smoking: input.smoking ?? existing.smoking ?? "no",
+        pets: input.pets ?? existing.pets ?? "no_pets"
+      };
+    }
 
     const { data, error } = await supabase.from("listings").update(payload).eq("id", id).select("*").single();
     if (error) throw error;

@@ -2,25 +2,23 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { demoListings } from "@/lib/data/demo";
 import { getUniversityCity } from "@/lib/constants/universities";
+import {
+  applyListingFilters,
+  EMPTY_LISTING_PAGE,
+  LISTINGS_PAGE_SIZE,
+  rangeFor,
+  totalPagesFor,
+  type ListingPage,
+  type ListingQueryFilters
+} from "@/lib/data/listing-query";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { mapListingRow } from "@/lib/supabase/mappers";
 import { isMissingSupabaseTable } from "@/lib/utils/errors";
 import type { Listing } from "@/types/listing";
 
-export interface ListingFiltersInput {
-  city?: string;
-  university?: string;
-  listingType?: Listing["listingType"] | "";
-  propertyType?: Listing["propertyType"] | "";
-  minRent?: number | "";
-  maxRent?: number | "";
-  genderPreference?: Listing["preferences"]["genderPreference"] | "";
-  smoking?: Listing["preferences"]["smoking"] | "";
-  pets?: Listing["preferences"]["pets"] | "";
-  search?: string;
-  sort?: "newest" | "rent_asc" | "rent_desc";
-}
+/** @deprecated Use `ListingQueryFilters`; kept as an alias for existing callers. */
+export type ListingFiltersInput = ListingQueryFilters;
 
 function filterListings(listings: Listing[], filters: ListingFiltersInput = {}) {
   const query = filters.search?.trim().toLowerCase() ?? "";
@@ -71,80 +69,72 @@ function filterListings(listings: Listing[], filters: ListingFiltersInput = {}) 
   return next;
 }
 
-export async function getListings(filters: ListingFiltersInput = {}, page = 1, pageSize = 9) {
+/**
+ * One page of listings PLUS the total number matching the filters.
+ *
+ * `total` is a real `count: "exact"` — a COUNT(*) computed by Postgres over the
+ * same filtered set, returned in the same round trip as the rows. The previous
+ * implementation deliberately avoided it and fetched `pageSize + 1` rows to
+ * infer `hasMore`, which can answer "is there another page" but never "how many
+ * are there"; the UI was left counting the array it happened to be holding, so
+ * the header read 9 before "Load more" and 14 after. Nothing can report a
+ * partial figure now because the page and the count come from one query.
+ */
+export async function getListings(
+  filters: ListingQueryFilters = {},
+  page = 1,
+  pageSize = LISTINGS_PAGE_SIZE
+): Promise<ListingPage> {
+  const safePage = Math.max(1, page);
+
   if (!isSupabaseConfigured) {
     const filtered = filterListings(demoListings, filters);
-    const start = (page - 1) * pageSize;
-    const paged = filtered.slice(start, start + pageSize);
-    return { listings: paged, hasMore: start + pageSize < filtered.length };
+    const { from } = rangeFor(safePage, pageSize);
+    return {
+      listings: filtered.slice(from, from + pageSize),
+      total: filtered.length,
+      page: safePage,
+      pageSize,
+      totalPages: totalPagesFor(filtered.length, pageSize)
+    };
   }
 
   const supabase = getSupabaseBrowserClient();
-  function buildQuery(includeRemovedFilter: boolean) {
-    // No count: exact/planned count is an extra aggregate on a large table.
-    // We instead fetch one row beyond the page and infer `hasMore` from it.
-    let query = supabase.from("listings").select("*");
+  const { from, to } = rangeFor(safePage, pageSize);
 
-    if (includeRemovedFilter) {
-      query = query.or("removed.is.null,removed.eq.false");
-    }
+  const run = (includeRemovedFilter: boolean) =>
+    applyListingFilters(
+      supabase.from("listings").select("*", { count: "exact" }),
+      filters,
+      includeRemovedFilter
+    ).range(from, to);
 
-    if (filters.city) query = query.eq("city", filters.city);
-    if (filters.university) {
-      const fallbackCity = getUniversityCity(filters.university);
-      query = query.or(`university.eq.${filters.university},and(university.is.null,city.eq.${fallbackCity}),and(university.eq.,city.eq.${fallbackCity})`);
-    }
-    if (filters.listingType) query = query.eq("listing_type", filters.listingType);
-    if (filters.propertyType) query = query.eq("property_type", filters.propertyType);
-    if (filters.genderPreference) query = query.eq("preferences->>genderPreference", filters.genderPreference);
-    if (filters.smoking) query = query.eq("preferences->>smoking", filters.smoking);
-    if (filters.pets) query = query.eq("preferences->>pets", filters.pets);
-    if (filters.minRent !== undefined && filters.minRent !== "") {
-      query = query.gte("monthly_rent", Number(filters.minRent));
-    }
-    if (filters.maxRent !== undefined && filters.maxRent !== "") {
-      query = query.lte("monthly_rent", Number(filters.maxRent));
-    }
-
-    const search = filters.search?.trim().replace(/[%,()]/g, " ").trim();
-    if (search) {
-      const pattern = `%${search}%`;
-      query = query.or(
-        `title.ilike.${pattern},description.ilike.${pattern},city.ilike.${pattern},district.ilike.${pattern},address.ilike.${pattern}`
-      );
-    }
-
-    if (filters.sort === "rent_asc") query = query.order("monthly_rent", { ascending: true });
-    else if (filters.sort === "rent_desc") query = query.order("monthly_rent", { ascending: false });
-    else query = query.order("created_at", { ascending: false });
-
-    return query;
-  }
-
-  const from = (page - 1) * pageSize;
-  // Fetch one extra row past the page so we can tell whether more exist without
-  // a COUNT query.
-  const to = from + pageSize;
-  let { data, error } = await buildQuery(true).range(from, to);
+  let { data, error, count } = await run(true);
 
   if (error && /removed/i.test(String(error.message ?? ""))) {
-    const retried = await buildQuery(false).range(from, to);
+    const retried = await run(false);
     data = retried.data;
     error = retried.error;
+    count = retried.count;
   }
 
   // With Supabase configured we never silently substitute demo data — a
   // missing table is a deployment problem to surface, not to mask.
   if (error && isMissingSupabaseTable(error, "listings")) {
     console.warn("listings table is missing — run the database migrations.");
-    return { listings: [], hasMore: false };
+    return { ...EMPTY_LISTING_PAGE, page: safePage, pageSize };
   }
 
   if (error) throw error;
-  const rows = data ?? [];
-  const hasMore = rows.length > pageSize;
-  const listings = rows.slice(0, pageSize).map(mapListingRow);
-  return { listings, hasMore };
+
+  const total = count ?? 0;
+  return {
+    listings: (data ?? []).map(mapListingRow),
+    total,
+    page: safePage,
+    pageSize,
+    totalPages: totalPagesFor(total, pageSize)
+  };
 }
 
 /**

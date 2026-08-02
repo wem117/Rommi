@@ -13,7 +13,7 @@ import { lifestyleSchema, type LifestyleInput } from "@/lib/validations/profile.
 
 export default function OnboardingStepThreePage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { t } = useLocale();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -120,6 +120,12 @@ export default function OnboardingStepThreePage() {
 
       window.localStorage.removeItem("roomi:onboarding:step-1");
       window.localStorage.removeItem("roomi:onboarding:step-2");
+
+      // Re-read the row BEFORE navigating. Without this the cached profile still
+      // says onboarding is unfinished for the rest of the session, so the next
+      // click on Profile bounced the user straight back into onboarding — the
+      // exact loop reported. Awaited, so the guard on the next page sees truth.
+      await refreshProfile();
 
       router.replace("/rooms");
     } catch (err: unknown) {

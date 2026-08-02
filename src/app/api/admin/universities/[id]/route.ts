@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { revalidatePublic } from "@/lib/api/revalidate";
 import { apiErrorResponse } from "@/lib/api/error-response";
 import { requireAdminUser } from "@/lib/supabase/admin";
 import {
@@ -41,6 +42,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     if (error) throw error;
+    revalidatePublic("universities");
     return NextResponse.json({ university: data });
   } catch (error) {
     return apiErrorResponse(error);
@@ -53,6 +55,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     const { supabase } = await requireAdminUser();
     const { error } = await supabase.from("universities").delete().eq("id", id);
     if (error) throw error;
+    revalidatePublic("universities");
     return NextResponse.json({ ok: true });
   } catch (error) {
     return apiErrorResponse(error);

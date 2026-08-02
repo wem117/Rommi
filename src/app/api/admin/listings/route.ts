@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { revalidatePublic } from "@/lib/api/revalidate";
 import { apiErrorResponse } from "@/lib/api/error-response";
 import {
   findPossibleDuplicates,
@@ -49,6 +50,8 @@ export async function POST(request: Request) {
         sourceUrl: input.source?.sourceUrl
       });
       if (duplicates.length) {
+        // Nothing was written — this is the duplicate-detection bail-out, so
+        // there is no new state for a cached page to be missing.
         return NextResponse.json({ duplicates }, { status: 409 });
       }
     }
@@ -98,6 +101,8 @@ export async function POST(request: Request) {
     if (!input.publish) {
       await supabase.from("listings").update({ removed: true }).eq("id", id);
     }
+
+    revalidatePublic("listings");
 
     return NextResponse.json({ id, ownerId }, { status: 201 });
   } catch (error) {

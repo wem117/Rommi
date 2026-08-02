@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { revalidatePublic } from "@/lib/api/revalidate";
 import { apiErrorResponse } from "@/lib/api/error-response";
 import { upsertListingAdminMeta } from "@/lib/data/listing-admin-meta";
 import { getPublicContactsMap } from "@/lib/data/public-contacts";
@@ -43,6 +44,8 @@ export async function POST(request: Request) {
     if (input.source && Object.values(input.source).some((v) => String(v ?? "").trim())) {
       await upsertListingAdminMeta(uid, input.source);
     }
+
+    revalidatePublic("profiles");
 
     return NextResponse.json({ roommate: { uid, fullName: input.fullName } }, { status: 201 });
   } catch (error) {

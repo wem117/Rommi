@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { revalidatePublic } from "@/lib/api/revalidate";
 import { apiErrorResponse } from "@/lib/api/error-response";
 import { getHomepageStatCounts } from "@/lib/data/homepage-stats";
 import { getSiteSettings, updateSiteSettings } from "@/lib/data/site-settings";
@@ -24,6 +25,7 @@ export async function PATCH(request: Request) {
     const input = siteSettingsUpdateSchema.parse(await request.json());
     await updateSiteSettings(input);
     const settings = await getSiteSettings();
+    revalidatePublic("settings");
     return NextResponse.json({ settings });
   } catch (error) {
     return apiErrorResponse(error);

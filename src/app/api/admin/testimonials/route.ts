@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { revalidatePublic } from "@/lib/api/revalidate";
 import { apiErrorResponse } from "@/lib/api/error-response";
 import { mapTestimonialRow } from "@/lib/data/testimonials";
 import { requireAdminUser } from "@/lib/supabase/admin";
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
       .single();
 
     if (error) throw error;
+    revalidatePublic("testimonials");
     return NextResponse.json({ testimonial: mapTestimonialRow(data) }, { status: 201 });
   } catch (error) {
     return apiErrorResponse(error);

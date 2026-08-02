@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { revalidatePublic } from "@/lib/api/revalidate";
 import { apiErrorResponse } from "@/lib/api/error-response";
 import { deleteListingAdminMeta, upsertListingAdminMeta } from "@/lib/data/listing-admin-meta";
 import { mapListingRow } from "@/lib/supabase/mappers";
@@ -74,6 +75,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     if (input.adminMeta) await upsertListingAdminMeta(id, input.adminMeta);
 
+    revalidatePublic("listings");
+
     return NextResponse.json({ listing: mapListingRow(data) });
   } catch (error) {
     return apiErrorResponse(error);
@@ -90,6 +93,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     // The metadata lives in a separate settings row with no foreign key, so it
     // has to be cleaned up explicitly or it outlives the listing it describes.
     await deleteListingAdminMeta(id);
+
+    revalidatePublic("listings");
 
     return NextResponse.json({ ok: true });
   } catch (error) {

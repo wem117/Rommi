@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { revalidatePublic } from "@/lib/api/revalidate";
 import { apiErrorResponse } from "@/lib/api/error-response";
 import { ADMIN_ROLE } from "@/lib/auth/admin-access";
 import { getPublicContacts, upsertPublicContacts } from "@/lib/data/public-contacts";
@@ -107,6 +108,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     const contacts = await getPublicContacts(id);
+    revalidatePublic("profiles");
     return NextResponse.json({ user: mapProfileRow(data), contacts });
   } catch (error) {
     return apiErrorResponse(error);
@@ -118,6 +120,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     const { id } = await params;
     await requireAdminUser();
     await deleteUserAccount(id);
+    revalidatePublic("profiles");
     return NextResponse.json({ ok: true });
   } catch (error) {
     return apiErrorResponse(error);

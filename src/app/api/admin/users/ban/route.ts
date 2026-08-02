@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { revalidatePublic } from "@/lib/api/revalidate";
 import { apiErrorResponse } from "@/lib/api/error-response";
 import { requireAdminUser } from "@/lib/supabase/admin";
 import { banUserSchema } from "@/lib/validations/admin.schema";
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
       .eq("uid", data.userId);
 
     if (error) throw error;
+    revalidatePublic("profiles");
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Admin ban failed", error);

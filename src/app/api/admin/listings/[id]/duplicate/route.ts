@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { revalidatePublic } from "@/lib/api/revalidate";
 import { apiErrorResponse } from "@/lib/api/error-response";
 import { getListingAdminMeta, upsertListingAdminMeta } from "@/lib/data/listing-admin-meta";
 import { requireAdminUser } from "@/lib/supabase/admin";
@@ -61,6 +62,8 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     // Provenance travels with the copy: it came from the same original advert.
     const meta = await getListingAdminMeta(id);
     if (meta) await upsertListingAdminMeta(created.id as string, meta);
+
+    revalidatePublic("listings");
 
     return NextResponse.json({ listing: mapListingRow(created) }, { status: 201 });
   } catch (error) {

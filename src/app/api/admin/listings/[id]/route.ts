@@ -52,7 +52,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { data, error } = await supabase.from("listings").update(payload).eq("id", id).select("*").single();
     if (error) throw error;
 
-    if (input.adminMeta) await upsertListingAdminMeta(supabase, id, input.adminMeta);
+    if (input.adminMeta) await upsertListingAdminMeta(id, input.adminMeta);
 
     return NextResponse.json({ listing: mapListingRow(data) });
   } catch (error) {

@@ -5,7 +5,6 @@ import { apiErrorResponse } from "@/lib/api/error-response";
 import {
   findPossibleDuplicates,
   getListingAdminMetaMap,
-  isListingAdminMetaAvailable,
   upsertListingAdminMeta
 } from "@/lib/data/listing-admin-meta";
 import { createListing } from "@/lib/data/listings-admin";
@@ -21,11 +20,8 @@ export async function GET() {
     if (error) throw error;
     // Admin-only metadata is returned ONLY on this admin route. It is never
     // merged into the listing object the public pages consume.
-    const [meta, metaAvailable] = await Promise.all([
-      getListingAdminMetaMap(supabase),
-      isListingAdminMetaAvailable(supabase)
-    ]);
-    return NextResponse.json({ listings: (data ?? []).map(mapListingRow), meta, metaAvailable });
+    const meta = await getListingAdminMetaMap();
+    return NextResponse.json({ listings: (data ?? []).map(mapListingRow), meta, metaAvailable: true });
   } catch (error) {
     return apiErrorResponse(error);
   }
@@ -64,7 +60,7 @@ export async function POST(request: Request) {
     // Seeding is copy-paste work across several chat apps, so the same flat is
     // easy to enter twice. Warn once, then let the admin proceed deliberately.
     if (!input.ignoreDuplicates) {
-      const duplicates = await findPossibleDuplicates(supabase, {
+      const duplicates = await findPossibleDuplicates({
         city: input.city,
         address: input.address,
         sourceUrl: input.adminMeta?.sourceUrl
@@ -103,7 +99,7 @@ export async function POST(request: Request) {
     // Any non-empty internal field must persist or the request must fail; a
     // half-created listing is recoverable, silently lost contact details are not.
     if (input.adminMeta && Object.values(input.adminMeta).some((v) => String(v ?? "").trim())) {
-      await upsertListingAdminMeta(supabase, id, input.adminMeta);
+      await upsertListingAdminMeta(id, input.adminMeta);
     }
 
     // Drafts are created hidden so they never appear in browse while the admin

@@ -5,7 +5,11 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url))
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // `server-only` throws by design outside a server bundle. Tests that
+      // import a server module for its pure exports (constants, mappers) need it
+      // to be inert rather than fatal.
+      "server-only": fileURLToPath(new URL("./src/test/server-only-stub.ts", import.meta.url))
     }
   },
   test: {

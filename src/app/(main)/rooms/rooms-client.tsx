@@ -91,10 +91,7 @@ function RoomsPageContent({ initial }: { initial: InitialData }) {
         <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <span className="inline-flex rounded-full bg-[#fde8c9] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#b97716] sm:px-4 sm:py-2">
-                {t("rooms.badge")}
-              </span>
-              <h1 className="mt-3 text-3xl font-bold sm:mt-4 sm:text-5xl">{t("rooms.title")}</h1>
+              <h1 className="text-3xl font-bold sm:text-5xl">{t("rooms.title")}</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground/60 sm:mt-3 sm:leading-7 sm:text-base">
                 {t("rooms.description")}
               </p>

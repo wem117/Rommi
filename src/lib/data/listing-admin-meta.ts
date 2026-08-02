@@ -1,15 +1,34 @@
 import "server-only";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
 /**
  * Admin-only metadata attached to hand-seeded listings.
  *
- * Lives in `public.listing_admin_meta`, a table RLS restricts to admins, so a
- * regular user reading it gets zero rows. Nothing in this module may be spread
- * into a payload that reaches a public page — the listing itself carries no
- * trace of it, which is what keeps a seeded listing indistinguishable from an
- * organic one.
+ * WHERE THIS LIVES, AND WHY
+ * -------------------------
+ * Rows in `public.site_settings` under a `listing_meta:<listingId>` key.
+ *
+ * That table's SELECT policy whitelists exactly four keys — `homepage_hero`,
+ * `homepage_sections`, `maintenance_mode`, and `admin_emails` (own address
+ * only). Every other key, including these, is unreadable by `anon` AND by
+ * ordinary authenticated users; only the service-role client, which bypasses
+ * RLS and is server-only, can see them. The privacy guarantee is therefore
+ * enforced by an existing database policy, not by the application remembering
+ * not to select something.
+ *
+ * A dedicated `listing_admin_meta` table would be the tidier long-term home
+ * (foreign key, cascade delete, an index on the source URL). It is not used
+ * because creating it needs DDL, and this deployment offers no path to run DDL
+ * against production — PostgREST cannot execute it, and postgres-meta is behind
+ * a Kong ACL. Given the choice between shipping the feature on an existing,
+ * correctly-restricted table and shipping nothing, this is the former. The data
+ * volume is admin-scale (one row per hand-entered listing), so the missing index
+ * costs nothing at this size.
+ *
+ * Nothing in this module may be spread into a payload that reaches a public
+ * page — the listing row itself carries no trace of it, which is what keeps a
+ * seeded listing indistinguishable from an organic one.
  */
 export interface ListingAdminMeta {
   contactName: string;
@@ -29,121 +48,117 @@ export const EMPTY_LISTING_ADMIN_META: ListingAdminMeta = {
   adminNotes: ""
 };
 
-type MetaRow = {
-  listing_id: string;
-  contact_name: string | null;
-  contact_phone: string | null;
-  contact_telegram: string | null;
-  source_url: string | null;
-  source_note: string | null;
-  admin_notes: string | null;
-};
+/** Key prefix. Deliberately absent from the site_settings SELECT whitelist. */
+export const LISTING_META_KEY_PREFIX = "listing_meta:";
 
-function mapMetaRow(row: MetaRow): ListingAdminMeta {
+const metaKey = (listingId: string) => `${LISTING_META_KEY_PREFIX}${listingId}`;
+
+function normalise(value: unknown): ListingAdminMeta {
+  const v = (value ?? {}) as Partial<ListingAdminMeta>;
   return {
-    contactName: row.contact_name ?? "",
-    contactPhone: row.contact_phone ?? "",
-    contactTelegram: row.contact_telegram ?? "",
-    sourceUrl: row.source_url ?? "",
-    sourceNote: row.source_note ?? "",
-    adminNotes: row.admin_notes ?? ""
+    contactName: String(v.contactName ?? ""),
+    contactPhone: String(v.contactPhone ?? ""),
+    contactTelegram: String(v.contactTelegram ?? ""),
+    sourceUrl: String(v.sourceUrl ?? ""),
+    sourceNote: String(v.sourceNote ?? ""),
+    adminNotes: String(v.adminNotes ?? "")
   };
 }
 
-function isMissingTable(error: unknown): boolean {
-  const code = (error as { code?: string } | null)?.code;
-  const message = String((error as { message?: string } | null)?.message ?? "");
-  return code === "PGRST205" || code === "42P01" || /listing_admin_meta/i.test(message);
-}
-
-/** Metadata for many listings at once, keyed by listing id. */
-export async function getListingAdminMetaMap(
-  supabase: SupabaseClient
-): Promise<Record<string, ListingAdminMeta>> {
+/** Metadata for every seeded listing, keyed by listing id. */
+export async function getListingAdminMetaMap(): Promise<Record<string, ListingAdminMeta>> {
   try {
-    const { data, error } = await supabase.from("listing_admin_meta").select("*");
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("site_settings")
+      .select("key, value")
+      .like("key", `${LISTING_META_KEY_PREFIX}%`);
     if (error) throw error;
+
     const out: Record<string, ListingAdminMeta> = {};
-    for (const row of (data ?? []) as MetaRow[]) out[row.listing_id] = mapMetaRow(row);
+    for (const row of (data ?? []) as Array<{ key: string; value: unknown }>) {
+      out[row.key.slice(LISTING_META_KEY_PREFIX.length)] = normalise(row.value);
+    }
     return out;
-  } catch (error) {
-    // The admin panel must keep working before this migration is applied.
-    if (isMissingTable(error)) return {};
-    throw error;
+  } catch {
+    // The admin list must still render if this read fails.
+    return {};
   }
 }
 
+/**
+ * Writes metadata for one listing.
+ *
+ * Errors propagate on purpose: silently dropping contact details the admin just
+ * typed would destroy the only record of how to reach that landlord.
+ */
 export async function upsertListingAdminMeta(
-  supabase: SupabaseClient,
   listingId: string,
   meta: Partial<ListingAdminMeta>
 ): Promise<void> {
-  const payload: Record<string, unknown> = { listing_id: listingId, updated_at: new Date().toISOString() };
-  if (meta.contactName !== undefined) payload.contact_name = meta.contactName;
-  if (meta.contactPhone !== undefined) payload.contact_phone = meta.contactPhone;
-  if (meta.contactTelegram !== undefined) payload.contact_telegram = meta.contactTelegram;
-  if (meta.sourceUrl !== undefined) payload.source_url = meta.sourceUrl;
-  if (meta.sourceNote !== undefined) payload.source_note = meta.sourceNote;
-  if (meta.adminNotes !== undefined) payload.admin_notes = meta.adminNotes;
+  const supabase = createSupabaseAdminClient();
+  const existing = (await getListingAdminMeta(listingId)) ?? EMPTY_LISTING_ADMIN_META;
+  const merged = normalise({ ...existing, ...meta });
 
-  // Nothing but the key was supplied — don't create an empty row.
-  if (Object.keys(payload).length <= 2) return;
-
-  // Deliberately NOT swallowed when the table is missing. Reads may degrade to
-  // "no metadata", but silently dropping contact details the admin just typed
-  // would lose the only record of how to reach that landlord.
-  const { error } = await supabase.from("listing_admin_meta").upsert(payload, { onConflict: "listing_id" });
+  const { error } = await supabase
+    .from("site_settings")
+    .upsert({ key: metaKey(listingId), value: merged, updated_at: new Date().toISOString() }, { onConflict: "key" });
   if (error) throw error;
 }
 
-/**
- * Whether the admin-metadata table exists in this database.
- *
- * The admin panel uses this to hide the internal fields entirely rather than
- * offer inputs whose contents cannot be saved.
- */
-export async function isListingAdminMetaAvailable(supabase: SupabaseClient): Promise<boolean> {
+export async function getListingAdminMeta(listingId: string): Promise<ListingAdminMeta | null> {
   try {
-    const { error } = await supabase.from("listing_admin_meta").select("listing_id").limit(1);
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("site_settings")
+      .select("value")
+      .eq("key", metaKey(listingId))
+      .maybeSingle();
     if (error) throw error;
-    return true;
-  } catch (error) {
-    if (isMissingTable(error)) return false;
-    // A permission error still means the table is there; only a missing table
-    // should hide the UI.
-    return true;
+    return data ? normalise((data as { value: unknown }).value) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Removes metadata when its listing is deleted, so no orphan rows accumulate. */
+export async function deleteListingAdminMeta(listingId: string): Promise<void> {
+  try {
+    const supabase = createSupabaseAdminClient();
+    await supabase.from("site_settings").delete().eq("key", metaKey(listingId));
+  } catch {
+    // Best effort: a stray settings row is harmless and invisible to users.
   }
 }
 
 /**
  * Finds listings that look like the one about to be entered.
  *
- * Seeding is copy-paste work across several chat apps, so the same flat gets
- * submitted twice easily. Matching on the source URL is exact when present;
- * otherwise a same-city address match catches the common case. This warns rather
- * than blocks — two genuinely different rooms can share a building address.
+ * Seeding is copy-paste work across Telegram, WhatsApp, OLX, Instagram and
+ * Facebook, so the same flat gets entered twice easily. An exact source-URL
+ * match is the strongest signal; a same-city address match catches the rest.
+ * This WARNS rather than blocks — two genuinely different rooms can share a
+ * building address.
  */
-export async function findPossibleDuplicates(
-  supabase: SupabaseClient,
-  input: { city: string; address: string; sourceUrl?: string }
-): Promise<Array<{ id: string; title: string; address: string; city: string }>> {
+export async function findPossibleDuplicates(input: {
+  city: string;
+  address: string;
+  sourceUrl?: string;
+}): Promise<Array<{ id: string; title: string; address: string; city: string }>> {
+  const supabase = createSupabaseAdminClient();
   const matches = new Map<string, { id: string; title: string; address: string; city: string }>();
 
-  if (input.sourceUrl?.trim()) {
-    try {
-      const { data } = await supabase
-        .from("listing_admin_meta")
-        .select("listing_id")
-        .eq("source_url", input.sourceUrl.trim());
-      const ids = (data ?? []).map((r) => (r as { listing_id: string }).listing_id);
-      if (ids.length) {
-        const { data: rows } = await supabase.from("listings").select("id, title, address, city").in("id", ids);
-        for (const r of (rows ?? []) as Array<{ id: string; title: string; address: string; city: string }>) {
-          matches.set(r.id, r);
-        }
+  const wanted = input.sourceUrl?.trim();
+  if (wanted) {
+    const all = await getListingAdminMetaMap();
+    const ids = Object.entries(all)
+      .filter(([, meta]) => meta.sourceUrl && meta.sourceUrl.trim() === wanted)
+      .map(([id]) => id);
+    if (ids.length) {
+      const { data } = await supabase.from("listings").select("id, title, address, city").in("id", ids);
+      for (const r of (data ?? []) as Array<{ id: string; title: string; address: string; city: string }>) {
+        matches.set(r.id, r);
       }
-    } catch {
-      // Missing table before migration — fall through to the address check.
     }
   }
 

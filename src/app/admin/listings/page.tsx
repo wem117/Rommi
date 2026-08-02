@@ -60,6 +60,11 @@ const CREATE_EMPTY = {
   smoking: "no" as "no" | "yes",
   pets: "no_pets" as "no_pets" | "allowed",
   photoUrls: [] as string[],
+  // Which profile the listing belongs to. Left blank the listing would be filed
+  // under the administrator's own account, and the public detail page renders
+  // the owner's name, avatar and verified badge — so a seeded listing would
+  // openly display the administrator's identity. Chosen explicitly instead.
+  ownerId: "",
   // Admin-only. Stored in listing_admin_meta, never on the listing row, and
   // never sent to a public page.
   contactName: "",
@@ -87,6 +92,7 @@ export default function AdminListingsPage() {
   // False until the listing_admin_meta migration is applied. The internal block
   // is hidden rather than shown-and-broken, so nothing the admin types is lost.
   const [metaAvailable, setMetaAvailable] = useState(true);
+  const [owners, setOwners] = useState<Array<{ uid: string; fullName: string }>>([]);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -101,6 +107,16 @@ export default function AdminListingsPage() {
       if (!res.ok) throw new Error(json.error ?? "Could not load listings.");
       setListings(json.listings ?? []);
       setMetaAvailable(json.metaAvailable !== false);
+      // Candidate hosts for seeded listings. Admin-created profiles carry a
+      // `roomi-admin-` uid and exist precisely so seeded inventory has a public
+      // face that is not the administrator's personal account.
+      try {
+        const rr = await fetch("/api/admin/roommates");
+        const rj = await rr.json();
+        if (rr.ok) setOwners((rj.roommates ?? []).map((r: { uid: string; fullName: string }) => ({ uid: r.uid, fullName: r.fullName })));
+      } catch {
+        // Non-fatal: the picker simply stays empty.
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not load listings.");
     } finally {
@@ -269,7 +285,7 @@ export default function AdminListingsPage() {
   async function createNew(publish: boolean, ignoreDuplicates = false) {
     setCreating(true);
     try {
-      const { contactName, contactPhone, contactTelegram, sourceUrl, sourceNote, adminNotes, ...listing } = createForm;
+      const { contactName, contactPhone, contactTelegram, sourceUrl, sourceNote, adminNotes, ownerId, ...listing } = createForm;
       const res = await fetch("/api/admin/listings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -278,6 +294,7 @@ export default function AdminListingsPage() {
           amenities: [],
           lat: null,
           lng: null,
+          ...(ownerId ? { ownerId } : {}),
           publish,
           ignoreDuplicates,
           adminMeta: { contactName, contactPhone, contactTelegram, sourceUrl, sourceNote, adminNotes }
@@ -768,6 +785,32 @@ export default function AdminListingsPage() {
               public page, so a seeded listing is indistinguishable from an
               organic one to a regular user.
             */}
+            <div className="space-y-1.5">
+              <Label htmlFor="create-owner">Publish as (listing host)</Label>
+              <Select
+                value={createForm.ownerId || "__self__"}
+                onValueChange={(v) => setCreateForm({ ...createForm, ownerId: v === "__self__" ? "" : v })}
+              >
+                <SelectTrigger id="create-owner">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__self__">My own account (not recommended)</SelectItem>
+                  {owners.map((o) => (
+                    <SelectItem key={o.uid} value={o.uid}>
+                      {o.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {createForm.ownerId ? null : (
+                <p className="text-xs text-destructive">
+                  The room page shows the host&apos;s name, photo and verified badge. Left as your own account, visitors
+                  see YOUR profile on this listing. Pick a host profile instead — create one under Admin → Roommates.
+                </p>
+              )}
+            </div>
+
             {metaAvailable ? (
             <div className="rounded-xl border border-dashed border-border bg-surface-muted/40 p-4">
               <p className="text-sm font-semibold">Internal — admins only</p>

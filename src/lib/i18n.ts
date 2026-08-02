@@ -442,7 +442,6 @@ const translations = {
       stepLifestyleLabel: "Lifestyle"
     },
     rooms: {
-      badge: "Browse Rooms",
       title: "Verified rooms across Kazakhstan",
       description:
         "Search by location, budget, and housing type to find student-friendly rooms and shared apartments that fit your lifestyle.",
@@ -1003,7 +1002,6 @@ const translations = {
       stepLifestyleLabel: "Образ жизни"
     },
     rooms: {
-      badge: "Поиск комнат",
       title: "Проверенные комнаты по всему Казахстану",
       description:
         "Ищите жилье по локации, бюджету и типу, чтобы быстро находить студенческие комнаты и квартиры.",
@@ -1563,7 +1561,6 @@ const translations = {
       stepLifestyleLabel: "Өмір салты"
     },
     rooms: {
-      badge: "Бөлмелерді қарау",
       title: "Қазақстан бойынша тексерілген бөлмелер",
       description:
         "Орналасу, бюджет және тұрғын үй түрі бойынша іздеп, студенттерге ыңғайлы бөлмелер мен пәтерлерді табыңыз.",

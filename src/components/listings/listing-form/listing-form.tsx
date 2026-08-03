@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 
-import { AddressAutocomplete } from "@/components/map/address-autocomplete";
+import { LocationPicker } from "@/components/map/location-picker";
 import { PhotoUploader } from "@/components/listings/photo-uploader";
 import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { useAuth } from "@/context/auth-context";
@@ -257,20 +257,29 @@ export function ListingForm({
         </div>
 
         <div className="md:col-span-2">
-          <label htmlFor="address">{t("listingForm.address")}</label>
-          <AddressAutocomplete
-            address={watch("address") ?? ""}
-            onAddressChange={(value) => setValue("address", value, { shouldValidate: true })}
+          <LocationPicker
             lat={watch("lat") ?? null}
             lng={watch("lng") ?? null}
             onCoordsChange={(nextLat, nextLng) => {
-              setValue("lat", nextLat, { shouldValidate: true });
-              setValue("lng", nextLng, { shouldValidate: true });
+              setValue("lat", nextLat as number, { shouldValidate: true });
+              setValue("lng", nextLng as number, { shouldValidate: true });
             }}
-            placeholder={t("listingForm.addressSearchPlaceholder")}
-            dragHint={t("listingForm.addressDragHint")}
+            address={watch("address") ?? ""}
+            onAddressChange={(value) => setValue("address", value, { shouldValidate: true })}
+            labels={{
+              mapLabel: t("listingForm.mapLabel"),
+              mapHint: t("listingForm.mapHint"),
+              selected: t("listingForm.locationSelected"),
+              notSelected: t("listingForm.locationNotSelected"),
+              clear: t("listingForm.clearLocation"),
+              addressLabel: t("listingForm.addressOptional"),
+              addressHint: t("listingForm.addressOptionalHint"),
+              addressPlaceholder: t("listingForm.addressPlaceholder")
+            }}
           />
-          {errors.address ? <p className="mt-1 text-xs text-red-600">{errors.address.message}</p> : null}
+          {errors.lat || errors.lng ? (
+            <p className="mt-1 text-xs text-red-600">{t("listingForm.locationRequired")}</p>
+          ) : null}
         </div>
 
         <div>

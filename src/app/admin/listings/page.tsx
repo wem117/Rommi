@@ -28,6 +28,7 @@ import {
 } from "@/components/admin/quick-create";
 import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { CITIES } from "@/lib/constants/cities";
+import { LocationPicker } from "@/components/map/location-picker";
 import type { ExtractedPost } from "@/lib/utils/post-parser";
 
 import {
@@ -83,6 +84,9 @@ const EDIT_EMPTY = {
 };
 
 const CREATE_EMPTY = {
+  // Coordinates come from the map pin, not from geocoding an address string.
+  lat: null as number | null,
+  lng: null as number | null,
   // What the admin cannot avoid supplying: without these the listing cannot be
   // read, priced or found. Everything else has a defensible default.
   title: "",
@@ -852,15 +856,33 @@ export default function AdminListingsPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="create-address">Address</Label>
+                    <Label htmlFor="create-address">Address (optional)</Label>
                     <Input
                       id="create-address"
                       value={createForm.address}
-                      placeholder="Leave blank if the post has none"
+                      placeholder="Street, ЖК, landmark — saved as typed"
                       onChange={(e) => setCreateForm({ ...createForm, address: e.target.value })}
                     />
                   </div>
                 </div>
+                <LocationPicker
+                  lat={createForm.lat}
+                  lng={createForm.lng}
+                  onCoordsChange={(lat, lng) => setCreateForm({ ...createForm, lat, lng })}
+                  address={createForm.address}
+                  onAddressChange={(v) => setCreateForm({ ...createForm, address: v })}
+                    labels={{
+                      mapLabel: "Location on the map",
+                      mapHint: "Tap the map to place the pin, or drag it to adjust.",
+                      selected: "Selected",
+                      notSelected: "No location selected yet — tap the map",
+                      clear: "Clear",
+                      addressLabel: "",
+                      addressHint: "",
+                      addressPlaceholder: ""
+                    }}
+                    showAddressField={false}
+                />
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label>Property type</Label>
@@ -1181,14 +1203,38 @@ export default function AdminListingsPage() {
             <CollapsibleSection title="More details" hint="all optional">
               <div className="grid gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="edit-address">Address</Label>
+                  <Label htmlFor="edit-address">Address (optional)</Label>
                   <Input
                     id="edit-address"
                     value={editForm.address}
-                    placeholder="Leave blank if the post had none"
+                    placeholder="Street, ЖК, landmark — saved as typed"
                     onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
                   />
                 </div>
+                <LocationPicker
+                  lat={editForm.lat.trim() === "" ? null : Number(editForm.lat)}
+                  lng={editForm.lng.trim() === "" ? null : Number(editForm.lng)}
+                  onCoordsChange={(lat, lng) =>
+                    setEditForm({
+                      ...editForm,
+                      lat: lat == null ? "" : String(lat),
+                      lng: lng == null ? "" : String(lng)
+                    })
+                  }
+                  address={editForm.address}
+                  onAddressChange={(v) => setEditForm({ ...editForm, address: v })}
+                    labels={{
+                      mapLabel: "Location on the map",
+                      mapHint: "Tap the map to place the pin, or drag it to adjust.",
+                      selected: "Selected",
+                      notSelected: "No location selected yet — tap the map",
+                      clear: "Clear",
+                      addressLabel: "",
+                      addressHint: "",
+                      addressPlaceholder: ""
+                    }}
+                    showAddressField={false}
+                />
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label>Property type</Label>

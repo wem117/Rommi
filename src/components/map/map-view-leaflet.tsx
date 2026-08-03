@@ -11,7 +11,7 @@ import "leaflet/dist/leaflet.css";
 
 import L from "leaflet";
 import { useEffect } from "react";
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
 
 import type { MapMarker } from "@/components/map/map-view";
 
@@ -34,6 +34,21 @@ function pinIcon(active: boolean) {
     iconAnchor: [size / 2, size],
     popupAnchor: [0, -size]
   });
+}
+
+/**
+ * Turns a click anywhere on the map into a coordinate.
+ *
+ * Placing the pin by tapping the map is the whole point of the location picker:
+ * dragging alone means a marker has to exist first, and address search was the
+ * unreliable step being removed. Renders nothing — it exists only to subscribe
+ * to the map's click event, which requires being inside <MapContainer>.
+ */
+function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click: (event) => onMapClick(event.latlng.lat, event.latlng.lng)
+  });
+  return null;
 }
 
 // Flies to the highlighted marker (or fits all markers) when inputs change.
@@ -80,7 +95,8 @@ export default function MapView({
   draggableId,
   openLabel = "Open Listing",
   onMarkerClick,
-  onMarkerDragEnd
+  onMarkerDragEnd,
+  onMapClick
 }: {
   markers: MapMarker[];
   center?: [number, number];
@@ -91,6 +107,8 @@ export default function MapView({
   openLabel?: string;
   onMarkerClick?: (id: string) => void;
   onMarkerDragEnd?: (lat: number, lng: number) => void;
+  /** Click anywhere on the map to place/move the pin. */
+  onMapClick?: (lat: number, lng: number) => void;
 }) {
   const fallbackCenter: [number, number] = center ?? (markers[0] ? [markers[0].lat, markers[0].lng] : [48.02, 66.92]);
 
@@ -107,6 +125,7 @@ export default function MapView({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <MapController markers={markers} highlightId={highlightId} center={center} zoom={zoom} />
+      {onMapClick ? <MapClickHandler onMapClick={onMapClick} /> : null}
       {markers.map((marker) => (
         <Marker
           key={marker.id}

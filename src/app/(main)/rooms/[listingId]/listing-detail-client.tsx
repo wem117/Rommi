@@ -113,6 +113,7 @@ export default function ListingDetailClient({
   }
 
   const location = [listing.city, listing.district].filter(Boolean).join(", ");
+  const hasCoords = listing.lat != null && listing.lng != null;
 
   const ownerCard = (
     <ListingOwnerCard listing={listing} owner={owner} ownerContacts={ownerContacts} />
@@ -249,18 +250,44 @@ export default function ListingDetailClient({
               <h2 id="location-heading" className="font-heading text-lg font-semibold sm:text-xl">
                 {t("listingDetail.locationTitle")}
               </h2>
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
-              >
-                {t("listingDetail.openInMaps")}
-                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-              </a>
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={
+                    hasCoords
+                      ? `https://www.google.com/maps/search/?api=1&query=${listing.lat},${listing.lng}`
+                      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
+                >
+                  {t("listingDetail.openInMaps")}
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                </a>
+                {/* 2GIS is the map Kazakhstani renters actually use. Deep-linked
+                    from the SAVED coordinates when they exist, so it opens the
+                    exact pin rather than re-searching a text address. */}
+                <a
+                  href={
+                    hasCoords
+                      ? `https://2gis.kz/geo/${listing.lng},${listing.lat}`
+                      : `https://2gis.kz/search/${encodeURIComponent(mapQuery)}`
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
+                >
+                  {t("listingForm.openIn2gis")}
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                </a>
+              </div>
             </div>
 
-            <p className="mt-1.5 break-words text-sm text-foreground/60">{mapQuery || location}</p>
+            {/* Optional free-text address, shown only when the publisher gave
+                one. Falls back to city/district so the section is never blank. */}
+            <p className="mt-1.5 break-words text-sm text-foreground/60">
+              {listing.address?.trim() ? listing.address : location}
+            </p>
 
             {/* Halved from 260/360px. The map answers "roughly where", and the
                 full-screen Maps link above covers real exploration — so it no

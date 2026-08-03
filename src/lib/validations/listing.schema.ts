@@ -62,10 +62,16 @@ export const listingSchema = z
     depositAmount: z.number().int().min(0).default(0),
     city: z.string().min(1, "City is required"),
     district: z.string().optional(),
-    address: z.string().min(5, "Address is required"),
+    // Optional free text. The location is now the map pin, not this string, so
+    // "ЖК Ауэзов Сити, 3 подъезд" or "напротив КБТУ" are saved verbatim rather
+    // than rejected for failing to geocode.
+    address: z.string().trim().max(300).optional().default(""),
     university: z.string().min(1, "Select the nearest university"),
-    lat: z.number().min(-90).max(90).nullable().optional(),
-    lng: z.number().min(-180).max(180).nullable().optional(),
+    // Nullable in the SHAPE, required by the refine below. The form holds null
+    // until a pin is dropped, so a non-nullable field here would make the
+    // default state a type error rather than a validation message.
+    lat: z.number().min(-90).max(90).nullable(),
+    lng: z.number().min(-180).max(180).nullable(),
     bedrooms: z.number().int().min(0).max(20),
     bathrooms: z.number().min(0).max(20),
     availableFrom: z.string().min(1, "Available date is required"),
@@ -76,6 +82,13 @@ export const listingSchema = z
     // Photos are OPTIONAL — a listing without photos publishes normally and the
     // UI renders a designed "no photo" placeholder (never a broken image).
     photoUrls: z.array(z.string().url("Photo must be a valid URL")).max(10)
+  })
+  // The pin IS the location now, so a listing cannot be published without one:
+  // it would be unplaceable on any map. Reported on `lat` so the message lands
+  // next to the picker.
+  .refine((data) => data.lat != null && data.lng != null, {
+    path: ["lat"],
+    message: "Select the location on the map"
   })
   .refine((data) => !data.depositRequired || data.depositAmount > 0, {
     path: ["depositAmount"],

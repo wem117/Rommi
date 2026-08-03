@@ -105,7 +105,13 @@ export const adminQuickListingSchema = z.object({
   publish: z.boolean().default(true),
   ignoreDuplicates: z.boolean().default(false),
   source: adminSourceSchema.partial().optional()
-});
+}).refine(
+  // A published listing must be placeable on a map. Drafts are exempt: the
+  // admin pastes a post first and pins it before publishing, and blocking the
+  // draft save would force them to guess a location just to keep their work.
+  (input) => !input.publish || (input.lat != null && input.lng != null),
+  { message: "Select the location on the map before publishing", path: ["lat"] }
+);
 
 export type AdminQuickListingInput = z.infer<typeof adminQuickListingSchema>;
 

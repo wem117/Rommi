@@ -35,6 +35,7 @@ export function LazyMap(props: {
   openLabel?: string;
   onMarkerClick?: (id: string) => void;
   onMarkerDragEnd?: (lat: number, lng: number) => void;
+  onMapClick?: (lat: number, lng: number) => void;
 }) {
   return <MapView {...props} />;
 }

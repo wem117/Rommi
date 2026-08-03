@@ -42,6 +42,8 @@ interface MapViewProps {
   openLabel?: string;
   onMarkerClick?: (id: string) => void;
   onMarkerDragEnd?: (lat: number, lng: number) => void;
+  /** Click anywhere on the map to place/move the pin. */
+  onMapClick?: (lat: number, lng: number) => void;
 }
 
 /** Teal count bubble used by the clusterer. */
@@ -74,6 +76,8 @@ function ClusteredMarkers({
   draggableId?: string;
   onSelect: (id: string) => void;
   onMarkerDragEnd?: (lat: number, lng: number) => void;
+  /** Click anywhere on the map to place/move the pin. */
+  onMapClick?: (lat: number, lng: number) => void;
 }) {
   const map = useMap();
   const markerLib = useMapsLibrary("marker");

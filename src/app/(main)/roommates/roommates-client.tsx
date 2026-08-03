@@ -9,8 +9,8 @@ import { UniversityCombobox } from "@/components/shared/university-combobox";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
 import { matchesAgeRange } from "@/lib/utils/profile-display";
+import { matchesCity } from "@/lib/utils/roommate-city";
 import { CITIES } from "@/lib/constants/cities";
-import { getUniversityCity } from "@/lib/constants/universities";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
 import { useRoommates } from "@/hooks/use-roommates";
 import type { Gender, UserProfile } from "@/types/user";
@@ -58,8 +58,9 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
 
     return roommates
       .filter((roommate) => {
-        const roommateCity = getUniversityCity(roommate.university);
-        const matchesCity = city === ALL_CITIES || roommateCity === city;
+        // Prefers the stored profiles.city, falling back to the
+        // university-derived city for rows created before that column existed.
+        const cityMatches = matchesCity(roommate, city, ALL_CITIES);
         const matchesUniversity =
           !universityQuery || (roommate.university ?? "").toLowerCase().includes(universityQuery);
         const matchesGender = gender === "all" || roommate.gender === gender;
@@ -80,7 +81,7 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
         const matchesAge = matchesAgeRange(roommate.age, parsedMinAge, parsedMaxAge);
         const matchesBudget = parsedBudget === null || roommate.maxBudget <= parsedBudget;
 
-        return matchesCity && matchesUniversity && matchesGender && matchesAge && matchesBudget;
+        return cityMatches && matchesUniversity && matchesGender && matchesAge && matchesBudget;
       })
       .sort((first, second) => {
         if (!profile) return second.createdAt.getTime() - first.createdAt.getTime();

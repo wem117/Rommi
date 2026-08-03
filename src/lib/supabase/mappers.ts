@@ -38,6 +38,7 @@ export function mapProfileRow(row: GenericRecord): UserProfile {
     age: asNumber(row.age, 18),
     gender: (row.gender as UserProfile["gender"]) ?? "prefer_not_to_say",
     university: String(row.university ?? ""),
+    city: typeof row.city === "string" ? row.city : "",
     occupation: String(row.occupation ?? ""),
     minBudget: asNumber(row.min_budget ?? row.minBudget, 0),
     maxBudget: asNumber(row.max_budget ?? row.maxBudget, 0),

@@ -6,6 +6,7 @@ export const basicInfoSchema = z.object({
   age: z.number().int().min(16, "Minimum age is 16").max(80, "Enter a valid age"),
   gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
   university: z.string().min(1, "Select your university"),
+  city: z.string().min(1, "Select your city"),
   occupation: z.string().min(2, "Enter your occupation")
 });
 

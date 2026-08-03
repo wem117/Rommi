@@ -52,6 +52,7 @@ export async function createSeededProfile(input: {
   age?: number;
   gender?: "male" | "female" | "other" | "prefer_not_to_say";
   university?: string;
+  city?: string;
   occupation?: string;
   minBudget?: number;
   maxBudget?: number;
@@ -70,6 +71,7 @@ export async function createSeededProfile(input: {
     age: input.age ?? 0,
     gender: input.gender ?? "prefer_not_to_say",
     university: input.university ?? "",
+    city: input.city ?? null,
     occupation: input.occupation ?? "",
     min_budget: input.minBudget ?? 0,
     max_budget: input.maxBudget ?? 0,

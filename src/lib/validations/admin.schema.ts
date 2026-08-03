@@ -21,6 +21,7 @@ export const userUpdateSchema = z.object({
   fullName: z.string().trim().min(1).max(120).optional(),
   email: z.string().trim().email().optional().or(z.literal("")),
   university: z.string().trim().max(160).optional(),
+  city: z.string().trim().max(120).optional(),
   occupation: z.string().trim().max(120).optional(),
   bio: z.string().trim().max(1000).optional(),
   role: z.enum(["user", ADMIN_ROLE]).optional()

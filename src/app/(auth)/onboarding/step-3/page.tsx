@@ -94,6 +94,7 @@ export default function OnboardingStepThreePage() {
         age: Number(step1.age),
         gender: step1.gender,
         university: step1.university,
+        city: step1.city,
         occupation: step1.occupation,
         min_budget: Number(step2.minBudget),
         max_budget: Number(step2.maxBudget),

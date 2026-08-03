@@ -27,7 +27,7 @@ export async function uploadImageFile({
   onProgress
 }: {
   file: File;
-  kind: "avatars" | "listings" | "messages";
+  kind: "avatars" | "listings" | "messages" | "admin";
   onProgress?: (progress: number) => void;
 }) {
   const error = validateImageFile(file);

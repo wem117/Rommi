@@ -56,6 +56,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AdminImageUpload } from "@/components/admin/admin-image-upload";
 import { UniversityCombobox } from "@/components/shared/university-combobox";
+import { CITIES } from "@/lib/constants/cities";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -70,6 +71,7 @@ const EDIT_EMPTY = {
   age: 0,
   gender: "prefer_not_to_say" as "male" | "female" | "other" | "prefer_not_to_say",
   university: "",
+  city: "",
   occupation: "",
   minBudget: 0,
   maxBudget: 0,
@@ -95,6 +97,9 @@ const CREATE_EMPTY = {
   age: 0,
   gender: "prefer_not_to_say" as "male" | "female" | "other" | "prefer_not_to_say",
   university: "",
+  // Required by adminQuickRoommateSchema: without a city the profile cannot be
+  // found by the directory's city filter, which is how renters narrow it.
+  city: "",
   occupation: "",
   preferredMoveInDate: "",
   photoURL: "",
@@ -310,6 +315,7 @@ export default function AdminRoommatesPage() {
       age: item.age ?? 0,
       gender: item.gender,
       university: item.university ?? "",
+      city: item.city ?? "",
       occupation: item.occupation ?? "",
       minBudget: item.minBudget ?? 0,
       maxBudget: item.maxBudget ?? 0,
@@ -729,6 +735,23 @@ export default function AdminRoommatesPage() {
                     value={createForm.university}
                     onChange={(value) => setCreateForm({ ...createForm, university: value })}
                   />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="rc-city">City *</Label>
+                  <select
+                    id="rc-city"
+                    required
+                    value={createForm.city}
+                    onChange={(e) => setCreateForm({ ...createForm, city: e.target.value })}
+                    className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm"
+                  >
+                    <option value="">Select a city</option>
+                    {CITIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">

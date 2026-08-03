@@ -8,11 +8,11 @@ import { useRouter } from "next/navigation";
 import { FavoriteRoommateButton } from "@/components/favorites/favorite-roommate-button";
 import { CompatibilityBar } from "@/components/roommates/compatibility-bar";
 import { useLocale } from "@/context/locale-context";
-import { getUniversityCity } from "@/lib/constants/universities";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
 import { formatCurrency, formatDateShort } from "@/lib/utils/format";
 import type { LifestylePreferences, UserProfile } from "@/types/user";
 import { ageSegment, joinMeta } from "@/lib/utils/profile-display";
+import { roommateCity } from "@/lib/utils/roommate-city";
 
 export function RoommateCard({
   profile,
@@ -25,7 +25,8 @@ export function RoommateCard({
   const router = useRouter();
   const score = calculateCompatibilityScore(currentUser, profile);
   const lifestyleTags = getLifestyleTags(profile.lifestyle, t);
-  const city = getUniversityCity(profile.university);
+  // Stored city wins; university-derived is the legacy fallback.
+  const city = roommateCity(profile);
   const href = `/roommates/${profile.uid}`;
 
   // Whole card is clickable (router.push instead of an <a> wrapper, because the

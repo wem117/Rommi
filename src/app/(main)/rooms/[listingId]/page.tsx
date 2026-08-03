@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { getListingByIdServer, getListingsPageServer } from "@/lib/data/listings-server";
-import { getPublicProfileByIdServer } from "@/lib/data/profiles-server";
+import { getListingOwnerServer } from "@/lib/data/profiles-server";
 import { getPublicContacts } from "@/lib/data/public-contacts";
 import { requirePageAuth } from "@/lib/supabase/page-auth";
 import { siteConfig } from "@/lib/site-config";
@@ -84,7 +84,9 @@ export default async function Page({ params }: PageProps) {
     // here, server-side, behind the auth guard above — the same "signed-in
     // visitors only" rule the telegram/phone columns follow at the database.
     getPublicContacts(listing.ownerId),
-    getPublicProfileByIdServer(listing.ownerId),
+    // Contacts included: this page is behind requirePageAuth, and the phone /
+    // Telegram are the whole point of opening it.
+    getListingOwnerServer(listing.ownerId),
     // Deliberately unfiltered by city: rankSimilarListings scores city highest,
     // so same-city results still lead, but a city with one listing still gets
     // suggestions instead of an empty section.

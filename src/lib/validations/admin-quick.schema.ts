@@ -122,7 +122,9 @@ export const adminQuickRoommateSchema = contactMethodsSchema.extend({
   gender: z.enum(["male", "female", "other", "prefer_not_to_say"]).default("prefer_not_to_say"),
   university: z.string().trim().max(160).default(""),
   occupation: z.string().trim().max(120).default(""),
-  city: z.string().trim().max(120).default(""),
+  // Required: a roommate with no city cannot be found by the city filter,
+  // which is the primary way renters narrow the directory.
+  city: z.string().trim().min(1, "Select a city").max(120),
   minBudget: z.number().int().min(0).max(MAX_MONTHLY_RENT).default(0),
   preferredMoveInDate: optionalIsoDate,
   photoURL: z.string().trim().url("Photo must be a valid URL").or(z.literal("")).default(""),

@@ -5,6 +5,7 @@ import { PUBLIC_PROFILE_COLUMNS } from "@/lib/data/profiles";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { mapProfileRow } from "@/lib/supabase/mappers";
 import { createSupabasePublicServerClient } from "@/lib/supabase/public-server-client";
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import type { UserProfile } from "@/types/user";
 
 /**
@@ -29,6 +30,44 @@ export async function getPublicProfileByIdServer(uid: string): Promise<UserProfi
     .maybeSingle();
 
   if (error || !data) return null;
+  return mapProfileRow(data as unknown as Record<string, unknown>);
+}
+
+/**
+ * Listing-owner profile INCLUDING the contact columns.
+ *
+ * `getPublicProfileByIdServer` selects PUBLIC_PROFILE_COLUMNS, which
+ * deliberately omits `telegram` and `phone` — those are revoked from `anon` at
+ * the database so an anonymous read can never surface them. That is correct for
+ * anything public, and wrong for the listing detail page, which sits behind
+ * `requirePageAuth`: contacts are exactly what a signed-in renter opened the
+ * page for. Fetching the owner through the anon client left every host's phone
+ * and Telegram blank no matter what the admin had entered.
+ *
+ * Uses the service-role client for the same reason, and under the same rule, as
+ * `getPublicContacts` alongside it: server-only, behind the auth guard, and the
+ * result is handed to a component that renders it for signed-in visitors only.
+ *
+ * Falls back to the public read when no service-role key is configured, so a
+ * misconfigured environment loses contacts rather than the whole page.
+ */
+export async function getListingOwnerServer(uid: string): Promise<UserProfile | null> {
+  if (!isSupabaseConfigured) {
+    return demoProfiles.find((profile) => profile.uid === uid) ?? null;
+  }
+
+  if (!isSupabaseAdminConfigured) {
+    return getPublicProfileByIdServer(uid);
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(`${PUBLIC_PROFILE_COLUMNS}, telegram, phone, contacts_hidden`)
+    .eq("uid", uid)
+    .maybeSingle();
+
+  if (error || !data) return getPublicProfileByIdServer(uid);
   return mapProfileRow(data as unknown as Record<string, unknown>);
 }
 

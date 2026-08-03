@@ -80,6 +80,7 @@ export const PUBLIC_PROFILE_COLUMNS = [
   "age",
   "gender",
   "university",
+  "city",
   "occupation",
   "min_budget",
   "max_budget",

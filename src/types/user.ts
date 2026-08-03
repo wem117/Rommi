@@ -20,6 +20,8 @@ export interface UserProfile {
   age: number;
   gender: Gender;
   university: string;
+  /** City the roommate is looking in. Empty = not stated (legacy rows). */
+  city: string;
   occupation: string;
   minBudget: number;
   maxBudget: number;

@@ -402,6 +402,8 @@ const translations = {
       highlightSetupSubtitle: "Under 5 min"
     },
     onboarding: {
+      cityLabel: "City",
+      cityPlaceholder: "Select your city",
       step1Title: "Tell us about yourself",
       step1Subtitle: "This helps students recognize who they are meeting.",
       fullNameLabel: "Full name",
@@ -527,6 +529,7 @@ const translations = {
       }
     },
     listingForm: {
+      dropHint: "or drop files here",
       pageTitle: "List a room",
       pageDescription: "Publish a real room listing connected to your account.",
       publish: "Publish Listing",
@@ -982,6 +985,8 @@ const translations = {
       highlightSetupSubtitle: "Менее 5 минут"
     },
     onboarding: {
+      cityLabel: "Город",
+      cityPlaceholder: "Выберите город",
       step1Title: "Расскажите о себе",
       step1Subtitle: "Это поможет студентам узнать, с кем они встречаются.",
       fullNameLabel: "Полное имя",
@@ -1107,6 +1112,7 @@ const translations = {
       }
     },
     listingForm: {
+      dropHint: "или перетащите файлы сюда",
       pageTitle: "Сдать жилье",
       pageDescription: "Опубликуйте настоящее объявление, привязанное к вашему аккаунту.",
       publish: "Опубликовать",
@@ -1561,6 +1567,8 @@ const translations = {
       highlightSetupSubtitle: "5 минуттан аз"
     },
     onboarding: {
+      cityLabel: "Қала",
+      cityPlaceholder: "Қаланы таңдаңыз",
       step1Title: "Өзіңіз туралы айтып беріңіз",
       step1Subtitle: "Бұл студенттерге кіммен кездесетінін білуге көмектеседі.",
       fullNameLabel: "Толық аты-жөні",
@@ -1686,6 +1694,7 @@ const translations = {
       }
     },
     listingForm: {
+      dropHint: "немесе файлдарды осында сүйреңіз",
       pageTitle: "Бөлме жариялау",
       pageDescription: "Аккаунтыңызға байланысқан нақты бөлме хабарландыруын жариялаңыз.",
       publish: "Жариялау",

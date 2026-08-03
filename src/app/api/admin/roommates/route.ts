@@ -28,6 +28,7 @@ export async function POST(request: Request) {
       age: input.age,
       gender: input.gender,
       university: input.university,
+      city: input.city,
       occupation: input.occupation,
       minBudget: input.minBudget,
       maxBudget: input.maxBudget,

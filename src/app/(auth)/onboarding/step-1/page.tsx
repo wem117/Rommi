@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 import { UniversityCombobox } from "@/components/shared/university-combobox";
+import { CITIES } from "@/lib/constants/cities";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
 import { basicInfoSchema, type BasicInfoInput } from "@/lib/validations/profile.schema";
@@ -29,6 +30,7 @@ export default function OnboardingStepOnePage() {
       age: 18,
       gender: "prefer_not_to_say",
       university: "",
+      city: "",
       occupation: "Student"
     }
   });
@@ -45,6 +47,7 @@ export default function OnboardingStepOnePage() {
         age: profile.age,
         gender: profile.gender,
         university: profile.university,
+        city: profile.city ?? "",
         occupation: profile.occupation
       });
     }
@@ -95,6 +98,19 @@ export default function OnboardingStepOnePage() {
           placeholder={t("roommates.universitySearchPlaceholder")}
         />
         {errors.university ? <p className="mt-1 text-xs text-red-600">{errors.university.message}</p> : null}
+      </div>
+
+      <div>
+        <label htmlFor="city">{t("onboarding.cityLabel")}</label>
+        <select id="city" {...register("city")}>
+          <option value="">{t("onboarding.cityPlaceholder")}</option>
+          {CITIES.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+        {errors.city ? <p className="mt-1 text-xs text-red-600">{errors.city.message}</p> : null}
       </div>
 
       <div>

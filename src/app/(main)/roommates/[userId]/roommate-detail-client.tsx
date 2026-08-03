@@ -17,7 +17,6 @@ import { useEffect, useMemo, useState } from "react";
 import { FavoriteRoommateButton } from "@/components/favorites/favorite-roommate-button";
 import { RoommateCard } from "@/components/roommates/roommate-card";
 import { ContactLinks } from "@/components/shared/contact-links";
-import { getUniversityCity } from "@/lib/constants/universities";
 import { StatusBanner } from "@/components/StatusBanner";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
@@ -27,6 +26,7 @@ import { calculateCompatibilityScore, compatibilityTierKey } from "@/lib/utils/c
 import { formatCurrency, formatDateShort } from "@/lib/utils/format";
 import type { UserProfile } from "@/types/user";
 import { hasStatedAge, joinMeta } from "@/lib/utils/profile-display";
+import { roommateCity } from "@/lib/utils/roommate-city";
 
 const LIFESTYLE_LABEL_KEYS: Record<keyof UserProfile["lifestyle"], string> = {
   smoking: "onboarding.smokingLabel",
@@ -76,6 +76,11 @@ export default function RoommateDetailClient({
   const [messageLoading, setMessageLoading] = useState(false);
   const [similar, setSimilar] = useState<UserProfile[]>([]);
 
+  // Stored city wins; university-derived is the legacy fallback. Computed here
+  // (above the effect that reads it) so the effect can depend on a primitive
+  // rather than the whole profile object, which changes identity every fetch.
+  const city = profile ? roommateCity(profile) : "";
+
   // Suggestions for "keep browsing". Fetched after the profile so it never
   // blocks first paint, and rendered only once results exist so the page height
   // does not jump while it loads.
@@ -86,8 +91,7 @@ export default function RoommateDetailClient({
     void getRoommateProfiles(user?.uid ?? null)
       .then((all) => {
         if (cancelled) return;
-        const sameCity = (a: UserProfile) =>
-          getUniversityCity(a.university) === getUniversityCity(profile.university);
+        const sameCity = (a: UserProfile) => roommateCity(a) === city;
         const pool = all.filter((candidate) => candidate.uid !== profile.uid);
         // Prefer the same city, then fill up from the rest.
         setSimilar([...pool.filter(sameCity), ...pool.filter((c) => !sameCity(c))].slice(0, 6));
@@ -99,7 +103,7 @@ export default function RoommateDetailClient({
     return () => {
       cancelled = true;
     };
-  }, [profile?.uid, profile?.university, user?.uid]);
+  }, [profile?.uid, city, user?.uid]);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,7 +131,6 @@ export default function RoommateDetailClient({
   }, [userId, t, initialProfile]);
 
   const score = useMemo(() => calculateCompatibilityScore(currentProfile, profile), [currentProfile, profile]);
-  const city = profile ? getUniversityCity(profile.university) : "";
 
   async function handleMessage() {
     if (!profile) return;

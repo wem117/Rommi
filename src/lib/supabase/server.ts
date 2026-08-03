@@ -39,7 +39,24 @@ export async function createSupabaseServerClient(): Promise<SupabaseClient> {
 
   const cookieStore = await cookies();
 
-  return createServerClient(supabaseConfig.serverUrl, supabaseConfig.anonKey, {
+  // PUBLIC url here, deliberately — not serverUrl.
+  //
+  // supabase-js derives the auth cookie name from the URL it is constructed
+  // with: `sb-${hostname.split(".")[0]}-auth-token`. The browser signs in
+  // against https://api.roomi.kz and is therefore issued `sb-api-auth-token`.
+  // Constructing THIS client with the internal origin (http://kong:8000) made it
+  // look for `sb-kong-auth-token`, which no browser ever sets — so every
+  // server-side session read found nothing, `requireSessionUser()` threw
+  // UNAUTHENTICATED, and signed-in users were bounced off /admin and every
+  // auth-gated detail page. Middleware kept working and hid the cause, because
+  // it builds its own client straight from NEXT_PUBLIC_SUPABASE_URL.
+  //
+  // The internal route is still used by every client that does NOT read
+  // cookies — the service-role client below, the anon public server client, and
+  // the health check — so the latency win is kept exactly where it is safe. Only
+  // this one client, whose correctness depends on matching a browser-issued
+  // cookie name, must stay on the public origin.
+  return createServerClient(supabaseConfig.url, supabaseConfig.anonKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();

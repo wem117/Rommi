@@ -108,9 +108,26 @@ export async function getProfileById(uid: string) {
   }
 
   const supabase = getSupabaseBrowserClient();
-  const { data, error } = await supabase.from("profiles").select("*").eq("uid", uid).maybeSingle();
+
+  // `select("*")` can NEVER succeed for an anonymous caller. The contact-privacy
+  // migration gives `anon` column-level SELECT on the public columns only —
+  // telegram and phone are deliberately excluded — and Postgres rejects a
+  // whole-row read with 42501 rather than returning the readable subset.
+  //
+  // Signed in, the full row is readable and contacts are exactly what callers
+  // want (the roommate page re-fetches through here to reveal them), so the
+  // wildcard is kept for that case and only the anonymous read is narrowed.
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(session ? "*" : PUBLIC_PROFILE_COLUMNS)
+    .eq("uid", uid)
+    .maybeSingle();
   if (error) throw error;
-  return data ? mapProfileRow(data) : null;
+  return data ? mapProfileRow(data as unknown as Record<string, unknown>) : null;
 }
 
 export async function getRoommateProfiles(currentUid?: string | null) {

@@ -92,7 +92,18 @@ function SignUpContent() {
         CURRENT_POLICY_VERSION
       );
 
-      if (!authResult.user) {
+      // Branch on the SESSION, not on `user`.
+      //
+      // With email confirmation enabled, signUp returns the created user but NO
+      // session — the account exists and cannot be used until the link is
+      // clicked. Testing `user` therefore skipped the confirm-email branch and
+      // fell through to resolveDestination(), which reads the profile as an
+      // ANONYMOUS client and fails. That is what surfaced to every new user as
+      // "You do not have permission for that action yet."
+      //
+      // There is also nothing to resolve without a session: the visitor cannot
+      // be sent into onboarding until they can authenticate.
+      if (!authResult.session || !authResult.user) {
         setBannerTone("success");
         setBannerMessage(t("auth.confirmEmailBanner"));
         toast.success(t("auth.confirmEmailToast"));

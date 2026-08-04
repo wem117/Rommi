@@ -6,6 +6,7 @@ import { safeRedirect } from "@/lib/utils/safe-redirect";
 
 const protectedPrefixes = [
   "/profile",
+  "/my-listings",
   "/list-a-room",
   "/favorites",
   "/inbox",

@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Menu, UserCircle, X } from "lucide-react";
+import { ClipboardList, LogOut, Menu, UserCircle, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -113,6 +113,17 @@ export function MobileNav() {
               {t(link.key)}
             </Link>
           ))}
+
+          {user ? (
+            <Link
+              href="/my-listings"
+              tabIndex={open ? 0 : -1}
+              className="mt-1 inline-flex items-center gap-3 rounded-2xl px-4 py-3 text-base font-semibold text-foreground/90 transition hover:bg-surface-muted hover:text-primary"
+            >
+              <ClipboardList className="h-5 w-5" />
+              {t("nav.myListings")}
+            </Link>
+          ) : null}
 
           {user ? (
             <Link

@@ -28,7 +28,10 @@ export function Navbar() {
           {[
             { href: "/rooms", label: t("nav.rooms") },
             { href: "/roommates", label: t("nav.roommates") },
-            { href: "/list-a-room/step-1", label: t("nav.listRoom") }
+            { href: "/list-a-room/step-1", label: t("nav.listRoom") },
+            // Signed-in only: the page is auth-gated, so showing it to a guest
+            // would advertise a link that immediately bounces them to sign-in.
+            ...(user ? [{ href: "/my-listings", label: t("nav.myListings") }] : [])
           ].map((item) => (
             <Link
               key={item.href}

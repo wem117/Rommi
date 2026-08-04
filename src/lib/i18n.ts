@@ -14,6 +14,7 @@ export const localeOptions = [
 const translations = {
   en: {
     nav: {
+      myListings: "My listings",
       rooms: "Rooms",
       roommates: "Roommates",
       universities: "Universities",
@@ -528,6 +529,48 @@ const translations = {
         entirePlace: "Entire Place"
       }
     },
+    myListings: {
+      title: "My listings",
+      create: "Create listing",
+      apartments: "Apartments",
+      roommates: "Roommates",
+      empty: "You don't have any listings yet.",
+      noRoommate: "You don't have a roommate listing yet.",
+      roommateActive: "Visible in roommate search",
+      searchPlaceholder: "Search by title",
+      filterCity: "City",
+      allCities: "All cities",
+      filterStatus: "Status",
+      sort: "Sort",
+      sortNewest: "Newest first",
+      sortOldest: "Oldest first",
+      sortUpdated: "Recently updated",
+      created: "Created",
+      updated: "Updated",
+      pagination: "Pages",
+      view: "View",
+      edit: "Edit",
+      duplicate: "Duplicate",
+      archive: "Archive",
+      unarchive: "Unarchive",
+      delete: "Delete",
+      cancel: "Cancel",
+      confirmDelete: "Delete permanently",
+      deleteTitle: "Delete this listing?",
+      deleteBody: "This cannot be undone. The listing and its photos are removed permanently.",
+      actionFailed: "That didn't work. Please try again.",
+      archiveDone: "Listing archived",
+      unarchiveDone: "Listing restored",
+      duplicateDone: "Copy created as a draft",
+      deleteDone: "Listing deleted",
+      status: {
+        all: "All statuses",
+        published: "Published",
+        draft: "Draft",
+        archived: "Archived",
+        rejected: "Rejected"
+      }
+    },
     listingForm: {
       mapLabel: "Location on the map",
       mapHint: "Tap the map to place the pin, or drag it to adjust. This sets the exact coordinates.",
@@ -608,6 +651,7 @@ const translations = {
   },
   ru: {
     nav: {
+      myListings: "Мои объявления",
       rooms: "Комнаты",
       roommates: "Соседи",
       universities: "Университеты",
@@ -1121,6 +1165,48 @@ const translations = {
         entirePlace: "Целое жилье"
       }
     },
+    myListings: {
+      title: "Мои объявления",
+      create: "Создать объявление",
+      apartments: "Квартиры",
+      roommates: "Соседи",
+      empty: "У вас пока нет объявлений.",
+      noRoommate: "У вас пока нет анкеты соседа.",
+      roommateActive: "Видно в поиске соседей",
+      searchPlaceholder: "Поиск по названию",
+      filterCity: "Город",
+      allCities: "Все города",
+      filterStatus: "Статус",
+      sort: "Сортировка",
+      sortNewest: "Сначала новые",
+      sortOldest: "Сначала старые",
+      sortUpdated: "Недавно обновлённые",
+      created: "Создано",
+      updated: "Обновлено",
+      pagination: "Страницы",
+      view: "Открыть",
+      edit: "Изменить",
+      duplicate: "Дублировать",
+      archive: "В архив",
+      unarchive: "Из архива",
+      delete: "Удалить",
+      cancel: "Отмена",
+      confirmDelete: "Удалить навсегда",
+      deleteTitle: "Удалить объявление?",
+      deleteBody: "Это необратимо. Объявление и его фотографии будут удалены навсегда.",
+      actionFailed: "Не получилось. Попробуйте ещё раз.",
+      archiveDone: "Объявление в архиве",
+      unarchiveDone: "Объявление восстановлено",
+      duplicateDone: "Копия создана как черновик",
+      deleteDone: "Объявление удалено",
+      status: {
+        all: "Все статусы",
+        published: "Опубликовано",
+        draft: "Черновик",
+        archived: "В архиве",
+        rejected: "Отклонено"
+      }
+    },
     listingForm: {
       mapLabel: "Расположение на карте",
       mapHint: "Нажмите на карту, чтобы поставить метку, или перетащите её. Так задаются точные координаты.",
@@ -1200,6 +1286,7 @@ const translations = {
   },
   kz: {
     nav: {
+      myListings: "Менің хабарландыруларым",
       rooms: "Бөлмелер",
       roommates: "Көршілер",
       universities: "Университеттер",
@@ -1711,6 +1798,48 @@ const translations = {
         privateRoom: "Жеке бөлме",
         sharedRoom: "Ортақ бөлме",
         entirePlace: "Толық тұрғын үй"
+      }
+    },
+    myListings: {
+      title: "Менің хабарландыруларым",
+      create: "Хабарландыру құру",
+      apartments: "Пәтерлер",
+      roommates: "Көршілер",
+      empty: "Сізде әзірге хабарландыру жоқ.",
+      noRoommate: "Сізде әзірге көрші анкетасы жоқ.",
+      roommateActive: "Көрші іздеуде көрінеді",
+      searchPlaceholder: "Атауы бойынша іздеу",
+      filterCity: "Қала",
+      allCities: "Барлық қалалар",
+      filterStatus: "Күйі",
+      sort: "Сұрыптау",
+      sortNewest: "Алдымен жаңалары",
+      sortOldest: "Алдымен ескілері",
+      sortUpdated: "Жақында жаңартылған",
+      created: "Құрылды",
+      updated: "Жаңартылды",
+      pagination: "Беттер",
+      view: "Ашу",
+      edit: "Өзгерту",
+      duplicate: "Көшірмесін жасау",
+      archive: "Мұрағатқа",
+      unarchive: "Мұрағаттан",
+      delete: "Жою",
+      cancel: "Болдырмау",
+      confirmDelete: "Біржола жою",
+      deleteTitle: "Хабарландыруды жою керек пе?",
+      deleteBody: "Бұны қайтару мүмкін емес. Хабарландыру мен оның суреттері біржола жойылады.",
+      actionFailed: "Болмады. Қайталап көріңіз.",
+      archiveDone: "Хабарландыру мұрағатта",
+      unarchiveDone: "Хабарландыру қалпына келтірілді",
+      duplicateDone: "Көшірме нобай ретінде жасалды",
+      deleteDone: "Хабарландыру жойылды",
+      status: {
+        all: "Барлық күйлер",
+        published: "Жарияланған",
+        draft: "Нобай",
+        archived: "Мұрағатта",
+        rejected: "Қабылданбаған"
       }
     },
     listingForm: {

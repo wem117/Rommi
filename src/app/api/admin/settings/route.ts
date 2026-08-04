@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { revalidatePublic } from "@/lib/api/revalidate";
 import { apiErrorResponse } from "@/lib/api/error-response";
+import { revalidatePublic } from "@/lib/api/revalidate";
 import { getHomepageStatCounts } from "@/lib/data/homepage-stats";
 import { getSiteSettings, updateSiteSettings } from "@/lib/data/site-settings";
 import { requireAdminUser } from "@/lib/supabase/admin";
@@ -25,6 +25,10 @@ export async function PATCH(request: Request) {
     const input = siteSettingsUpdateSchema.parse(await request.json());
     await updateSiteSettings(input);
     const settings = await getSiteSettings();
+    // Purges the ISR-cached pages that read `platform` (site name, SEO copy,
+    // the Google Analytics ID, ...), so a save — including toggling Analytics
+    // on/off — takes effect on the next request instead of waiting out the
+    // revalidate window.
     revalidatePublic("settings");
     return NextResponse.json({ settings });
   } catch (error) {

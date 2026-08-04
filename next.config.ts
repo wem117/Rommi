@@ -40,6 +40,16 @@ const SUPABASE_WS_ORIGIN = SUPABASE_ORIGIN.replace(/^http/, "ws");
  * nonce-based policy is the next iteration (requires per-request nonce plumbing
  * through middleware); this is already a large improvement over having no CSP.
  * 'unsafe-eval' is intentionally omitted in production.
+ *
+ * Google Analytics / Tag Manager domains are WILDCARDED (`*.google-analytics.com`,
+ * `*.googletagmanager.com`, `*.analytics.google.com`), matching Google's own
+ * documented CSP recommendation for gtag.js. This previously allow-listed only
+ * the exact host `www.google-analytics.com`, but gtag.js frequently sends its
+ * actual hit to a REGIONAL collect endpoint (e.g. `region1.google-analytics.com`)
+ * or `analytics.google.com` depending on the visitor's location/consent state.
+ * With the narrower policy the tag script loaded fine (script-src matched) but
+ * every collect request was silently blocked by connect-src — the exact failure
+ * mode behind "Google tag not detected": the tag never actually reaches Google.
  */
 const csp = [
   "default-src 'self'",
@@ -47,11 +57,11 @@ const csp = [
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://maps.googleapis.com",
+  "script-src 'self' 'unsafe-inline' https://*.googletagmanager.com https://*.google-analytics.com https://maps.googleapis.com",
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: ${SUPABASE_ORIGIN} https://images.unsplash.com https://lh3.googleusercontent.com https://*.tile.openstreetmap.org https://maps.googleapis.com https://maps.gstatic.com https://*.gstatic.com https://*.googleapis.com`,
+  `img-src 'self' data: blob: ${SUPABASE_ORIGIN} https://images.unsplash.com https://lh3.googleusercontent.com https://*.tile.openstreetmap.org https://maps.googleapis.com https://maps.gstatic.com https://*.gstatic.com https://*.googleapis.com https://*.google-analytics.com https://*.googletagmanager.com`,
   "font-src 'self' data:",
-  `connect-src 'self' ${SUPABASE_ORIGIN} ${SUPABASE_WS_ORIGIN} https://nominatim.openstreetmap.org https://www.google-analytics.com https://maps.googleapis.com https://*.tile.openstreetmap.org`,
+  `connect-src 'self' ${SUPABASE_ORIGIN} ${SUPABASE_WS_ORIGIN} https://nominatim.openstreetmap.org https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://maps.googleapis.com https://*.tile.openstreetmap.org`,
   "frame-src 'self' https://*.google.com",
   "worker-src 'self' blob:",
   "manifest-src 'self'",

@@ -36,7 +36,18 @@ const platformSettingsSchema = z.object({
   footerText: z.string().trim().max(300).optional(),
   seoTitle: z.string().trim().max(200).optional(),
   seoDescription: z.string().trim().max(400).optional(),
-  analyticsGaId: z.string().trim().max(60).optional(),
+  // Empty string clears the setting (Analytics stays off); a non-empty value
+  // must be a real GA4 measurement ID. The root layout re-validates this same
+  // shape before rendering the tag, but rejecting a malformed ID here gives
+  // the admin an immediate, clear error instead of a silently-inert save.
+  analyticsGaId: z
+    .string()
+    .trim()
+    .max(60)
+    .refine((value) => value === "" || /^G-[A-Z0-9]{4,}$/i.test(value), {
+      message: "Google Analytics ID must look like G-XXXXXXXXXX, or be left empty to disable Analytics."
+    })
+    .optional(),
   defaultLanguage: z.enum(["en", "ru", "kz"]).optional()
 });
 

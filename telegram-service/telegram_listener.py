@@ -190,6 +190,20 @@ async def listen_messages(client) -> None:
     logger.info("Listening for new messages", extra={"source_count": len(entities)})
 
 
+# Real Telegram connection state, distinct from "the supervisor asyncio task
+# is alive". The task is DESIGNED to never die (that's the whole point of
+# run_forever()'s catch-log-backoff-retry loop), so "is the task still
+# running" is always true even while every connection attempt is failing for
+# want of a session — that would make /health report "running" whether or not
+# Telegram is actually reachable. This dict is the single source of truth
+# app/main.py's /health endpoint reads instead.
+_status: dict[str, str | None] = {"state": "starting", "detail": None}
+
+
+def get_listener_status() -> dict[str, str | None]:
+    return dict(_status)
+
+
 async def run_forever() -> None:
     """
     Supervisor loop: (re)connects, listens, and — if the client ever
@@ -202,11 +216,14 @@ async def run_forever() -> None:
         client = build_client()
         try:
             await connect_or_raise(client)
+            _status.update(state="connected", detail=None)
             await listen_messages(client)
             await client.run_until_disconnected()
+            _status.update(state="disconnected", detail="client.run_until_disconnected() returned")
             backoff = 5  # reset after a clean run
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
             logger.exception("Telegram listener crashed; restarting after backoff")
+            _status.update(state="error", detail=str(exc)[:300])
         finally:
             try:
                 await client.disconnect()

@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.logging_config import configure_logging
-from telegram_listener import run_forever
+from telegram_listener import get_listener_status, run_forever
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -49,15 +49,26 @@ app = FastAPI(title="Roomi Telegram Import Service", lifespan=lifespan)
 @app.get("/health")
 async def health() -> dict:
     """
-    Liveness/readiness probe. Reports the listener task's state without
-    depending on Telegram or Supabase actually being reachable right now — a
-    transient upstream blip must not fail the container's health check and
-    trigger an unnecessary restart (same philosophy as the Next.js app's
-    /api/health, which gates on the process serving requests, not on the
-    database being reachable).
+    Liveness probe (the container process is up and serving) plus the
+    listener's REAL connection state — not just whether its asyncio task
+    object is still alive.
+
+    run_forever()'s supervisor loop is designed to NEVER let that task die
+    (catch, log, backoff, retry — see requirement "do not crash if Telegram
+    unavailable"), so "is the task still running" is true even while every
+    connection attempt fails for want of a session. Gating this endpoint on
+    task-liveness alone would report "running" whether or not Telegram is
+    actually reachable, which would silently hide exactly the failure mode an
+    operator needs to see after a fresh deploy with no session yet.
+
+    `state` is one of: "starting", "connected" (authenticated, listening),
+    "disconnected", "error" (see `detail` for the last exception).
+
+    Deliberately still returns HTTP 200 in every case, including "error" — a
+    transient/expected state (e.g. no session yet) must not fail the
+    container's Docker healthcheck and trigger a pointless restart loop; see
+    the module docstring above for the same reasoning applied to the Next.js
+    app's own /api/health.
     """
-    task_alive = _listener_task is not None and not _listener_task.done()
-    return {
-        "server": "ok",
-        "listener": "running" if task_alive else "stopped",
-    }
+    status = get_listener_status()
+    return {"server": "ok", "listener": status["state"], "listener_detail": status["detail"]}

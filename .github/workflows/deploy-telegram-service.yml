@@ -202,7 +202,10 @@ jobs:
 
             echo "Telegram service is live: $HEALTH_BODY"
             case "$HEALTH_BODY" in
-              *'"listener": "stopped"'*|*'"listener":"stopped"'*)
-                echo "::warning::Container is up but the Telegram listener is not running — no session yet. Run 'python scripts/create_session.py' locally, then copy the .session file into the roomi-telegram-session volume."
+              *'"listener": "connected"'*|*'"listener":"connected"'*)
+                echo "Telegram listener is connected and authenticated."
+                ;;
+              *)
+                echo "::warning::Container is up, but the Telegram listener is not connected yet (state reported above). If no session has been created, run 'python scripts/create_session.py' locally, then copy the .session file into the roomi-telegram-session volume and restart the container."
                 ;;
             esac

@@ -23,13 +23,27 @@ from typing import Any
 
 import google.generativeai as genai
 from pydantic import BaseModel, Field, ValidationError
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 genai.configure(api_key=settings.gemini_api_key)
+
+try:  # pragma: no cover - import shape depends on the installed google stack
+    from google.api_core import exceptions as _google_exceptions
+
+    _RETRYABLE_GOOGLE_ERRORS: tuple[type[BaseException], ...] = (
+        _google_exceptions.ResourceExhausted,
+        _google_exceptions.ServiceUnavailable,
+        _google_exceptions.DeadlineExceeded,
+        _google_exceptions.InternalServerError,
+        _google_exceptions.TooManyRequests,
+        _google_exceptions.Aborted,
+    )
+except Exception:  # noqa: BLE001 - fall back to duck-typed detection below
+    _RETRYABLE_GOOGLE_ERRORS = ()
 
 _PROMPT_TEMPLATE = """You extract structured rental/roommate listing data from a Telegram \
 message written in Russian, Kazakh, or English. Respond with ONLY a JSON object — no prose, \
@@ -220,6 +234,52 @@ class ExtractionResult(BaseModel):
     validated: ValidatedListing | None
     raw_output: dict[str, Any] | None
     error: str | None
+    # True when the failure is a property of the MOMENT (quota exhausted, model
+    # overloaded, network blip) rather than of the MESSAGE. The caller uses this
+    # to decide between "try again later" and "this will never parse" — see
+    # telegram_listener._process_message. A permanent failure (unparseable JSON,
+    # schema violation) is deliberately NOT retryable: replaying it forever
+    # would burn quota that a genuinely retryable message needs.
+    retryable: bool = False
+
+
+def is_retryable_ai_error(exc: BaseException) -> bool:
+    """
+    Whether re-asking Gemini later could plausibly succeed.
+
+    Quota exhaustion is the case that matters in practice: the free tier's
+    per-day cap returns 429 ResourceExhausted, and treating that as permanent
+    silently drops every message until the quota window rolls over.
+
+    Matched structurally via google.api_core where possible, then by status
+    code/text as a backstop — the SDK surfaces the same server-side condition
+    through more than one exception class depending on whether the call went
+    out over gRPC or REST, and a retry decision must not hinge on which
+    transport happened to be in use.
+    """
+    if isinstance(exc, _RETRYABLE_GOOGLE_ERRORS):
+        return True
+    if isinstance(exc, (TimeoutError, ConnectionError)):
+        return True
+
+    code = getattr(exc, "code", None)
+    if callable(code):  # grpc.RpcError.code() -> StatusCode
+        try:
+            code = code()
+        except Exception:  # noqa: BLE001
+            code = None
+    if getattr(code, "name", None) in {"RESOURCE_EXHAUSTED", "UNAVAILABLE", "DEADLINE_EXCEEDED", "INTERNAL"}:
+        return True
+
+    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+    if isinstance(status, int) and status in {429, 500, 502, 503, 504}:
+        return True
+
+    text = str(exc).lower()
+    return any(
+        marker in text
+        for marker in ("429", "resourceexhausted", "resource_exhausted", "quota", "rate limit", "overloaded")
+    )
 
 
 # A minimal client-side floor on request rate, independent of whatever quota
@@ -241,7 +301,12 @@ async def _throttle() -> None:
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=20),
-    retry=retry_if_exception_type((TimeoutError, ConnectionError)),
+    # Was retry_if_exception_type((TimeoutError, ConnectionError)), which left
+    # out the failure that actually occurs in production: a 429 from Gemini.
+    # These three in-process attempts absorb a brief per-minute rate limit; a
+    # per-DAY quota outlives them, which is what the durable retry queue in
+    # telegram_listener.py is for.
+    retry=retry_if_exception(is_retryable_ai_error),
     reraise=True,
 )
 async def _call_gemini(message_text: str) -> str:
@@ -270,8 +335,23 @@ async def extract_listing(message_text: str) -> ExtractionResult:
     try:
         raw_text = await _call_gemini(message_text)
     except Exception as exc:  # noqa: BLE001 - AI failure must never crash the worker
-        logger.exception("Gemini call failed")
-        return ExtractionResult(validated=None, raw_output=None, error=f"AI request failed: {exc}")
+        retryable = is_retryable_ai_error(exc)
+        # Quota exhaustion is an operational condition, not a code fault: log it
+        # at WARNING with the verdict attached, and keep the stack trace for the
+        # genuinely unexpected failures.
+        if retryable:
+            logger.warning(
+                "Gemini call failed; message will be retried later",
+                extra={"error": str(exc)[:300], "retryable": True},
+            )
+        else:
+            logger.exception("Gemini call failed permanently", extra={"retryable": False})
+        return ExtractionResult(
+            validated=None,
+            raw_output=None,
+            error=f"AI request failed: {exc}",
+            retryable=retryable,
+        )
 
     try:
         parsed = _parse_model_json(raw_text)

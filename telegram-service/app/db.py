@@ -131,14 +131,96 @@ async def record_message_if_new(
         return rows[0] if rows else None
 
 
-async def mark_message_processed(message_id: str) -> None:
+async def mark_message_processed(message_id: str, last_error: str | None = None) -> None:
+    """
+    Marks a message finished — successfully, or failed in a way retrying cannot
+    fix. `next_attempt_at` is cleared so a finished row can never look due.
+    """
     async with _client() as client:
         response = await client.patch(
             "/rest/v1/telegram_messages",
             params={"id": f"eq.{message_id}"},
-            json={"processed": True},
+            json={"processed": True, "next_attempt_at": None, "last_error": last_error},
         )
         await _raise_for_status(response, "mark_message_processed")
+
+
+async def schedule_message_retry(
+    message_id: str, attempts: int, next_attempt_at: str, last_error: str
+) -> None:
+    """
+    Leaves the message UNPROCESSED and due again at `next_attempt_at`.
+
+    The counterpart to mark_message_processed(): this is the path a Gemini quota
+    failure takes, so the message stays in the queue instead of being retired
+    unseen.
+    """
+    async with _client() as client:
+        response = await client.patch(
+            "/rest/v1/telegram_messages",
+            params={"id": f"eq.{message_id}"},
+            json={
+                "attempts": attempts,
+                "next_attempt_at": next_attempt_at,
+                "last_error": last_error[:2000],
+            },
+        )
+        await _raise_for_status(response, "schedule_message_retry")
+
+
+async def get_due_messages(limit: int, now_iso: str) -> list[dict[str, Any]]:
+    """
+    Unprocessed messages eligible for another extraction attempt, oldest first.
+
+    `next_attempt_at` is NULL for a message that has never been retried (and for
+    every row that predates the retry columns), so the filter has to accept NULL
+    as "due now" rather than comparing it — in SQL, `null <= now()` is null, not
+    true, which would make exactly the messages most in need of a first retry
+    invisible to this query.
+    """
+    async with _client() as client:
+        response = await client.get(
+            "/rest/v1/telegram_messages",
+            params={
+                "select": "*",
+                "processed": "eq.false",
+                "or": f"(next_attempt_at.is.null,next_attempt_at.lte.{now_iso})",
+                "order": "created_at.asc",
+                "limit": str(limit),
+            },
+        )
+        await _raise_for_status(response, "get_due_messages")
+        return response.json()
+
+
+async def get_source_by_id(source_id: str) -> dict[str, Any] | None:
+    """Used by the retry sweeper to re-resolve the chat a stored message came from."""
+    async with _client() as client:
+        response = await client.get(
+            "/rest/v1/telegram_sources",
+            params={"select": "*", "id": f"eq.{source_id}", "limit": "1"},
+        )
+        await _raise_for_status(response, "get_source_by_id")
+        rows = response.json()
+        return rows[0] if rows else None
+
+
+async def listing_exists_for_message(message_row_id: str) -> bool:
+    """
+    Whether a draft was already created for this message.
+
+    The retry sweeper is not the only writer, and a message can be re-queued
+    after a partial failure, so this guards against a second draft for the same
+    message — the DB has no unique constraint on telegram_listings
+    .telegram_message_id (a message legitimately may produce none).
+    """
+    async with _client() as client:
+        response = await client.get(
+            "/rest/v1/telegram_listings",
+            params={"select": "id", "telegram_message_id": f"eq.{message_row_id}", "limit": "1"},
+        )
+        await _raise_for_status(response, "listing_exists_for_message")
+        return bool(response.json())
 
 
 # --- telegram_listings --------------------------------------------------------

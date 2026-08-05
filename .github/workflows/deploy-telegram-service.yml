@@ -191,6 +191,28 @@ jobs:
             grep -q '^NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=' "$APP_DIR/.env.production" \
               || echo "NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=roommate-assets" >> "$APP_DIR/.env.production"
 
+            # --- Internal Supabase route --------------------------------------
+            # Identical reasoning (and probe) to deploy.yml: without this the
+            # worker's PostgREST calls leave the host for Cloudflare and come
+            # back, even though Supabase is one container away on
+            # supabase_default. The SUPABASE_INTERNAL_URL secret is currently
+            # unset, so the sed above strips the line and every REST call has
+            # been taking the long way round.
+            #
+            # Self-configure only after PROVING the gateway is here: pointing the
+            # service at a dead address would break every insert. curl without
+            # -f treats Kong's 401 as success — an auth challenge proves it is
+            # listening.
+            if ! grep -q '^SUPABASE_INTERNAL_URL=' "$APP_DIR/.env.production"; then
+              if docker network inspect supabase_default >/dev/null 2>&1 \
+                 && curl -sS -o /dev/null --max-time 3 http://127.0.0.1:8000/rest/v1/ >/dev/null 2>&1; then
+                echo "SUPABASE_INTERNAL_URL=http://kong:8000" >> "$APP_DIR/.env.production"
+                echo "Internal Supabase route enabled: kong:8000 answered."
+              else
+                echo "::notice::No local Supabase gateway detected; the worker will use the public URL (correct, just slower)."
+              fi
+            fi
+
             # --- Apply the Telegram schema to the SELF-HOSTED Supabase --------
             # Runs BEFORE the container starts, so the listener never boots
             # against a database missing its tables.

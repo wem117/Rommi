@@ -60,6 +60,18 @@ class Settings:
     max_retries: int
     log_level: str
 
+    # --- Durable AI retry queue -----------------------------------------------
+    # A Gemini quota failure outlives any in-process retry: the free tier's cap
+    # is per-DAY. These govern the database-backed queue that carries a message
+    # across that window (and across a container restart) instead of retiring it
+    # unprocessed. Defaults: give up after ~8 attempts spanning roughly a day,
+    # sweeping every 5 minutes.
+    max_extraction_attempts: int
+    retry_base_seconds: float
+    retry_max_seconds: float
+    retry_sweep_interval_seconds: float
+    retry_batch_size: int
+
     extra: dict = field(default_factory=dict)
 
 
@@ -84,6 +96,11 @@ def load_settings() -> Settings:
         ai_min_interval_seconds=float(_optional("AI_MIN_INTERVAL_SECONDS", "1.0")),
         max_retries=int(_optional("MAX_RETRIES", "3")),
         log_level=_optional("LOG_LEVEL", "INFO"),
+        max_extraction_attempts=int(_optional("MAX_EXTRACTION_ATTEMPTS", "8")),
+        retry_base_seconds=float(_optional("RETRY_BASE_SECONDS", "60")),
+        retry_max_seconds=float(_optional("RETRY_MAX_SECONDS", "21600")),  # 6h ceiling
+        retry_sweep_interval_seconds=float(_optional("RETRY_SWEEP_INTERVAL_SECONDS", "300")),
+        retry_batch_size=int(_optional("RETRY_BATCH_SIZE", "20")),
     )
 
 

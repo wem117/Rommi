@@ -21,6 +21,7 @@ Thumbs.db
 
 # Crawler output and other scratch text dumps
 *.txt
+!public/.well-known/security.txt
 
 # TypeScript incremental build cache (generated)
 tsconfig.tsbuildinfo

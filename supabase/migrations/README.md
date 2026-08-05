@@ -40,6 +40,7 @@ single ordered history. The order reflects real dependencies:
 | 14 | `..._atomic_mutations.sql` | Atomic RPCs (favorites, unread, get-or-create conversation) |
 | 15 | `..._search_index.sql` | pg_trgm search indexes + JSONB preference indexes |
 | 16 | `..._realtime.sql` | Add messages + conversations to the realtime publication |
+| 25 | `..._telegram_imports.sql` | `telegram_sources`, `telegram_messages`, `telegram_listings` — Telegram -> AI -> Roomi import pipeline (service-role only; zero RLS policies for anon/authenticated) |
 
 If your database was provisioned from the older standalone scripts, these are the
 same statements — re-running is safe because every file is idempotent.

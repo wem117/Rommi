@@ -81,8 +81,13 @@ jobs:
       - name: Compute image name
         id: image
         run: |
-          name="${GITHUB_REPOSITORY,,}-telegram-service"
+          # GITHUB_REPOSITORY is literally "yeraly218/RoommateKZ." (trailing
+          # dot) — strip it BEFORE appending the suffix, or the dot ends up
+          # stranded mid-string (roommatekz.-telegram-service), which is not a
+          # valid image reference.
+          name="${GITHUB_REPOSITORY,,}"
           name="${name%.}"
+          name="${name}-telegram-service"
           echo "image=${{ env.REGISTRY }}/${name}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/login-action@v3

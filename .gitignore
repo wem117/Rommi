@@ -34,3 +34,20 @@ supabase/.branches/
 
 # Test / coverage artifacts
 coverage
+
+# Telegram service: session files grant full account access and must never
+# reach git. Telethon also writes a -journal file while a session db is open.
+#
+# The whole legacy telegram/ directory is ignored outright: it was an ad-hoc
+# pre-telegram-service login script that hardcoded TELEGRAM_API_HASH directly
+# in a tracked .py file (superseded by telegram-service/scripts/create_session.py,
+# which reads it from .env instead). Ignoring the directory, not just the
+# session file inside it, means that hardcoded secret can never be committed
+# even if someone later runs a broad `git add`.
+telegram/
+telegram-service/*.session
+telegram-service/*.session-journal
+telegram-service/.env
+telegram-service/__pycache__/
+telegram-service/**/__pycache__/
+telegram-service/.venv/

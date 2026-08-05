@@ -102,12 +102,23 @@ async def record_message_if_new(
     The (telegram_source_id, telegram_message_id) unique constraint is the
     authoritative duplicate guard — this survives a crash-and-restart replay of
     the same events, not just an in-memory "seen" set that a restart would
-    forget. `Prefer: resolution=ignore-duplicates` makes the insert a no-op
-    instead of a 409 when the row already exists.
+    forget.
+
+    `on_conflict` is REQUIRED here, not decorative. `Prefer:
+    resolution=ignore-duplicates` on its own only covers a conflict on the
+    PRIMARY KEY; the guard we care about is the composite UNIQUE constraint, and
+    without naming it PostgREST returns 409 on every duplicate. Verified against
+    production: identical request, 409 without `on_conflict` and 201 with it.
+    A 409 would raise SupabaseError, so replaying an already-seen message logged
+    an ERROR with a stack trace on a completely normal code path — making routine
+    deduplication look identical to a broken database, which is exactly the
+    signal an operator needs to be able to trust. With `on_conflict` the
+    duplicate comes back 201 with an empty body, so `rows` is empty and this
+    returns None, which is the contract stated above.
     """
     async with _client() as client:
         response = await client.post(
-            "/rest/v1/telegram_messages",
+            "/rest/v1/telegram_messages?on_conflict=telegram_source_id,telegram_message_id",
             headers={"Prefer": "resolution=ignore-duplicates,return=representation"},
             json={
                 "telegram_source_id": source_id,

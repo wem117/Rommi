@@ -34,11 +34,17 @@ jobs:
     env:
       # Placeholder credentials so imports/tests exercise real code paths with
       # no network calls and nothing real to leak — see tests/conftest.py.
+      #
+      # Each value is DISTINCT, and in particular no secret is a substring of the
+      # Supabase URL. tests/test_db_errors.py asserts that error messages quote
+      # the host but never the service-role key; reusing one "ci-placeholder"
+      # string for both made that assertion fire on its own fixture, which is a
+      # false positive that would train everyone to ignore a genuine leak test.
       TELEGRAM_API_ID: "12345"
-      TELEGRAM_API_HASH: "ci-placeholder"
-      GEMINI_API_KEY: "ci-placeholder"
+      TELEGRAM_API_HASH: "ci-placeholder-api-hash"
+      GEMINI_API_KEY: "ci-placeholder-gemini-key"
       NEXT_PUBLIC_SUPABASE_URL: "https://ci-placeholder.supabase.co"
-      SUPABASE_SERVICE_ROLE_KEY: "ci-placeholder"
+      SUPABASE_SERVICE_ROLE_KEY: "ci-placeholder-service-role-key"
     steps:
       - uses: actions/checkout@v4
 
@@ -130,12 +136,39 @@ jobs:
       contents: read
       packages: read
     steps:
+      - uses: actions/checkout@v4
+
+      # Ship the schema with the code that depends on it.
+      #
+      # This closes the gap that caused the PGRST205 incident: nothing in CI
+      # applied migrations, and supabase/migrations/README.md documented only
+      # `supabase link --project-ref` + `db push` — a HOSTED-Supabase workflow.
+      # Production is self-hosted behind api.roomi.kz, so following the documented
+      # procedure applied the telegram tables to a different database entirely.
+      # PostgREST on prod was right all along: those tables did not exist there.
+      #
+      # Scoped to *telegram*.sql on purpose. This pipeline owns the Telegram
+      # feature's schema and nothing else — it must never replay unrelated Roomi
+      # migrations against a live database as a side effect of deploying a
+      # Python worker.
+      - name: Bundle Telegram migrations
+        id: mig
+        run: |
+          set -euo pipefail
+          ls supabase/migrations/*telegram*.sql
+          # Lexicographic glob order == timestamp order, which is apply order.
+          cat supabase/migrations/*telegram*.sql > /tmp/telegram-migrations.sql
+          echo "b64=$(base64 -w0 /tmp/telegram-migrations.sql)" >> "$GITHUB_OUTPUT"
+
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          MIG_B64: ${{ steps.mig.outputs.b64 }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: MIG_B64
           script: |
             set -euo pipefail
             IMAGE="${{ needs.build-and-push.outputs.image }}:sha-${{ github.sha }}"
@@ -157,6 +190,64 @@ jobs:
             sed -i -E '/^[A-Z_]+=$/d' "$APP_DIR/.env.production"
             grep -q '^NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=' "$APP_DIR/.env.production" \
               || echo "NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=roommate-assets" >> "$APP_DIR/.env.production"
+
+            # --- Apply the Telegram schema to the SELF-HOSTED Supabase --------
+            # Runs BEFORE the container starts, so the listener never boots
+            # against a database missing its tables.
+            echo "$MIG_B64" | base64 -d > /tmp/telegram-migrations.sql
+
+            # Locate the Supabase Postgres container rather than hardcoding a
+            # name: the compose project prefix differs between Supabase's own
+            # docker-compose revisions. Preferred match first, then any
+            # postgres-flavoured image as a fallback.
+            # Captured once, then matched twice: piping `docker ps` straight into
+            # a command that exits early (awk ... exit / head -1) can SIGPIPE the
+            # producer, and `set -o pipefail` above would turn that into a failed
+            # deploy. The image match deliberately anchors on `postgres` so that
+            # postgrest/postgrest — also on this network — is never selected.
+            PS_OUT="$(docker ps --format '{{.Names}}\t{{.Image}}')"
+            DB_CT="$(printf '%s\n' "$PS_OUT" | awk -F'\t' '$1 ~ /supabase-db/ {print $1; exit}')"
+            if [ -z "$DB_CT" ]; then
+              DB_CT="$(printf '%s\n' "$PS_OUT" \
+                | awk -F'\t' '$2 ~ /(^|\/)(supabase\/)?postgres(:|$)/ {print $1; exit}')"
+            fi
+            if [ -z "$DB_CT" ]; then
+              echo "FAILED: no Supabase Postgres container found on this host." >&2
+              echo "Running containers:" >&2
+              docker ps --format '  {{.Names}}\t{{.Image}}' >&2
+              echo "The telegram tables cannot be created, and the listener would" >&2
+              echo "crash-loop on PGRST205. Refusing to deploy a service that" >&2
+              echo "cannot work. Apply supabase/migrations/*telegram*.sql to the" >&2
+              echo "database behind api.roomi.kz, then re-run this workflow." >&2
+              rm -f /tmp/telegram-migrations.sql
+              exit 1
+            fi
+            echo "Applying Telegram migrations to container: $DB_CT"
+
+            # ON_ERROR_STOP so a partial apply fails the deploy instead of
+            # leaving a half-created schema behind. Both files are idempotent
+            # (create ... if not exists / declarative grants), so re-running on
+            # every deploy is safe and keeps prod in sync with the repo.
+            if ! docker exec -i "$DB_CT" \
+                 psql -v ON_ERROR_STOP=1 -U postgres -d postgres \
+                 < /tmp/telegram-migrations.sql; then
+              echo "FAILED: migrations did not apply cleanly." >&2
+              rm -f /tmp/telegram-migrations.sql
+              exit 1
+            fi
+            rm -f /tmp/telegram-migrations.sql
+
+            # Prove the tables are actually there before continuing. This is the
+            # check whose absence let the original incident reach production.
+            TCOUNT="$(docker exec -i "$DB_CT" psql -tAX -U postgres -d postgres \
+              -c "select count(*) from information_schema.tables
+                  where table_schema='public'
+                    and table_name in ('telegram_sources','telegram_messages','telegram_listings');")"
+            echo "Telegram tables present in production DB: $TCOUNT/3"
+            if [ "$TCOUNT" != "3" ]; then
+              echo "FAILED: expected 3 telegram tables, found $TCOUNT." >&2
+              exit 1
+            fi
 
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker pull "$IMAGE"

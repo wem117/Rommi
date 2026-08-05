@@ -44,8 +44,36 @@ def _client() -> httpx.AsyncClient:
 
 
 async def _raise_for_status(response: httpx.Response, context: str) -> None:
-    if response.status_code >= 400:
-        raise SupabaseError(f"{context} failed: {response.status_code} {response.text[:500]}")
+    if response.status_code < 400:
+        return
+
+    body = response.text[:500]
+
+    # PGRST205 is "table not in PostgREST's schema cache". Taken at face value it
+    # reads as "the table is missing", which sends you looking at the schema —
+    # but the far likelier cause, and the one that actually bit us, is that the
+    # migrations were applied to a DIFFERENT database than this service is
+    # pointed at. Roomi has more than one Supabase instance reachable with
+    # similar-looking credentials, and the raw 404 named neither the database nor
+    # the fix, so the failure looked like a code bug for far longer than it
+    # should have.
+    #
+    # Naming the exact host we queried is the whole point: it turns "why is
+    # PostgREST lying to me" into "...oh, that is the wrong instance" at a
+    # glance. The URL is safe to log; the service-role key that authenticated
+    # this request is deliberately never included.
+    if "PGRST205" in body:
+        raise SupabaseError(
+            f"{context} failed: {response.status_code} {body}\n"
+            f"  -> PostgREST has no such table on {settings.supabase_url}.\n"
+            f"     This almost always means the Telegram migrations were never applied to\n"
+            f"     THAT database (check you are not looking at a different Supabase instance).\n"
+            f"     Fix: apply supabase/migrations/*telegram*.sql to it — the deploy workflow\n"
+            f"     does this automatically; see supabase/migrations/README.md (Self-hosted).\n"
+            f"     'NOTIFY pgrst, reload schema' will NOT help if the table genuinely is absent."
+        )
+
+    raise SupabaseError(f"{context} failed on {settings.supabase_url}: {response.status_code} {body}")
 
 
 # --- telegram_sources --------------------------------------------------------

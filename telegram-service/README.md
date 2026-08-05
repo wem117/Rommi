@@ -96,7 +96,30 @@ uvicorn app.main:app --reload --port 8000
 python telegram_listener.py
 ```
 
-`GET http://localhost:8000/health` returns `{"server": "ok", "listener": "running"}`.
+`GET http://localhost:8000/health` returns the server state plus the listener's
+**real** Telegram connection state:
+
+```json
+{ "server": "ok", "listener": "connected", "listener_detail": null }
+```
+
+`listener` is one of:
+
+| value | meaning |
+|---|---|
+| `connected` | authenticated and listening — the only healthy value |
+| `starting` | process is up, first connection not established yet |
+| `disconnected` | was connected, the client dropped; the supervisor will retry |
+| `error` | last attempt failed; `listener_detail` carries the reason |
+
+It reports connection state rather than "is the background task alive" on
+purpose: the supervisor loop in `telegram_listener.run_forever()` is designed
+never to die (catch → log → back off → retry), so task liveness is `true` even
+while every connection attempt is failing for want of a session. Gating health
+on that would have reported a healthy service with no Telegram session at all.
+
+The endpoint returns HTTP 200 in every case, including `error` — a transient
+state must not fail the container healthcheck and trigger a restart loop.
 
 ## Docker
 
@@ -109,10 +132,45 @@ docker run -d --name roomi-telegram \
   roomi-telegram-service
 ```
 
-The named volume persists the session file across container recreation. Copy
-your locally-created `roomi_session.session` into that volume once (or run
-`create_session.py` once with the volume mounted) — the running container
-itself must never attempt first-time login.
+The named volume persists the session file across container recreation. The
+running container must never attempt a first-time login — it has no TTY to type
+a code into, and Telegram would rate-limit the retries.
+
+### Installing the session on the production VPS
+
+The session file is created **once, on your own machine** (`create_session.py`
+prompts for the phone/code/2FA) and then copied to the server. It is never
+committed, never put in a GitHub secret, and never baked into the image — it
+grants full access to the Telegram account that created it.
+
+```bash
+# 1) On your machine — copy the session to the VPS (never `git add` it)
+scp telegram-service/roomi_session.session <user>@<vps-host>:/tmp/roomi_session.session
+
+# 2) On the VPS — install it into the named volume the container mounts
+sudo install -d -m 700 /opt/roomi/telegram-session
+sudo mv /tmp/roomi_session.session /opt/roomi/telegram-session/
+sudo chmod 600 /opt/roomi/telegram-session/roomi_session.session
+
+# copy it into the Docker volume the deploy workflow mounts at /app/data
+docker run --rm \
+  -v roomi-telegram-session:/data \
+  -v /opt/roomi/telegram-session:/src:ro \
+  alpine sh -c 'cp /src/roomi_session.session /data/ && chmod 600 /data/roomi_session.session'
+
+# 3) Restart so the listener picks it up
+docker restart roomi-telegram-service
+curl -s http://127.0.0.1:8010/health
+```
+
+Step 3 should report `"listener": "connected"`. The container runs as a non-root
+`telegram` user, so if it cannot read the file, check ownership inside the
+volume.
+
+Rotation: if the session is ever exposed, terminate it from
+**Telegram → Settings → Devices → Active sessions**, then re-run
+`create_session.py` and repeat the steps above. Revoking there invalidates the
+file immediately.
 
 ## Tests
 

@@ -52,7 +52,7 @@ jobs:
           pip install pytest
 
       - name: Unit tests
-        run: pytest -v
+        run: python -m pytest -v
 
       - name: Import smoke test (catches import-time errors tests don't reach)
         run: |

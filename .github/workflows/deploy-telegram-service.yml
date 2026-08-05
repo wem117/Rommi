@@ -174,7 +174,7 @@ jobs:
               --env-file "$APP_DIR/.env.production" \
               --mount type=volume,source=roomi-telegram-session,target=/app/data \
               --memory 512m \
-              --memswap-limit 512m \
+              --memory-swap 512m \
               --pids-limit 256 \
               --log-driver json-file \
               --log-opt max-size=20m \

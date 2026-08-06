@@ -316,6 +316,69 @@ def test_a_message_with_no_photos_uploads_nothing():
     assert asyncio.run(media.download_media([FakeMessage(1, REAL_POST)], "draft-1")) == []
 
 
+class FileMessage(FakeMessage):
+    """An image sent 'as a file': a document with an image mime type, no .photo."""
+
+    def __init__(self, message_id, mime="image/jpeg", size=1024):
+        super().__init__(message_id)
+        self.photo = None
+        self.file = type("F", (), {"size": size, "mime_type": mime})()
+
+    async def download_media(self, file=None):
+        file.write(b"\xff\xd8\xff" + b"0" * 100)
+
+
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        (FakeMessage(1, photo=object()), True),
+        (FileMessage(2, mime="image/jpeg"), True),
+        (FileMessage(3, mime="image/png"), True),
+        (FileMessage(4, mime="IMAGE/JPEG"), True),
+        (FileMessage(5, mime="application/pdf"), False),
+        (FileMessage(6, mime="video/mp4"), False),
+        (FakeMessage(7, REAL_POST), False),
+    ],
+)
+def test_both_envelopes_telegram_uses_for_an_image_are_detected(message, expected):
+    """
+    Posters send photos "as a file" to keep the quality. Those arrive as a
+    DOCUMENT with an image mime type and no `.photo` at all — checking only
+    `.photo` drops every image from such a post, and drops the post itself when
+    its caption is short enough for the gate's length rule.
+    """
+    from app.media import is_image_media
+
+    assert is_image_media(message) is expected
+
+
+def test_an_image_sent_as_a_file_is_uploaded(monkeypatch):
+    from app import media
+
+    async def _upload(path, stream, size, content_type):
+        return f"https://cdn.example/{path}"
+
+    monkeypatch.setattr(media, "upload_photo_stream", _upload)
+
+    urls = asyncio.run(media.download_media([FileMessage(1)], "draft-1"))
+    assert len(urls) == 1
+
+
+def test_a_short_caption_with_file_photos_is_not_dropped(monkeypatch):
+    """The case that loses a listing: thin caption, photos in the other envelope."""
+    recorded = _capture(monkeypatch)
+    tl._recent_content = type(tl._recent_content)(capacity=16)  # noqa: SLF001
+
+    asyncio.run(tl.process_group([FileMessage(1)], SOURCE))
+    assert recorded["messages"] == [], "no housing words at all — still dropped"
+
+    caption = FileMessage(2)
+    caption.raw_text = caption.message = "кв 2 ком"
+    asyncio.run(tl.process_group([caption], SOURCE))
+    assert len(recorded["messages"]) == 1
+    assert recorded["messages"][0]["photo_message_ids"] == [2]
+
+
 def test_one_failing_photo_does_not_lose_the_others(monkeypatch):
     """A draft with 2 of 3 photos beats no draft at all."""
     from app import media

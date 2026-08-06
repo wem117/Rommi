@@ -64,7 +64,7 @@ from app.db import (
     schedule_message_retry,
 )
 from app.logging_config import configure_logging
-from app.media import download_media  # noqa: F401 - re-exported (see module docstring)
+from app.media import download_media, is_image_media  # noqa: F401 - download_media re-exported
 from app.telethon_client import build_client, connect_or_raise
 from telegram_parser import (
     PARSER_VERSION,
@@ -187,7 +187,7 @@ def _message_payload(
 ) -> dict[str, Any]:
     """The `telegram_messages` row: the post exactly as it arrived."""
     sent_at = getattr(primary, "date", None)
-    photo_ids = [int(m.id) for m in group if getattr(m, "photo", None) and getattr(m, "id", None)]
+    photo_ids = [int(m.id) for m in group if is_image_media(m) and getattr(m, "id", None)]
 
     return {
         "telegram_source_id": source_id,
@@ -298,7 +298,7 @@ async def _attempt_import(
     # a rejection.
     verdict = classify(
         normalize_text(content),
-        has_photos=any(getattr(m, "photo", None) for m in group),
+        has_photos=any(is_image_media(m) for m in group),
         sender_is_bot=sender.is_bot,
         min_score=settings.spam_min_score,
     )
@@ -413,7 +413,7 @@ async def process_group(group: list[Any], source: dict[str, Any]) -> None:
 
     source_id = source["id"]
     primary, content = choose_primary(group)
-    has_photos = any(getattr(m, "photo", None) for m in group)
+    has_photos = any(is_image_media(m) for m in group)
 
     try:
         sender = await read_sender(primary)
@@ -464,7 +464,7 @@ async def process_group(group: list[Any], source: dict[str, Any]) -> None:
             "source_id": source_id,
             "message_row_id": message_row["id"],
             "chars": len(content),
-            "photos": sum(1 for m in group if getattr(m, "photo", None)),
+            "photos": sum(1 for m in group if is_image_media(m)),
             "spam_score": verdict.score,
         },
     )

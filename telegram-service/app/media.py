@@ -73,6 +73,31 @@ def _photo_size(message: Any) -> int | None:
     return size if isinstance(size, int) else None
 
 
+def is_image_media(message: Any) -> bool:
+    """
+    Whether this message carries an image, in EITHER envelope Telegram uses.
+
+    `message.photo` covers a compressed photo. An image sent "as a file" — which
+    posters do to keep the quality, and which looks identical in the client —
+    arrives as a DOCUMENT with an image mime type and no `.photo` at all. Same
+    bytes, different envelope.
+
+    Checking only `.photo` silently drops every image from such a post, and
+    drops the post itself when its caption is short enough for the spam gate's
+    length rule to apply — which is precisely the case where the photos were
+    carrying the listing.
+
+    Widening to image/* is safe because nothing downstream trusts the mime type:
+    the size cap is applied from Telegram's own metadata before any transfer,
+    and the content is then sniffed by magic bytes (jpeg/png/webp only), so a
+    mislabelled or hostile file is rejected on what it actually contains.
+    """
+    if getattr(message, "photo", None):
+        return True
+    mime = (getattr(getattr(message, "file", None), "mime_type", "") or "").lower()
+    return mime.startswith("image/")
+
+
 async def download_media(messages: Any, draft_id: str) -> list[str]:
     """
     Uploads every photo on `messages` to Storage under
@@ -90,7 +115,7 @@ async def download_media(messages: Any, draft_id: str) -> list[str]:
 
     urls: list[str] = []
     for message in list(group)[:MAX_PHOTOS_PER_MESSAGE]:
-        if message is None or not getattr(message, "photo", None):
+        if message is None or not is_image_media(message):
             continue
 
         declared = _photo_size(message)

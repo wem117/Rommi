@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, BinaryIO
+from typing import Any, AsyncIterator, BinaryIO
 
 import httpx
 
@@ -275,6 +275,28 @@ async def create_telegram_listing(payload: dict[str, Any]) -> dict[str, Any]:
 # --- Storage ------------------------------------------------------------------
 
 
+# 64 KB: comfortably larger than a TCP window's worth, small enough that this is
+# the only part of an image ever resident.
+_UPLOAD_CHUNK_BYTES = 64 * 1024
+
+
+async def _chunks(stream: BinaryIO, chunk_size: int = _UPLOAD_CHUNK_BYTES) -> AsyncIterator[bytes]:
+    """
+    Reads `stream` a chunk at a time as an ASYNC generator.
+
+    The async part is not decoration. httpx's AsyncClient refuses a plain file
+    object outright — "Attempted to send an sync request with an AsyncClient
+    instance" — because a file is `Iterable`, and a sync iterator cannot be
+    consumed by the async transport. Handing it the file directly type-checks,
+    reads correctly, and fails on the first real upload.
+    """
+    while True:
+        chunk = stream.read(chunk_size)
+        if not chunk:
+            return
+        yield chunk
+
+
 async def upload_photo_stream(path: str, stream: BinaryIO, size: int, content_type: str) -> str:
     """
     Uploads a photo by STREAMING an open file object, never by materialising it.
@@ -285,8 +307,8 @@ async def upload_photo_stream(path: str, stream: BinaryIO, size: int, content_ty
 
     `size` is passed explicitly so a Content-Length goes out with the request:
     without it httpx falls back to chunked transfer-encoding, which the Storage
-    API behind Kong rejects. Handing httpx the file object rather than its bytes
-    is what keeps peak memory at one chunk instead of one whole image.
+    API behind Kong rejects. Feeding it chunks rather than bytes is what keeps
+    peak memory at 64 KB instead of one whole image.
 
     Returns the public URL, built the same way src/app/api/upload/route.ts does:
     anchored to the PUBLIC Supabase origin even when this service talks to an
@@ -302,7 +324,7 @@ async def upload_photo_stream(path: str, stream: BinaryIO, size: int, content_ty
             "Content-Length": str(size),
             "x-upsert": "false",
         },
-        content=stream,
+        content=_chunks(stream),
     )
     await _raise_for_status(response, "upload_photo")
 

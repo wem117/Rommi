@@ -289,6 +289,26 @@ async def _attempt_import(
         )
         return
 
+    # The gate again, because this is a second entrance to the pipeline. A live
+    # message was filtered before it was ever written down, but a row reaching
+    # here from the RETRY QUEUE may predate the filter entirely — the rows this
+    # service accumulated while the AI extractor was failing include 26 textless
+    # album members. Parsing one of those produces a draft with nothing in it,
+    # which is worse than no draft: it is work for an admin that can only end in
+    # a rejection.
+    verdict = classify(
+        normalize_text(content),
+        has_photos=any(getattr(m, "photo", None) for m in group),
+        sender_is_bot=sender.is_bot,
+        min_score=settings.spam_min_score,
+    )
+    if not verdict.keep:
+        logger.info(
+            "Queued message is not a housing post; completing it without a draft",
+            extra={"message_row_id": message_row_id, **verdict.as_log_extra()},
+        )
+        return
+
     parsed = parse_message(content, sender=sender, default_city=default_city)
 
     # The draft id is minted here so photos land under the path the draft will

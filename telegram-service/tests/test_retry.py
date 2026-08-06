@@ -218,6 +218,41 @@ def test_duplicate_draft_is_not_created_on_retry(recorder, monkeypatch):
     assert len(recorder.processed) == 1
 
 
+def test_a_textless_queued_message_completes_without_a_draft(recorder, monkeypatch):
+    """
+    The retry queue is a second entrance to the pipeline, so it needs the same
+    gate. The rows this service accumulated during the AI outage include 26
+    textless album members; parsing one produces an empty draft, which is worse
+    than none — it is work for an admin that can only end in a rejection.
+    """
+    written: list[dict] = []
+
+    async def _create(payload):
+        written.append(payload)
+        return {"id": "draft-1"}
+
+    monkeypatch.setattr(tl, "create_telegram_listing", _create)
+
+    _run({"id": "msg-1", "attempts": 2}, text="")
+
+    assert written == []
+    assert recorder.processed == [("msg-1", None)]
+
+
+def test_a_real_queued_message_still_produces_a_draft(recorder, monkeypatch):
+    written: list[dict] = []
+
+    async def _create(payload):
+        written.append(payload)
+        return {"id": "draft-1"}
+
+    monkeypatch.setattr(tl, "create_telegram_listing", _create)
+
+    _run({"id": "msg-1", "attempts": 2})
+
+    assert len(written) == 1
+
+
 def test_the_draft_is_always_written_as_pending_review(recorder, monkeypatch):
     """
     Nothing in this worker may publish. The status it writes is fixed, and this

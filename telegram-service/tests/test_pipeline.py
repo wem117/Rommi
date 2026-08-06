@@ -360,6 +360,73 @@ def test_a_file_that_is_not_an_image_is_rejected_on_its_bytes(monkeypatch):
     assert asyncio.run(media.download_media([NotAnImage()], "draft-1")) == []
 
 
+def test_the_upload_body_really_streams_through_httpx():
+    """
+    Regression, caught only by making the call for real.
+
+    upload_photo_stream() used to hand httpx the file object itself. A file is
+    `Iterable`, so it type-checks and reads correctly — and then httpx's
+    AsyncClient rejects it at send time with "Attempted to send an sync request
+    with an AsyncClient instance", because a sync iterator cannot be consumed by
+    the async transport. Every mocked test passed; every real photo upload would
+    have failed.
+
+    Asserts the bytes arrive intact AND that Content-Length is used rather than
+    chunked transfer-encoding, which the Storage API behind Kong rejects.
+    """
+    import tempfile
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    import httpx
+
+    from app.db import _chunks  # noqa: SLF001 - the streaming shape IS the behaviour
+
+    received: dict = {}
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802 - BaseHTTPRequestHandler's own naming
+            length = int(self.headers.get("Content-Length") or 0)
+            received["body_len"] = len(self.rfile.read(length))
+            received["transfer_encoding"] = self.headers.get("Transfer-Encoding")
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"{}")
+
+        def log_message(self, *args):  # keep the test output clean
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    port = server.server_address[1]
+
+    # Deliberately larger than one chunk, and containing a newline: iterating a
+    # binary file yields LINES, so a newline in the middle is what would expose
+    # a body reassembled by the wrong code path.
+    payload = b"\xff\xd8\xff" + b"A" * 200_000 + b"\n" + b"B" * 50_000
+
+    async def upload():
+        spooled = tempfile.SpooledTemporaryFile(max_size=1024, mode="w+b")
+        spooled.write(payload)
+        size = spooled.tell()
+        spooled.seek(0)
+        async with httpx.AsyncClient() as client:
+            return await client.post(
+                f"http://127.0.0.1:{port}/object",
+                content=_chunks(spooled),
+                headers={"Content-Type": "image/jpeg", "Content-Length": str(size)},
+            )
+
+    try:
+        response = asyncio.run(upload())
+    finally:
+        server.shutdown()
+
+    assert response.status_code == 200
+    assert received["body_len"] == len(payload)
+    assert received["transfer_encoding"] is None, "Storage rejects chunked uploads"
+
+
 @pytest.mark.parametrize(
     ("header", "expected"),
     [

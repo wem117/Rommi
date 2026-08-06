@@ -64,6 +64,19 @@ jobs:
       - name: Unit tests
         run: python -m pytest -v
 
+      # Two workflow mistakes have already reached main: a `#` comment inside a
+      # backslash-continued `docker run` (which destroyed the container and
+      # then failed before starting its replacement), and an Actions expression
+      # written literally inside a comment (which makes the whole file
+      # unparseable). actionlint catches the second class outright, and every
+      # other expression/syntax fault with it.
+      - name: Lint the workflow files
+        working-directory: .
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash \
+            | bash -s -- 1.7.7
+          ./actionlint -color
+
       # The deploy script is a 200-line bash program embedded in YAML, and
       # nothing type-checks it. A `#` comment placed inside a backslash-
       # continued `docker run` once removed the running container and then
@@ -81,7 +94,11 @@ jobs:
               script = (step.get("with") or {}).get("script")
               if not script:
                   continue
-              # ${{ ... }} is a GitHub expression, not shell; substitute so bash can parse.
+              # Actions expressions are not shell; substitute them out so bash
+              # can parse what is left. The pattern is written with escapes
+              # rather than spelled literally because Actions evaluates that
+              # syntax ANYWHERE in a run: block, including inside a comment —
+              # writing it plainly here makes the whole workflow file invalid.
               out.write_text("#!/bin/bash\n" + re.sub(r"\$\{\{[^}]*\}\}", "GH_EXPR", script))
           PY
           bash -n /tmp/deploy-script.sh

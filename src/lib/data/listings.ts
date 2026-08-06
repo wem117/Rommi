@@ -20,6 +20,12 @@ import type { Listing } from "@/types/listing";
 /** @deprecated Use `ListingQueryFilters`; kept as an alias for existing callers. */
 export type ListingFiltersInput = ListingQueryFilters;
 
+/** Sort key that always places an unstated price at the end of the list. */
+function rentForSort(listing: { monthlyRent: number | null }, direction: 1 | -1 = 1): number {
+  if (listing.monthlyRent != null) return listing.monthlyRent;
+  return direction === 1 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+}
+
 function filterListings(listings: Listing[], filters: ListingFiltersInput = {}) {
   const query = filters.search?.trim().toLowerCase() ?? "";
 
@@ -32,8 +38,14 @@ function filterListings(listings: Listing[], filters: ListingFiltersInput = {}) 
       (!listing.university && listing.city === getUniversityCity(filters.university));
     const matchesType = !filters.listingType || listing.listingType === filters.listingType;
     const matchesPropertyType = !filters.propertyType || listing.propertyType === filters.propertyType;
-    const matchesMin = !filters.minRent || listing.monthlyRent >= Number(filters.minRent);
-    const matchesMax = !filters.maxRent || listing.monthlyRent <= Number(filters.maxRent);
+    // A listing with no stated price cannot be confirmed to fall inside a
+    // requested range, so an active price filter excludes it. Showing it anyway
+    // would put results in front of a searcher that may be well over budget —
+    // the filter is a promise, and an unknown price cannot keep it.
+    const matchesMin =
+      !filters.minRent || (listing.monthlyRent != null && listing.monthlyRent >= Number(filters.minRent));
+    const matchesMax =
+      !filters.maxRent || (listing.monthlyRent != null && listing.monthlyRent <= Number(filters.maxRent));
     const matchesGender = !filters.genderPreference || listing.preferences.genderPreference === filters.genderPreference;
     const matchesSmoking = !filters.smoking || listing.preferences.smoking === filters.smoking;
     const matchesPets = !filters.pets || listing.preferences.pets === filters.pets;
@@ -59,9 +71,12 @@ function filterListings(listings: Listing[], filters: ListingFiltersInput = {}) 
   });
 
   if (filters.sort === "rent_asc") {
-    next = next.sort((a, b) => a.monthlyRent - b.monthlyRent);
+    // Unpriced listings sort last either way: they are not the cheapest AND not
+    // the most expensive, so parking them at the end is the only placement that
+    // does not misrepresent them.
+    next = next.sort((a, b) => rentForSort(a) - rentForSort(b));
   } else if (filters.sort === "rent_desc") {
-    next = next.sort((a, b) => b.monthlyRent - a.monthlyRent);
+    next = next.sort((a, b) => rentForSort(b, -1) - rentForSort(a, -1));
   } else {
     next = next.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }

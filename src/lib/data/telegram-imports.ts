@@ -14,7 +14,8 @@ export interface TelegramImport {
   city: string;
   district: string;
   address: string;
-  price: number;
+  /** null when the post stated none. Never 0 as a stand-in. */
+  price: number | null;
   currency: string;
   rooms: number | null;
   propertyType: string | null;
@@ -46,6 +47,22 @@ export interface TelegramImport {
    * publish a student's request as somebody's rental.
    */
   listingKind: "offer" | "shared" | "seeking" | "unknown";
+  /**
+   * Which KIND of record this becomes. `roommate` is a person looking for a
+   * place and publishes as a profile, never as a listing.
+   */
+  draftKind: "listing" | "roommate" | "unknown";
+  /** 0-100, summed from what the parser established. Drives the publish gate. */
+  confidence: number;
+  /** Why it did not publish itself. Kept after approval, to tune the gate. */
+  publishBlockers: string[];
+  autoPublishedAt: string | null;
+  /** Set when a roommate-search draft was published as a profile. */
+  profileUid: string | null;
+  genderPreference: "any" | "male" | "female" | null;
+  studentOnly: boolean;
+  roommateWanted: number | null;
+  metro: string;
   parserVersion: string;
   parserOutput: unknown;
   extractionError: string | null;
@@ -80,7 +97,7 @@ function mapRow(row: any): TelegramImport {
     city: row.city ?? "",
     district: row.district ?? "",
     address: row.address ?? "",
-    price: row.price ?? 0,
+    price: row.price ?? null,
     currency: row.currency ?? "KZT",
     rooms: row.rooms ?? null,
     propertyType: row.property_type ?? null,
@@ -105,6 +122,15 @@ function mapRow(row: any): TelegramImport {
     utilitiesIncluded: row.utilities_included ?? null,
     utilitiesNote: row.utilities_note ?? "",
     listingKind: row.listing_kind ?? "unknown",
+    draftKind: row.draft_kind ?? "unknown",
+    confidence: row.confidence ?? 0,
+    publishBlockers: row.publish_blockers ?? [],
+    autoPublishedAt: row.auto_published_at ?? null,
+    profileUid: row.profile_uid ?? null,
+    genderPreference: row.gender_preference ?? null,
+    studentOnly: row.student_only ?? false,
+    roommateWanted: row.roommate_wanted ?? null,
+    metro: row.metro ?? "",
     parserVersion: row.parser_version ?? "",
     parserOutput: row.parser_output ?? null,
     extractionError: row.extraction_error ?? null,
@@ -225,21 +251,35 @@ export async function updateTelegramImport(id: string, input: TelegramImportUpda
   return mapRow(data);
 }
 
+export interface ReviewOutcome {
+  /** Set when the draft became a property listing. */
+  listingId?: string;
+  /** Set when it became a roommate profile instead. */
+  profileUid?: string;
+  /** True when the import worker published it with no human involved. */
+  automatic?: boolean;
+}
+
 export async function markTelegramImportReviewed(
   id: string,
   status: "published" | "rejected",
   reviewerUid: string,
-  listingId?: string
+  outcome: ReviewOutcome = {}
 ): Promise<void> {
   const supabase = createSupabaseAdminClient();
+  const now = new Date().toISOString();
   const { error } = await supabase
     .from("telegram_listings")
     .update({
       status,
       reviewed_by: reviewerUid,
-      reviewed_at: new Date().toISOString(),
-      listing_id: listingId ?? null,
-      updated_at: new Date().toISOString()
+      reviewed_at: now,
+      listing_id: outcome.listingId ?? null,
+      profile_uid: outcome.profileUid ?? null,
+      // NULL means a person did it. The distinction is the whole audit trail
+      // for automatic publishing.
+      auto_published_at: outcome.automatic ? now : null,
+      updated_at: now
     })
     .eq("id", id);
 

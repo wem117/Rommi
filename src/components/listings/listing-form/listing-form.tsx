@@ -48,7 +48,9 @@ export function listingToInput(listing: Listing): ListingInput {
     description: listing.description,
     propertyType: listing.propertyType,
     listingType: listing.listingType,
-    monthlyRent: listing.monthlyRent,
+    // The form field is a number input; an unset price shows as empty (0) and
+    // is written back as null by the submit mapping.
+    monthlyRent: listing.monthlyRent ?? 0,
     depositRequired: listing.depositRequired,
     depositAmount: listing.depositAmount,
     city: listing.city,

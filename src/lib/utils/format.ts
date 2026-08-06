@@ -19,7 +19,22 @@ export function formatMonthlyRent(value: number) {
   return `${formatCurrency(value)}/mo`;
 }
 
-export function formatListingPrice(value: number, depositRequired?: boolean, depositAmount?: number) {
+/**
+ * What a listing costs, or that nobody said.
+ *
+ * `null` is not the same as 0 and must not render as one: plenty of real posts
+ * quote no price ("цена в ЛС", "по договорённости"), and showing "0 ₸" turns a
+ * missing figure into a wrong one that reads as free. Callers pass the locale
+ * label so the placeholder stays translated rather than hardcoded English.
+ */
+export function formatListingPrice(
+  value: number | null | undefined,
+  depositRequired?: boolean,
+  depositAmount?: number,
+  notSpecifiedLabel = "Price not specified"
+) {
+  if (value == null || value <= 0) return notSpecifiedLabel;
+
   if (!depositRequired || !depositAmount) {
     return `${formatCurrency(value)}/mo`;
   }

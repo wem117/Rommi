@@ -19,7 +19,14 @@ export interface Listing {
   description: string;
   propertyType: PropertyType;
   listingType: ListingType;
-  monthlyRent: number;
+  /**
+   * null when the price is not stated.
+   *
+   * NOT 0. A listing whose price nobody wrote down is a real listing with an
+   * unknown price; rendering that as "0 ₸" is a wrong number rather than a
+   * missing one, and it is indistinguishable from a genuine zero.
+   */
+  monthlyRent: number | null;
   depositRequired: boolean;
   depositAmount: number;
   city: string;

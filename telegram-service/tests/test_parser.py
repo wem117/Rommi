@@ -592,10 +592,16 @@ def test_looking_for_flatmates_is_not_looking_for_a_flat():
     assert extract_listing_kind(N("Ищем девушек для совместного проживания в квартиру")) == "shared"
 
 
-def test_a_seeking_post_is_flagged_first_in_the_warnings():
+def test_a_seeking_post_becomes_a_roommate_draft_not_a_listing():
+    """
+    The distinction the whole classification exists for: a person looking for a
+    room becomes a roommate profile, and the reason is stated first so an admin
+    opening the queue reads it before anything else.
+    """
     parsed = parse_message(SEEKING_NARXOZ)
     assert parsed.listing_kind == "seeking"
-    assert "SEEKING" in parsed.warnings[0]
+    assert parsed.draft_kind == "roommate"
+    assert "LOOKING for housing" in parsed.warnings[0]
 
 
 # --- whole-message behaviour --------------------------------------------------

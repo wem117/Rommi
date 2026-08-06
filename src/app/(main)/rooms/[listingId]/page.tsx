@@ -30,7 +30,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const location = [listing.district, listing.city].filter(Boolean).join(", ");
-  const title = `${listing.title} — ${formatCurrency(listing.monthlyRent)}/mo${location ? ` in ${location}` : ""}`;
+  // No price means no price in the title either: a share card reading "0 ₸/mo"
+  // is the same fabrication as the page showing it.
+  const priceLabel = listing.monthlyRent == null ? "" : ` — ${formatCurrency(listing.monthlyRent)}/mo`;
+  const title = `${listing.title}${priceLabel}${location ? ` in ${location}` : ""}`;
   const description =
     listing.description.replace(/\s+/g, " ").trim().slice(0, 160) ||
     `Room for rent in ${listing.city}, Kazakhstan on ${siteConfig.name}.`;

@@ -347,7 +347,11 @@ function ListingRow({
         <p className="mt-1 text-xs text-foreground/55">
           {[listing.city, listing.district].filter(Boolean).join(", ")}
         </p>
-        <p className="mt-1 text-sm font-semibold text-primary">{formatCurrency(listing.monthlyRent)}</p>
+        <p className="mt-1 text-sm font-semibold text-primary">
+          {listing.monthlyRent == null
+            ? t("listingDetail.priceNotSpecified")
+            : formatCurrency(listing.monthlyRent)}
+        </p>
         <dl className="mt-2 space-y-0.5 text-[11px] text-foreground/50">
           <div className="flex justify-between gap-2">
             <dt>{t("myListings.created")}</dt>

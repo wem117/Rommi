@@ -17,7 +17,9 @@ export const telegramImportUpdateSchema = z.object({
   city: z.string().trim().max(120).optional(),
   district: z.string().trim().max(120).optional(),
   address: z.string().trim().max(300).optional(),
-  price: z.number().int().min(0).max(MAX_MONTHLY_RENT).optional(),
+  // Nullable, and null is meaningful: "the post stated no price". Storing 0
+  // would render as "0 ₸", which is a wrong number rather than a missing one.
+  price: z.number().int().min(0).max(MAX_MONTHLY_RENT).nullable().optional(),
   currency: z.string().trim().max(8).optional(),
   rooms: z.number().int().min(0).max(20).nullable().optional(),
   propertyType: z.enum(["apartment", "house", "dorm", "studio"]).nullable().optional(),
@@ -44,14 +46,19 @@ export const telegramImportUpdateSchema = z.object({
 export type TelegramImportUpdateInput = z.infer<typeof telegramImportUpdateSchema>;
 
 /**
- * What Approve requires, on top of whatever is already saved on the row: a
- * map pin. Mirrors adminQuickListingSchema's own publish-time refine (lat/lng
- * required to publish) so a Telegram import is held to the exact same bar as
- * a manually pasted listing before it goes live.
+ * What Approve may carry, on top of whatever is already saved on the row.
+ *
+ * Coordinates are OPTIONAL. They used to be mandatory, which sounded like
+ * rigour and behaved like an obstacle: most Telegram posts give a ЖК or a
+ * landmark and no street, so requiring a pin meant an admin guessing at a
+ * location on the map purely to clear a validation rule — inventing data to
+ * satisfy a check. A listing with no pin simply renders without a map (see
+ * `hasCoordinates` in the listing page), which is the honest presentation of
+ * "we do not know exactly where this is".
  */
 export const telegramImportApproveSchema = z.object({
-  lat: z.number().min(-90).max(90),
-  lng: z.number().min(-180).max(180),
+  lat: z.number().min(-90).max(90).nullable().optional(),
+  lng: z.number().min(-180).max(180).nullable().optional(),
   university: z.string().trim().max(160).optional().default("")
 });
 

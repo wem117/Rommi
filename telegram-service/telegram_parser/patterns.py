@@ -422,6 +422,43 @@ SHARED_RE = re.compile(
     r"керек\s+(?:қыз|адам)|нужен\s+(?:сосед\w*|жилец|пятый|четвертый|третий))"
 )
 
+# ------------------------------------------------- who the post is looking for
+
+# Gender preference. Deliberately narrow, and inherited from the TypeScript
+# parser's own hard-won narrowness: a post merely MENTIONING a woman is not a
+# requirement that the tenant be one, and getting this wrong writes a
+# discriminatory filter onto somebody's listing.
+#
+# `парн(?:и|я|ю|е|ем|ей)` rather than a bare `парн` stem: "парная" is a steam
+# room, which a flat advert may well mention.
+FEMALE_ONLY_RE = re.compile(
+    r"(девуш\w*|девочк\w*|қызға|(?<!\w)қыз(?!\w)|қыздар\w*|\bgirls?\b|\bfemale\b|\bwomen\b)"
+)
+MALE_ONLY_RE = re.compile(
+    r"(парн(?:и|я|ю|е|ем|ей)(?!\w)|парень|парней|мужчин\w*|жігіт\w*|ұлға|бала\s+керек|"
+    r"\bboys?\b|\bmale\b|\bmen\b)"
+)
+# An explicit "any gender" beats both.
+ANY_GENDER_RE = re.compile(r"(без\s+разниц\w*|не\s+важно\s+пол|любой\s+пол|any\s+gender)")
+
+STUDENT_ONLY_RE = re.compile(
+    r"(только\s+студент\w*|для\s+студент\w*|студент\w*\s+(?:керек|қажет)|студенткам?\b|"
+    r"students?\s+only|для\s+учащ\w*)"
+)
+# How many people are being sought, as distinct from how many the place holds.
+ROOMMATE_WANTED_RE = re.compile(
+    r"(?:ищ\w+|нужн\w+|керек|қажет|требуется|требуются)\s+(?:ещ[её]\s+)?"
+    r"(\d{1,2}|одн\w+|двух|двое|трех|трёх|троих)\s*"
+    r"(?:человек\w*|жильц\w*|сосед\w*|девуш\w*|парн\w*|студент\w*|адам|бала|қыз)"
+)
+WORD_COUNTS: dict[str, int] = {
+    "одн": 1, "одного": 1, "одну": 1, "двух": 2, "двое": 2, "троих": 3,
+    "трех": 3, "трёх": 3,
+}
+
+# Metro is a first-class landmark in Almaty and Astana: renters filter on it.
+METRO_RE = re.compile(r"(?:метро|метроға|metro)\s*[«\"']?\s*([\w-]{3,24})")
+
 # --------------------------------------------------------------- spam signals
 
 # (pattern, weight). Weights are small integers on purpose: the decision is

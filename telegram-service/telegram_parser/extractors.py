@@ -340,6 +340,58 @@ def extract_capacity(normalized: str) -> int | None:
     return max(candidates) if candidates else None
 
 
+# ------------------------------------------------- who the post is looking for
+
+
+def extract_gender_preference(normalized: str) -> str | None:
+    """
+    "female", "male", "any" — or None when the post does not say.
+
+    Only when UNAMBIGUOUS. A post mentioning a woman is not a requirement that
+    the tenant be one, and a wrong reading here writes a discriminatory filter
+    onto somebody else's listing. Both genders named, or neither, yields None
+    and the admin decides.
+    """
+    if P.ANY_GENDER_RE.search(normalized):
+        return "any"
+    female = bool(P.FEMALE_ONLY_RE.search(normalized))
+    male = bool(P.MALE_ONLY_RE.search(normalized))
+    if female == male:
+        return None
+    return "female" if female else "male"
+
+
+def extract_student_only(normalized: str) -> bool:
+    return bool(P.STUDENT_ONLY_RE.search(normalized))
+
+
+def extract_roommate_wanted(normalized: str) -> int | None:
+    """
+    How many people are being SOUGHT — not how many the place holds.
+
+    "нужен ещё один человек" in a flat of four is a vacancy of one, and a
+    searcher filtering on free places wants that number, not the four.
+    """
+    match = P.ROOMMATE_WANTED_RE.search(normalized)
+    if not match:
+        return None
+
+    raw = match.group(1)
+    if raw.isdigit():
+        value = int(raw)
+    else:
+        value = next((v for k, v in P.WORD_COUNTS.items() if raw.startswith(k)), 0)
+    return value if 1 <= value <= P.MAX_PLAUSIBLE_CAPACITY else None
+
+
+def extract_metro(normalized: str) -> str:
+    match = P.METRO_RE.search(normalized)
+    if not match:
+        return ""
+    name = match.group(1).strip(" .,;:«»\"'")
+    return _title_case_tokens(name)[:60] if len(name) >= 3 else ""
+
+
 # ----------------------------------------------------------------- amenities
 
 

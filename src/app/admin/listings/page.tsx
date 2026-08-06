@@ -309,7 +309,7 @@ export default function AdminListingsPage() {
     setEditForm({
       title: listing.title,
       description: listing.description,
-      monthlyRent: listing.monthlyRent,
+      monthlyRent: listing.monthlyRent ?? 0,
       city: listing.city,
       district: listing.district ?? "",
       address: listing.address ?? "",
@@ -634,7 +634,9 @@ export default function AdminListingsPage() {
                       {listing.city} · Owner: {listing.ownerId}
                     </p>
                   </TableCell>
-                  <TableCell className="text-sm text-foreground/70">{formatCurrency(listing.monthlyRent)}</TableCell>
+                  <TableCell className="text-sm text-foreground/70">
+                    {listing.monthlyRent == null ? "—" : formatCurrency(listing.monthlyRent)}
+                  </TableCell>
                   <TableCell>
                     <Badge
                       variant={

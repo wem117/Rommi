@@ -22,6 +22,17 @@ function asNumber(value: unknown, fallback = 0) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+/**
+ * A number, or null when there genuinely isn't one.
+ *
+ * The counterpart to `asNumber` for columns where absence is meaningful.
+ * Collapsing those to 0 invents a value the source never gave — for a price
+ * that means publishing "0 ₸", which reads as free rather than as unknown.
+ */
+function nullableNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 export function mapProfileRow(row: GenericRecord): UserProfile {
   const lifestyle = (row.lifestyle as LifestylePreferences | null) ?? {
     smoking: "no",
@@ -78,7 +89,9 @@ export function mapListingRow(row: GenericRecord): Listing {
     description: String(row.description ?? ""),
     propertyType: (row.property_type ?? row.propertyType ?? "apartment") as Listing["propertyType"],
     listingType: (row.listing_type ?? row.listingType ?? "private_room") as Listing["listingType"],
-    monthlyRent: asNumber(row.monthly_rent ?? row.monthlyRent),
+    // Deliberately not asNumber(): that coerces null to 0, which is the exact
+    // fabrication this column was made nullable to avoid.
+    monthlyRent: nullableNumber(row.monthly_rent ?? row.monthlyRent),
     depositRequired: Boolean(row.deposit_required ?? row.depositRequired),
     depositAmount: asNumber(row.deposit_amount ?? row.depositAmount),
     city: String(row.city ?? ""),

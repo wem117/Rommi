@@ -93,13 +93,19 @@ export default function RoomsClient({
           lat: listing.lat as number,
           lng: listing.lng as number,
           title: listing.title,
-          price: formatCurrency(listing.monthlyRent),
+          price:
+            listing.monthlyRent == null
+              ? t("listingDetail.priceNotSpecified")
+              : formatCurrency(listing.monthlyRent),
           district: listing.district,
           university: listing.university,
           photo: listing.photoUrls[0],
           href: `/rooms/${listing.id}`
         })),
-    [listings]
+    // `t` belongs here now that a marker can carry a translated
+    // "Price not specified": without it, switching language left the old
+    // label on every pin until the listings themselves changed.
+    [listings, t]
   );
 
   const firstOnPage = total === 0 ? 0 : (page - 1) * pageSize + 1;

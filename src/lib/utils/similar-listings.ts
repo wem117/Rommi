@@ -29,7 +29,10 @@ export function rankSimilarListings(current: Listing, candidates: Listing[], lim
 
       // Within 25% of the asking rent counts as the same budget bracket; the
       // partial credit below keeps near-misses ahead of wildly different prices.
-      if (rent > 0 && item.monthlyRent > 0) {
+      // Both prices have to be known for "same budget bracket" to mean
+      // anything; an unpriced listing simply scores nothing here rather than
+      // being treated as free and matching every cheap search.
+      if (rent > 0 && item.monthlyRent != null && item.monthlyRent > 0) {
         const delta = Math.abs(item.monthlyRent - rent) / rent;
         if (delta <= 0.25) score += 3;
         else if (delta <= 0.5) score += 1;

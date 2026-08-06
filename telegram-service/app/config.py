@@ -66,6 +66,16 @@ class Settings:
     # message objects in memory for no reason.
     album_wait_seconds: float
 
+    # --- Automatic publishing -------------------------------------------------
+    # The worker never writes to `listings` itself. When a draft clears the
+    # gate it calls the Next.js app, which runs the SAME createListing() /
+    # createTemporaryHost() pipeline an admin approval does — so an
+    # automatically published listing is byte-for-byte what a hand-approved one
+    # would have been. Without these two set, the gate is inert and everything
+    # goes to review, which is the correct way to fail.
+    app_internal_url: str
+    internal_api_secret: str
+
     # --- Reliability tuning ---------------------------------------------------
     log_level: str
     # A message whose processing failed for a transient reason (Supabase
@@ -101,6 +111,8 @@ def load_settings() -> Settings:
         supabase_public_url=public_url,
         supabase_service_role_key=_require("SUPABASE_SERVICE_ROLE_KEY"),
         supabase_storage_bucket=_optional("NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET", "roommate-assets"),
+        app_internal_url=_optional("ROOMI_APP_INTERNAL_URL").rstrip("/"),
+        internal_api_secret=_optional("INTERNAL_API_SECRET"),
         spam_min_score=int(_optional("SPAM_MIN_SCORE", "2")),
         album_wait_seconds=float(_optional("ALBUM_WAIT_SECONDS", "2.5")),
         log_level=_optional("LOG_LEVEL", "INFO"),

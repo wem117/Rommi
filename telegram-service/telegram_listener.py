@@ -13,16 +13,25 @@ The pipeline, in the order a message travels it:
         -> spam filter             (telegram_parser/spam_filter.py)
         -> deterministic parser    (telegram_parser/parser.py)
         -> photo processing        (app/media.py — streamed, never buffered)
-        -> telegram_listings draft (status='pending_review')
-        -> admin review            (Admin Panel -> Telegram Imports)
-        -> manual approval         (the EXISTING createListing() pipeline)
+        -> telegram_listings draft (ALWAYS written as pending_review first)
+        -> publish gate            (telegram_parser/publish_gate.py)
+             |-- cleared  -> the app publishes it, same pipeline as Approve
+             `-- held     -> admin review (Admin Panel -> Telegram Imports)
 
-Nothing is ever published automatically. This worker's only write to a
-user-visible table is a draft with status='pending_review'; the transition to a
-real listing happens exclusively in the Next.js approve route, behind
-requireAdminUser().
+A post becomes one of TWO kinds of record, and confusing them is the failure
+this service most has to avoid:
 
-Two properties are load-bearing and easy to lose:
+    listing    a place on offer  -> a `listings` row with a host profile
+    roommate   a person looking  -> a profile in the /roommates directory
+
+Automatic publishing is off by default and gated on every condition in
+publish_gate.decide() holding at once. Whatever it decides, the worker still
+never writes to `listings` itself: it asks the Next.js app, which runs the same
+createListing() / createTemporaryHost() pipeline the admin's Approve button
+does. One pipeline, two callers, so an imported listing stays indistinguishable
+from a hand-seeded one.
+
+Three properties are load-bearing and easy to lose:
 
   * The spam filter runs BEFORE the first database write. A message that is not
     about housing costs one regex sweep and nothing else — no row, no photo
@@ -32,6 +41,10 @@ Two properties are load-bearing and easy to lose:
     That distinction used to be the difference between a listing and a silent
     data loss: when Gemini's per-day quota ran out, 18 real listings were retried
     eight times each and then retired unseen.
+  * The draft row is written BEFORE publishing is attempted. If the app is
+    unreachable, or refuses, or this container dies in between, what survives is
+    a draft in the review queue — never a half-published listing, never a lost
+    post.
 
 Reliability posture: nothing raised while processing a SINGLE message is allowed
 to stop the listener. Telegram unavailability, a malformed message, or a photo
@@ -57,6 +70,7 @@ from app.db import (
     create_telegram_listing,
     get_due_messages,
     get_enabled_sources,
+    get_publish_policy_raw,
     get_source_by_id,
     listing_exists_for_message,
     mark_message_processed,
@@ -65,16 +79,22 @@ from app.db import (
 )
 from app.logging_config import configure_logging
 from app.media import download_media, is_image_media  # noqa: F401 - download_media re-exported
+from app.publisher import publish_draft
 from app.telethon_client import build_client, connect_or_raise
 from telegram_parser import (
     PARSER_VERSION,
+    MediaOutcome,
     ParsedListing,
+    PublishDecision,
+    PublishPolicy,
     RecentContentFilter,
     TelegramSender,
     classify,
+    decide,
     normalize_text,
-    parse_message,
+    parse,
 )
+from telegram_parser.publish_gate import DEFAULT_MIN_CONFIDENCE
 
 logger = logging.getLogger(__name__)
 
@@ -212,15 +232,19 @@ async def create_draft_listing(
     message_row_id: str,
     parsed: ParsedListing,
     photo_urls: list[str],
+    decision: PublishDecision,
 ) -> dict[str, Any]:
     """
-    Persists one parsed listing to telegram_listings with
-    status='pending_review', ready for Admin Panel -> Telegram Imports.
+    Persists one parsed post to telegram_listings.
 
-    `status` is not a parameter and never will be: this function is the only
-    thing in the service that writes to this table, and 'pending_review' is the
-    only status it may write. Publishing is a human action taken in the admin
-    panel, through the same createListing() pipeline a hand-seeded listing uses.
+    The row is ALWAYS written as `pending_review` first, whatever the gate
+    decided, and only then is publishing attempted. That ordering is the whole
+    safety property: if the app is unreachable, or refuses, or the container
+    dies between the two steps, what survives is a draft in the review queue —
+    never a half-published listing and never a lost post.
+
+    `decision` is recorded either way, so "why did this not publish itself" is
+    answerable from the row alone, months later, without re-running anything.
     """
     draft_id = str(uuid.uuid4())
     payload = parsed.to_draft_payload()
@@ -230,22 +254,61 @@ async def create_draft_listing(
             "telegram_message_id": message_row_id,
             "status": "pending_review",
             "photo_urls": photo_urls,
+            "publish_blockers": list(decision.blockers),
         }
     )
 
     row = await create_telegram_listing(payload)
     logger.info(
-        "Draft listing created",
+        "Draft created",
         extra={
             "draft_id": draft_id,
+            "draft_kind": parsed.draft_kind,
             "photos": len(photo_urls),
             "price": parsed.price,
             "city": parsed.city,
             "kind": parsed.listing_kind,
             "warnings": len(parsed.warnings),
+            **decision.as_log_extra(),
         },
     )
     return row
+
+
+# --------------------------------------------------------------- publish policy
+
+# The operator's settings, cached briefly. Read from the same `site_settings`
+# row the admin panel writes, so switching automatic publishing on or off, or
+# moving the threshold, takes effect within a minute and needs no deploy.
+_POLICY_TTL_SECONDS = 60.0
+_policy_cache: tuple[float, PublishPolicy] | None = None
+
+
+async def get_publish_policy() -> PublishPolicy:
+    """
+    The current policy, or a DISABLED one if it cannot be read.
+
+    Failing closed is the point. A settings read that quietly failed open would
+    publish unattended on exactly the occasions something was already wrong.
+    """
+    global _policy_cache
+    now = asyncio.get_running_loop().time()
+    if _policy_cache is not None and now - _policy_cache[0] < _POLICY_TTL_SECONDS:
+        return _policy_cache[1]
+
+    try:
+        raw = await get_publish_policy_raw()
+        policy = PublishPolicy(
+            enabled=bool(raw.get("enabled", False)),
+            min_confidence=int(raw.get("minConfidence", DEFAULT_MIN_CONFIDENCE)),
+            require_photos=bool(raw.get("requirePhotos", False)),
+        )
+    except Exception:  # noqa: BLE001 - unreadable settings must not publish
+        logger.warning("Could not read the publish policy; automatic publishing stays off")
+        policy = PublishPolicy(enabled=False)
+
+    _policy_cache = (now, policy)
+    return policy
 
 
 def retry_delay_seconds(attempts: int) -> float:
@@ -309,14 +372,40 @@ async def _attempt_import(
         )
         return
 
-    parsed = parse_message(content, sender=sender, default_city=default_city)
+    parsed = parse(content, sender=sender, default_city=default_city)
 
     # The draft id is minted here so photos land under the path the draft will
     # reference, and so a retry that got as far as uploading does not orphan the
     # objects it wrote.
+    attached = sum(1 for m in group if is_image_media(m))
     photo_urls = await download_media(group, message_row_id) if group else []
 
-    await create_draft_listing(message_row_id, parsed, photo_urls)
+    decision = decide(
+        parsed,
+        policy=await get_publish_policy(),
+        media=MediaOutcome(attached=attached, uploaded=len(photo_urls)),
+        spam_score=verdict.score,
+        min_spam_score=settings.spam_min_score,
+    )
+
+    draft = await create_draft_listing(message_row_id, parsed, photo_urls, decision)
+
+    # Only now, with the draft safely on disk, is publishing attempted. A
+    # failure here leaves a reviewable draft rather than a half-published
+    # listing — see create_draft_listing's docstring for why that ordering is
+    # the whole safety property.
+    if decision.publish:
+        result = await publish_draft(draft["id"], reason=f"confidence {parsed.confidence}")
+        if result:
+            logger.info(
+                "Draft published automatically",
+                extra={"draft_id": draft["id"], "listing_id": result.get("listingId"), **decision.as_log_extra()},
+            )
+        else:
+            logger.warning(
+                "Automatic publish did not complete; the draft stays in review",
+                extra={"draft_id": draft["id"]},
+            )
 
 
 async def _run_attempt(

@@ -23,9 +23,55 @@ from telegram_parser import extractors as E
 # Bumped whenever a rule changes what a given post extracts to. Stored on every
 # draft, so a field that looks wrong can be traced to the ruleset that produced
 # it instead of being guessed at.
-PARSER_VERSION = "1.0.3"
+PARSER_VERSION = "2.0.0"
 
 MAX_DESCRIPTION = 4000
+
+# --------------------------------------------------------------- draft kinds
+
+# What KIND of record this post should become, which is not the same question as
+# what the post is about. Both of these mention "квартира", "подселение" and a
+# budget; only the verb separates them, and they become different things in the
+# product:
+#
+#   LISTING   a place on offer   -> a `listings` row with a host profile
+#   ROOMMATE  a person looking   -> a roommate profile in the /roommates directory
+#
+# Publishing the second as the first is the failure this distinction exists to
+# prevent: it puts a student's request up as somebody's rental, with their phone
+# number attached to a property they do not have.
+DRAFT_LISTING = "listing"
+DRAFT_ROOMMATE = "roommate"
+DRAFT_UNKNOWN = "unknown"
+
+_KIND_TO_DRAFT = {
+    "offer": DRAFT_LISTING,
+    "shared": DRAFT_LISTING,
+    "seeking": DRAFT_ROOMMATE,
+    "unknown": DRAFT_UNKNOWN,
+}
+
+# ---------------------------------------------------------------- confidence
+
+# How sure the parser is, 0-100, as a sum of what it actually found. Not a
+# probability and not calibrated against anything — it is a checklist with
+# weights, which is the most an approach without a model can honestly claim.
+#
+# It exists for one decision: whether a draft may publish without a human
+# reading it (see the listener's publish gate). So the weights are placed on the
+# fields a reviewer would themselves check before approving — what is it, where
+# is it, what does it cost, and who do I contact — rather than on how much text
+# the post happened to contain.
+CONFIDENCE_WEIGHTS: dict[str, int] = {
+    "intent": 25,        # offer/shared/seeking established, not guessed
+    "contact": 20,       # at least one way to reach the poster
+    "price": 20,         # a stated price
+    "location": 15,      # city AND something finer (ЖК, district or address)
+    "property_type": 10, # apartment/house/dorm/studio
+    "rooms": 5,
+    "detail": 5,         # area, floor or capacity — corroborating specifics
+}
+MAX_CONFIDENCE = sum(CONFIDENCE_WEIGHTS.values())
 
 
 @dataclass(slots=True)
@@ -83,9 +129,24 @@ class ParsedListing:
     contact_whatsapp_raw: str = ""
     contact_telegram: str = ""
 
+    # Who the post wants, when it says so. None means "not stated" — which is
+    # different from "anyone", and only the admin may turn one into the other.
+    gender_preference: str | None = None
+    student_only: bool = False
+    roommate_wanted: int | None = None
+    metro: str = ""
+
     listing_kind: str = "unknown"
+    draft_kind: str = DRAFT_UNKNOWN
+    confidence: int = 0
+    confidence_parts: dict[str, int] = field(default_factory=dict)
     parser_version: str = PARSER_VERSION
     warnings: list[str] = field(default_factory=list)
+
+    @property
+    def has_contact(self) -> bool:
+        """Any way at all to reach the poster."""
+        return bool(self.contact_phone or self.contact_whatsapp or self.contact_telegram)
 
     def to_draft_payload(self) -> dict[str, Any]:
         """
@@ -122,11 +183,54 @@ class ParsedListing:
             "contact_whatsapp": self.contact_whatsapp,
             "contact_whatsapp_raw": self.contact_whatsapp_raw,
             "contact_telegram": self.contact_telegram,
+            "gender_preference": self.gender_preference,
+            "student_only": self.student_only,
+            "roommate_wanted": self.roommate_wanted,
+            "metro": self.metro,
             "listing_kind": self.listing_kind,
+            "draft_kind": self.draft_kind,
+            "confidence": self.confidence,
             "parser_version": self.parser_version,
             "parser_output": asdict(self),
             "extraction_error": "; ".join(self.warnings) if self.warnings else None,
         }
+
+
+def score_confidence(listing: ParsedListing) -> tuple[int, dict[str, int]]:
+    """
+    How much of what a reviewer would check did the parser actually establish.
+
+    Returns the total and the per-component breakdown, because a bare number is
+    not auditable: when a draft publishes automatically, the reason it cleared
+    the bar has to be legible afterwards without re-running anything.
+
+    Deliberately additive and deliberately blunt. Anything cleverer would imply
+    a calibration this has no way to earn — there is no labelled corpus here,
+    only rules, and a score that looks probabilistic invites trust it cannot
+    support.
+    """
+    parts: dict[str, int] = {}
+    w = CONFIDENCE_WEIGHTS
+
+    if listing.listing_kind != "unknown":
+        parts["intent"] = w["intent"]
+    if listing.has_contact:
+        parts["contact"] = w["contact"]
+    if listing.price:
+        parts["price"] = w["price"]
+    # A city alone is not a location: every draft gets one from the source
+    # default, so scoring it would hand free points to a post that named
+    # nowhere at all.
+    if listing.city and (listing.zhk or listing.district or listing.address):
+        parts["location"] = w["location"]
+    if listing.property_type:
+        parts["property_type"] = w["property_type"]
+    if listing.rooms:
+        parts["rooms"] = w["rooms"]
+    if listing.area or listing.floor or listing.capacity:
+        parts["detail"] = w["detail"]
+
+    return sum(parts.values()), parts
 
 
 def parse_message(
@@ -174,10 +278,14 @@ def parse_message(
         warnings.append("no contact details found")
 
     listing_kind = E.extract_listing_kind(normalized)
-    if listing_kind == "seeking":
-        # Loud, and first in the list: this is a person looking for a room, not
-        # a room on offer. Approving it would publish a request as inventory.
-        warnings.insert(0, "looks like someone SEEKING housing, not offering it — do not publish as a listing")
+    draft_kind = _KIND_TO_DRAFT.get(listing_kind, DRAFT_UNKNOWN)
+    if draft_kind == DRAFT_ROOMMATE:
+        # Not a warning about a bad listing — a statement that this is a
+        # different KIND of record. It becomes a roommate profile, not a
+        # property, and the admin panel routes it accordingly.
+        warnings.insert(0, "this is someone LOOKING for housing — it becomes a roommate profile, not a listing")
+    elif draft_kind == DRAFT_UNKNOWN:
+        warnings.insert(0, "could not tell whether this offers housing or asks for it — needs a human")
 
     return ParsedListing(
         title=E.build_title(
@@ -214,6 +322,29 @@ def parse_message(
         contact_whatsapp=contacts.whatsapp,
         contact_whatsapp_raw=contacts.whatsapp_raw,
         contact_telegram=telegram_handle,
+        gender_preference=E.extract_gender_preference(normalized),
+        student_only=E.extract_student_only(normalized),
+        roommate_wanted=E.extract_roommate_wanted(normalized),
+        metro=E.extract_metro(normalized),
         listing_kind=listing_kind,
+        draft_kind=draft_kind,
         warnings=warnings,
     )
+
+
+def parse(
+    text: str,
+    *,
+    sender: TelegramSender | None = None,
+    default_city: str = "",
+) -> ParsedListing:
+    """
+    `parse_message` plus its confidence score.
+
+    Scoring reads the finished record rather than the text, so it stays a pure
+    function of what was extracted — which is what makes the number reproducible
+    from a stored draft without re-parsing.
+    """
+    listing = parse_message(text, sender=sender, default_city=default_city)
+    listing.confidence, listing.confidence_parts = score_confidence(listing)
+    return listing

@@ -121,11 +121,18 @@ async def _raise_for_status(response: httpx.Response, context: str) -> None:
 
 
 async def get_enabled_sources() -> list[dict[str, Any]]:
-    """All sources the worker should currently be listening to."""
+    """
+    All sources the worker should currently be listening to, most important
+    first.
+
+    Ordered by the admin-set priority so a backlog is drained in the order the
+    operator cares about, and so adding, removing or reordering channels is a
+    row edit rather than a deploy.
+    """
     client = await get_client()
     response = await client.get(
         "/rest/v1/telegram_sources",
-        params={"select": "*", "enabled": "eq.true"},
+        params={"select": "*", "enabled": "eq.true", "order": "priority.asc,created_at.asc"},
     )
     await _raise_for_status(response, "get_enabled_sources")
     return response.json()
@@ -270,6 +277,97 @@ async def create_telegram_listing(payload: dict[str, Any]) -> dict[str, Any]:
     )
     await _raise_for_status(response, "create_telegram_listing")
     return response.json()[0]
+
+
+# --- site_settings: the publish policy ----------------------------------------
+
+
+async def get_publish_policy_raw() -> dict[str, Any]:
+    """
+    The operator's automatic-publishing settings, read from the same
+    `site_settings` table the admin panel writes.
+
+    Absent means absent: no row, no key, or an unreadable one all yield `{}`,
+    which the caller turns into a DISABLED policy. The failure direction
+    matters — a settings read that quietly failed open would publish
+    unattended, which is exactly the outcome this whole gate exists to control.
+    """
+    client = await get_client()
+    response = await client.get(
+        "/rest/v1/site_settings",
+        params={"select": "value", "key": "eq.telegram_publish", "limit": "1"},
+    )
+    await _raise_for_status(response, "get_publish_policy")
+    rows = response.json()
+    value = rows[0].get("value") if rows else None
+    return value if isinstance(value, dict) else {}
+
+
+# --- telegram_sessions --------------------------------------------------------
+
+
+async def get_active_session() -> dict[str, Any] | None:
+    """
+    The session the worker should authenticate with, if an admin has uploaded
+    one.
+
+    Returning None is normal, not an error: it means "no session configured",
+    and the caller falls back to the .session file on disk so an existing
+    deployment keeps working untouched.
+    """
+    client = await get_client()
+    response = await client.get(
+        "/rest/v1/telegram_sessions",
+        params={"select": "*", "is_active": "eq.true", "limit": "1"},
+    )
+    await _raise_for_status(response, "get_active_session")
+    rows = response.json()
+    return rows[0] if rows else None
+
+
+async def report_session_status(
+    session_id: str,
+    status: str,
+    detail: str = "",
+    account: dict[str, Any] | None = None,
+) -> None:
+    """
+    Records what the worker actually observed about the credential.
+
+    This is the field an operator needs and could not previously see: not "is
+    the container running" but "when did this session last succeed at talking
+    to Telegram, and which account is it". Reported by the worker rather than
+    by whoever uploaded the file, because only the worker knows.
+    """
+    payload: dict[str, Any] = {
+        "status": status,
+        "status_detail": detail[:500],
+        "last_heartbeat_at": _now_iso(),
+    }
+    if status == "connected":
+        payload["authorized_at"] = payload["last_heartbeat_at"]
+    if account:
+        payload.update(
+            {
+                "account_username": account.get("username", "") or "",
+                "account_display_name": account.get("display_name", "") or "",
+                "account_telegram_id": account.get("telegram_id"),
+            }
+        )
+
+    client = await get_client()
+    response = await client.patch(
+        "/rest/v1/telegram_sessions",
+        params={"id": f"eq.{session_id}"},
+        json=payload,
+    )
+    await _raise_for_status(response, "report_session_status")
+
+
+def _now_iso() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat()
 
 
 # --- Storage ------------------------------------------------------------------

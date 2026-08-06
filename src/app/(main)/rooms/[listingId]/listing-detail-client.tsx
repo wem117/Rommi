@@ -149,9 +149,14 @@ export default function ListingDetailClient({
                 the largest type on the page after the title. */}
             <div className="mt-4 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 border-y border-border py-3.5">
               <span className="font-heading text-2xl font-bold text-foreground sm:text-3xl">
-                {formatCurrency(listing.monthlyRent)}
+                {listing.monthlyRent == null
+                  ? t("listingDetail.priceNotSpecified")
+                  : formatCurrency(listing.monthlyRent)}
               </span>
-              <span className="text-sm font-medium text-foreground/55 sm:text-base">
+              <span
+                className="text-sm font-medium text-foreground/55 sm:text-base"
+                hidden={listing.monthlyRent == null}
+              >
                 {t("listingDetail.perMonth")}
               </span>
               <span className="ml-auto text-xs font-medium text-foreground/55 sm:text-sm">
@@ -244,7 +249,12 @@ export default function ListingDetailClient({
             {ownerCard}
           </div>
 
-          {/* --- 9: location ------------------------------------------------ */}
+          {/* --- 9: location -------------------------------------------------
+              Rendered only when the listing actually says where it is. With no
+              coordinates, no address and no city there is nothing here but a
+              heading over blank space, and the layout reads better closing the
+              gap than holding it open. */}
+          {hasCoords || mapQuery ? (
           <section aria-labelledby="location-heading" className="lg:col-start-1 lg:row-start-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 id="location-heading" className="font-heading text-lg font-semibold sm:text-xl">
@@ -289,20 +299,33 @@ export default function ListingDetailClient({
               {listing.address?.trim() ? listing.address : location}
             </p>
 
-            {/* Halved from 260/360px. The map answers "roughly where", and the
-                full-screen Maps link above covers real exploration — so it no
-                longer costs most of a phone screen to scroll past. */}
-            <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-surface-muted">
-              {listing.lat != null && listing.lng != null ? (
+            {/* No coordinates, no map — not an empty frame and not a search
+                iframe guessing at the address.
+
+                The old fallback embedded a Google search for whatever text the
+                listing carried, which put a map on the page pointing at a
+                plausible-looking WRONG place: a city centre, or another
+                building with a similar name. A renter reads a pin as "this is
+                where it is". Better to say nothing about the location than to
+                say something unverified, and the external links below still let
+                them search the address themselves.
+
+                Halved from 260/360px: the map answers "roughly where", and the
+                full-screen link covers real exploration. */}
+            {hasCoords ? (
+              <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-surface-muted">
                 <div className="h-[170px] w-full sm:h-[220px]">
                   <LazyMap
                     markers={[
                       {
                         id: listing.id,
-                        lat: listing.lat,
-                        lng: listing.lng,
+                        lat: listing.lat as number,
+                        lng: listing.lng as number,
                         title: listing.title,
-                        price: formatCurrency(listing.monthlyRent),
+                        price:
+                          listing.monthlyRent == null
+                            ? t("listingDetail.priceNotSpecified")
+                            : formatCurrency(listing.monthlyRent),
                         district: listing.district,
                         university: listing.university
                       }
@@ -310,19 +333,14 @@ export default function ListingDetailClient({
                     zoom={15}
                   />
                 </div>
-              ) : (
-                <iframe
-                  title={`Map for ${listing.title}`}
-                  src={`https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=15&output=embed`}
-                  className="h-[170px] w-full border-0 sm:h-[220px]"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                />
-              )}
-            </div>
+              </div>
+            ) : null}
 
-            <p className="mt-2 text-xs text-foreground/50">{t("listingDetail.locationNote")}</p>
+            {hasCoords ? (
+              <p className="mt-2 text-xs text-foreground/50">{t("listingDetail.locationNote")}</p>
+            ) : null}
           </section>
+          ) : null}
 
           {/* --- 10: similar listings --------------------------------------- */}
           {similarListings.length ? (

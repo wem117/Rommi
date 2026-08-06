@@ -551,7 +551,7 @@ async def listen_messages(client) -> AlbumBuffer | None:
 # ----------------------------------------------------------------- retry queue
 
 
-async def _refetch_messages(client, row: dict[str, Any]) -> list[Any]:
+async def _refetch_messages(client, row: dict[str, Any], source: dict[str, Any] | None) -> list[Any]:
     """
     Re-fetches the original Telegram messages so a retry can still collect the
     post's photos — including every member of an album, via the ids recorded
@@ -565,10 +565,10 @@ async def _refetch_messages(client, row: dict[str, Any]) -> list[Any]:
     if int(row["telegram_message_id"]) not in wanted:
         wanted.append(int(row["telegram_message_id"]))
 
+    if source is None:
+        return []
+
     try:
-        source = await get_source_by_id(row["telegram_source_id"])
-        if source is None:
-            return []
         entity = await client.get_entity(source["telegram_username"])
         messages = await client.get_messages(entity, ids=wanted)
     except Exception:  # noqa: BLE001
@@ -650,8 +650,19 @@ async def sweep_retries(client) -> int:
         return 0
 
     logger.info("Retrying messages that failed earlier", extra={"count": len(due)})
+
+    # One lookup per SOURCE, not per message. A batch is typically twenty rows
+    # from the same two or three channels, and this path used to fetch the
+    # source row twice for every one of them.
+    sources: dict[str, dict[str, Any] | None] = {}
+
     for row in due:
-        group = await _refetch_messages(client, row)
+        source_id = row["telegram_source_id"]
+        if source_id not in sources:
+            sources[source_id] = await get_source_by_id(source_id)
+        source = sources[source_id]
+
+        group = await _refetch_messages(client, row, source)
         sender = TelegramSender(
             telegram_id=row.get("sender_telegram_id"),
             username=row.get("sender_username") or "",
@@ -751,10 +762,18 @@ async def run_forever() -> None:
 def main() -> None:
     configure_logging()
     logger.info("Starting Roomi telegram-service", extra={"parser_version": PARSER_VERSION})
-    try:
-        asyncio.run(run_forever())
-    finally:
-        asyncio.run(close_client())
+
+    async def _run() -> None:
+        # Closing INSIDE the same loop that created the client. An
+        # asyncio.run() of its own would hand httpx a different event loop
+        # from the one its sockets are bound to, and shutdown would raise on
+        # the way out.
+        try:
+            await run_forever()
+        finally:
+            await close_client()
+
+    asyncio.run(_run())
 
 
 if __name__ == "__main__":

@@ -37,7 +37,8 @@ import { type Testimonial } from "@/lib/data/testimonials";
 import { type UniversityWithStats } from "@/lib/data/universities";
 import { formatNumber } from "@/lib/utils/format";
 import {
-  computeHomepageStats,
+  resolveHomepageStats,
+  type ResolvedStat,
   DEFAULT_HOMEPAGE_STATS_CONFIG,
   EMPTY_HOMEPAGE_STAT_COUNTS,
   type HomepageStatCounts
@@ -110,21 +111,17 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
   const heroDescription = heroLocaleContent?.subtitle?.trim() || t("home.heroDescription");
   const heroImage = settings?.homepageHero?.imageUrl?.trim() || "/universities/main1.jpg";
 
-  // Real counts from the database plus the admin baseline. Computed on the
-  // server during ISR, so every visitor in a revalidation window sees the same
-  // figure and no client request is made for them.
-  const heroStats = computeHomepageStats(
+  // Whatever the admin configured, in the order they configured it, with their
+  // own labels. Nothing about which figures exist or what they are called is
+  // compiled in — adding a fourth is a row in Admin -> Settings.
+  const stats = resolveHomepageStats(
     settings?.homepageStats ?? DEFAULT_HOMEPAGE_STATS_CONFIG,
-    initialData.statCounts ?? EMPTY_HOMEPAGE_STAT_COUNTS
+    initialData.statCounts ?? EMPTY_HOMEPAGE_STAT_COUNTS,
+    locale
   );
-  const stats = [
-    { value: heroStats.listings, label: t("home.verifiedListings") },
-    { value: heroStats.students, label: t("home.activeStudents") },
-    { value: heroStats.matches, label: t("home.successfulMatches") }
-  ];
 
   const steps = getSteps(locale);
-  const platformStats = getPlatformStats(locale, heroStats);
+  const platformStats = getPlatformStats(locale, stats);
   const faqs = getFaqs(locale);
   const roommateHighlights = getRoommateHighlights(locale);
   const searchFields = [
@@ -562,10 +559,10 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
 
               <div className="mt-8 flex flex-wrap items-center justify-center gap-5 text-white sm:mt-10 sm:gap-10">
                 {stats.map((stat, index) => (
-                  <div key={stat.label} className="flex items-center gap-5 sm:gap-10">
+                  <div key={stat.key} className="flex items-center gap-5 sm:gap-10">
                     <div className="text-center">
                       <p className="text-2xl font-bold sm:text-3xl">
-                        <CountUp value={stat.value} format={(n) => `${formatNumber(n)}+`} />
+                        <CountUp value={stat.value} format={(n) => `${formatNumber(n)}${stat.suffix}`} />
                       </p>
                       <p className="mt-1 text-xs text-white/70 sm:text-sm">{stat.label}</p>
                     </div>
@@ -613,7 +610,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
 
           <div className="mt-14 grid grid-cols-2 gap-6 md:grid-cols-4">
             {platformStats.map((stat) => (
-              <div key={stat.label} className="text-center">
+              <div key={stat.key} className="text-center">
                 <p className="text-3xl font-bold text-primary sm:text-4xl">{stat.value}</p>
                 <p className="mt-2 text-sm text-foreground/60">{stat.label}</p>
               </div>
@@ -829,34 +826,19 @@ function getSteps(locale: "en" | "ru" | "kz") {
  * hero counters — never hardcoded fake metrics. "100% free" is a factual
  * product claim, not a fabricated measurement.
  */
-function getPlatformStats(locale: "en" | "ru" | "kz", stats: { listings: number; students: number; matches: number }) {
-  const listings = `${formatNumber(stats.listings)}+`;
-  const students = `${formatNumber(stats.students)}+`;
-  const matches = `${formatNumber(stats.matches)}+`;
-
-  if (locale === "ru") {
-    return [
-      { value: listings, label: "Активные объявления" },
-      { value: students, label: "Активные студенты" },
-      { value: matches, label: "Успешные совпадения" },
-      { value: "100%", label: "Бесплатно" }
-    ];
-  }
-
-  if (locale === "kz") {
-    return [
-      { value: listings, label: "Белсенді хабарландыру" },
-      { value: students, label: "Белсенді студенттер" },
-      { value: matches, label: "Сәтті сәйкестіктер" },
-      { value: "100%", label: "Тегін қолдану" }
-    ];
-  }
+function getPlatformStats(locale: "en" | "ru" | "kz", stats: ResolvedStat[]) {
+  const freeLabel =
+    locale === "ru" ? "Бесплатно" : locale === "kz" ? "Тегін қолдану" : "Free to Use";
 
   return [
-    { value: listings, label: "Active Listings" },
-    { value: students, label: "Active Students" },
-    { value: matches, label: "Successful Matches" },
-    { value: "100%", label: "Free to Use" }
+    ...stats.map((stat) => ({
+      key: stat.key,
+      value: `${formatNumber(stat.value)}${stat.suffix}`,
+      label: stat.label
+    })),
+    // Not a measurement — a factual product claim, and the only figure on this
+    // page that is not the admin's to change.
+    { key: "free", value: "100%", label: freeLabel }
   ];
 }
 

@@ -30,6 +30,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link href="/admin/categories" className="transition hover:text-primary">Categories</Link>
             <Link href="/admin/testimonials" className="transition hover:text-primary">Testimonials</Link>
             <Link href="/admin/telegram-imports" className="transition hover:text-primary">Telegram Imports</Link>
+            <Link href="/admin/telegram" className="transition hover:text-primary">Telegram</Link>
             <Link href="/admin/homepage" className="transition hover:text-primary">Homepage</Link>
             <Link href="/admin/settings" className="transition hover:text-primary">Settings</Link>
           </nav>

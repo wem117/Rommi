@@ -1,62 +1,114 @@
 /**
  * Homepage "trust" statistics.
  *
- * These used to be entirely synthetic: an admin-configured base plus a seeded
- * per-day increment, so the figures advanced on a curve that had nothing to do
- * with the platform. Adding a listing did not change them; only editing settings
- * did.
+ * WHAT WAS WRONG
+ * --------------
+ * There were exactly three metrics, hardcoded by key (`listings`, `students`,
+ * `matches`), with their labels written into the homepage component in three
+ * languages and their values computed as "live database count + an admin
+ * baseline". Two consequences, both reported as "the statistics cannot be
+ * changed":
  *
- * They are now REAL counts from the database (see the `homepage_stats()`
- * function in supabase/migrations), plus an explicit per-metric baseline the
- * admin can set. The baseline is a deliberate, visible offset — not a growth
- * simulation — and the live count underneath it always moves with the data.
- * Setting every baseline to 0 shows the unmodified truth.
+ *  1. The admin typed a number and a DIFFERENT number appeared. Setting the
+ *     listings baseline to 234 published 234 + however many listings existed.
+ *     The field was labelled a baseline, but nobody reading a figure on a
+ *     homepage thinks in baselines — they think "this is the number I set".
+ *  2. Adding a fourth metric, or renaming one, meant editing three locale
+ *     tables and a component. That is not something an operator can do.
+ *
+ * WHAT IT IS NOW
+ * --------------
+ * A LIST of metrics the admin owns outright. Each carries its own labels, its
+ * own value, and how that value is produced:
+ *
+ *     manual   the number shown IS the number typed
+ *     live     a real database count, plus an optional offset
+ *
+ * So a new statistic is a row, not a release; and "no hardcoded values" holds
+ * in both directions — no key, no label and no figure is compiled in.
+ *
+ * The defaults below exist for one reason: a database with no `homepage_stats`
+ * row must still render the homepage the site already had, rather than an empty
+ * strip. They are the values this project already shipped.
  */
 
-export interface StatMetricConfig {
-  /** Added to the live count. 0 shows the real number and nothing else. */
-  base: number;
+/** Where a metric's number comes from. */
+export type StatSource = "manual" | "listings" | "students" | "matches";
+
+export interface HomepageStatMetric {
+  /** Stable id. Survives renaming the label. */
+  key: string;
+  /** Per-locale label. Missing locales fall back to `en`, then to the key. */
+  labels: { en: string; ru: string; kz: string };
+  source: StatSource;
+  /**
+   * For `manual`, the figure itself. For a live source, an offset ADDED to the
+   * real count — 0 publishes the unmodified truth.
+   */
+  value: number;
+  /** Rendered after the number: "+", "%", or nothing. */
+  suffix: string;
+  visible: boolean;
 }
 
-export interface HomepageStatsConfig {
-  listings: StatMetricConfig;
-  students: StatMetricConfig;
-  matches: StatMetricConfig;
-}
-
-/** Live counts as returned by the `homepage_stats()` database function. */
+/** Live counts, keyed by the sources a metric may draw on. */
 export interface HomepageStatCounts {
   listings: number;
   students: number;
   matches: number;
 }
 
-export interface HomepageStats {
-  listings: number;
-  students: number;
-  matches: number;
+export interface HomepageStatsConfig {
+  metrics: HomepageStatMetric[];
 }
 
-/**
- * Default baselines.
- *
- * These are the values this project already shipped as the base of the old
- * simulation — they are not new numbers. Production stores no `homepage_stats`
- * row, so without a non-zero default the displayed figure would fall from the
- * order of thousands to the literal live count overnight. Keeping them makes the
- * change continuous; the admin can lower them, or set every one to 0 to publish
- * the unmodified real counts.
- */
-export const DEFAULT_HOMEPAGE_STATS_CONFIG: HomepageStatsConfig = {
-  listings: { base: 1250 },
-  students: { base: 4875 },
-  matches: { base: 2150 }
-};
+export interface ResolvedStat {
+  key: string;
+  label: string;
+  value: number;
+  suffix: string;
+}
 
 export const EMPTY_HOMEPAGE_STAT_COUNTS: HomepageStatCounts = {
   listings: 0,
   students: 0,
   matches: 0
+};
+
+/**
+ * The three metrics the site already showed, expressed in the new shape.
+ *
+ * `source: "manual"` on purpose: these are the figures an admin set and expects
+ * to see rendered verbatim. Switching one to a live source is a dropdown away,
+ * and then the number moves with the data.
+ */
+export const DEFAULT_HOMEPAGE_STATS_CONFIG: HomepageStatsConfig = {
+  metrics: [
+    {
+      key: "listings",
+      labels: { en: "Verified Listings", ru: "Проверенные объявления", kz: "Тексерілген хабарландырулар" },
+      source: "manual",
+      value: 1250,
+      suffix: "+",
+      visible: true
+    },
+    {
+      key: "students",
+      labels: { en: "Active Students", ru: "Активные студенты", kz: "Белсенді студенттер" },
+      source: "manual",
+      value: 4875,
+      suffix: "+",
+      visible: true
+    },
+    {
+      key: "matches",
+      labels: { en: "Successful Matches", ru: "Успешные совпадения", kz: "Сәтті сәйкестіктер" },
+      source: "manual",
+      value: 2150,
+      suffix: "+",
+      visible: true
+    }
+  ]
 };
 
 function nonNegativeInt(value: unknown): number {
@@ -65,19 +117,85 @@ function nonNegativeInt(value: unknown): number {
 }
 
 /**
- * Combines the live database counts with the admin baseline.
+ * Reads a stored config, tolerating the shape that came before it.
  *
- * Tolerant of a config still carrying the retired growth fields (`growthMin`,
- * `growthMax`, `startDate`): unknown keys are ignored and only `base` is read,
- * so a settings row written before this change keeps working untouched.
+ * Production holds `{ listings: { base: 234 }, students: {...}, matches: {...} }`
+ * plus retired growth fields. Migrating that at read time rather than with a
+ * data migration means the homepage keeps rendering the operator's own numbers
+ * through the deploy, and the first admin save writes the new shape.
  */
-export function computeHomepageStats(
+export function normalizeStatsConfig(raw: unknown): HomepageStatsConfig {
+  if (!raw || typeof raw !== "object") return DEFAULT_HOMEPAGE_STATS_CONFIG;
+
+  const candidate = raw as Partial<HomepageStatsConfig> & Record<string, unknown>;
+
+  if (Array.isArray(candidate.metrics)) {
+    const metrics = candidate.metrics
+      .filter((metric): metric is HomepageStatMetric => Boolean(metric) && typeof metric === "object")
+      .map((metric, index) => ({
+        key: String(metric.key || `metric-${index}`),
+        labels: {
+          en: String(metric.labels?.en ?? ""),
+          ru: String(metric.labels?.ru ?? ""),
+          kz: String(metric.labels?.kz ?? "")
+        },
+        source: (["manual", "listings", "students", "matches"] as StatSource[]).includes(metric.source)
+          ? metric.source
+          : "manual",
+        value: nonNegativeInt(metric.value),
+        suffix: String(metric.suffix ?? "").slice(0, 4),
+        visible: metric.visible !== false
+      }));
+    return { metrics };
+  }
+
+  // The pre-list shape: three fixed keys, each `{ base }` added to a live count.
+  const legacyKeys: { key: string; source: StatSource }[] = [
+    { key: "listings", source: "listings" },
+    { key: "students", source: "students" },
+    { key: "matches", source: "matches" }
+  ];
+  const legacy: HomepageStatMetric[] = [];
+  for (const { key, source } of legacyKeys) {
+    const entry = candidate[key] as { base?: unknown } | undefined;
+    if (!entry || typeof entry !== "object") continue;
+    const template = DEFAULT_HOMEPAGE_STATS_CONFIG.metrics.find((m) => m.key === key);
+    legacy.push({
+      key,
+      labels: template?.labels ?? { en: key, ru: key, kz: key },
+      // The old figure was count + base, so `live` preserves what was on
+      // screen. An admin who wants the number they typed switches it to
+      // manual, which is now a visible choice rather than a hidden formula.
+      source,
+      value: nonNegativeInt(entry.base),
+      suffix: "+",
+      visible: true
+    });
+  }
+
+  return legacy.length ? { metrics: legacy } : DEFAULT_HOMEPAGE_STATS_CONFIG;
+}
+
+/**
+ * The figures to render, in configured order.
+ *
+ * A `manual` metric shows exactly what the admin typed — no arithmetic, which
+ * is the fix for "I set 500 and it shows 538".
+ */
+export function resolveHomepageStats(
   config: HomepageStatsConfig,
-  counts: HomepageStatCounts = EMPTY_HOMEPAGE_STAT_COUNTS
-): HomepageStats {
-  return {
-    listings: nonNegativeInt(counts.listings) + nonNegativeInt(config?.listings?.base),
-    students: nonNegativeInt(counts.students) + nonNegativeInt(config?.students?.base),
-    matches: nonNegativeInt(counts.matches) + nonNegativeInt(config?.matches?.base)
-  };
+  counts: HomepageStatCounts = EMPTY_HOMEPAGE_STAT_COUNTS,
+  locale: "en" | "ru" | "kz" = "en"
+): ResolvedStat[] {
+  return (config?.metrics ?? [])
+    .filter((metric) => metric.visible)
+    .map((metric) => ({
+      key: metric.key,
+      label: metric.labels[locale] || metric.labels.en || metric.key,
+      value:
+        metric.source === "manual"
+          ? nonNegativeInt(metric.value)
+          : nonNegativeInt(counts[metric.source]) + nonNegativeInt(metric.value),
+      suffix: metric.suffix
+    }));
 }

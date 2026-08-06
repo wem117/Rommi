@@ -80,7 +80,7 @@ from app.db import (
 from app.logging_config import configure_logging
 from app.media import download_media, is_image_media  # noqa: F401 - download_media re-exported
 from app.publisher import publish_draft
-from app.telethon_client import build_client, connect_or_raise
+from app.telethon_client import build_client_async, connect_or_raise, report_heartbeat
 from telegram_parser import (
     PARSER_VERSION,
     MediaOutcome,
@@ -776,6 +776,10 @@ async def run_retry_sweeper(client) -> None:
     while True:
         await asyncio.sleep(settings.retry_sweep_interval_seconds)
         try:
+            # Doubles as the credential's heartbeat: this loop only runs while
+            # the client is connected, so a fresh timestamp here is direct
+            # evidence the session still works.
+            await report_heartbeat()
             await sweep_retries(client)
         except asyncio.CancelledError:
             raise
@@ -807,7 +811,7 @@ async def run_forever() -> None:
     """
     backoff = 5
     while True:
-        client = build_client()
+        client = await build_client_async()
         buffer: AlbumBuffer | None = None
         try:
             await connect_or_raise(client)

@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Plus, Save, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Loader2, Plus, Save, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -16,11 +16,13 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_PLATFORM_SETTINGS, type PlatformSettings } from "@/lib/data/public-settings";
 import {
-  computeHomepageStats,
   DEFAULT_HOMEPAGE_STATS_CONFIG,
   EMPTY_HOMEPAGE_STAT_COUNTS,
+  resolveHomepageStats,
   type HomepageStatCounts,
-  type HomepageStatsConfig
+  type HomepageStatMetric,
+  type HomepageStatsConfig,
+  type StatSource
 } from "@/lib/utils/homepage-stats";
 
 type Settings = {
@@ -31,8 +33,6 @@ type Settings = {
   platform: PlatformSettings;
   homepageStats: HomepageStatsConfig;
 };
-
-type StatMetricKey = "listings" | "students" | "matches";
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -90,12 +90,53 @@ export default function AdminSettingsPage() {
   }
 
   function saveStats() {
+    // Optimistic: the admin has been editing `statsDraft` all along, so the
+    // screen is already correct. Committing it to `settings` up front means the
+    // preview and the summary stop disagreeing during the round-trip, and
+    // `save()` reconciles from the server response either way.
+    setSettings((prev) => (prev ? { ...prev, homepageStats: statsDraft } : prev));
     void save({ homepageStats: statsDraft });
   }
 
-  function updateStatMetric(metric: StatMetricKey, field: "base", value: number) {
-    setStatsDraft((prev) => ({ ...prev, [metric]: { ...prev[metric], [field]: Math.max(0, Math.trunc(value) || 0) } }));
+  function updateMetric(index: number, patch: Partial<HomepageStatMetric>) {
+    setStatsDraft((prev) => ({
+      metrics: prev.metrics.map((metric, i) => (i === index ? { ...metric, ...patch } : metric))
+    }));
   }
+
+  function addMetric() {
+    setStatsDraft((prev) => ({
+      metrics: [
+        ...prev.metrics,
+        {
+          // Unique and stable, so renaming the label later does not orphan it.
+          key: `metric-${Date.now().toString(36)}`,
+          labels: { en: "", ru: "", kz: "" },
+          source: "manual" as StatSource,
+          value: 0,
+          suffix: "+",
+          visible: true
+        }
+      ]
+    }));
+  }
+
+  function removeMetric(index: number) {
+    setStatsDraft((prev) => ({ metrics: prev.metrics.filter((_, i) => i !== index) }));
+  }
+
+  function moveMetric(index: number, delta: -1 | 1) {
+    setStatsDraft((prev) => {
+      const next = [...prev.metrics];
+      const target = index + delta;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return { metrics: next };
+    });
+  }
+
+  /** What each metric will actually render as, given the live counts. */
+  const previews = resolveHomepageStats(statsDraft, liveCounts, "en");
 
   function addEmail() {
     const email = newEmail.trim().toLowerCase();
@@ -327,42 +368,140 @@ export default function AdminSettingsPage() {
         <CardHeader>
           <CardTitle>Homepage statistics</CardTitle>
           <CardDescription>
-            The trust numbers in the hero are LIVE counts from the database — approved listings, registered profiles,
-            and started conversations. They move on their own as the platform grows; nothing here needs editing for
-            that to happen. The baseline below is added on top of the live count, for seeding a new marketplace. Set a
-            baseline to 0 to publish the unmodified real number.
+            The figures in the homepage hero. Add, rename, reorder or remove them here — the homepage renders
+            whatever this list says, in this order, in all three languages. Each one either shows a number you set,
+            or a live count from the database (with an optional amount added on top; 0 publishes the real number).
+            Saving updates the homepage immediately.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          {(
-            [
-              { key: "listings", label: "Verified listings", live: liveCounts.listings },
-              { key: "students", label: "Active students", live: liveCounts.students },
-              { key: "matches", label: "Successful matches", live: liveCounts.matches }
-            ] as { key: StatMetricKey; label: string; live: number }[]
-          ).map((metric) => (
+          {statsDraft.metrics.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-border p-4 text-center text-sm text-foreground/60">
+              No statistics configured — the homepage strip is hidden.
+            </p>
+          ) : null}
+
+          {statsDraft.metrics.map((metric, index) => (
             <div key={metric.key} className="rounded-xl border border-border p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-semibold">{metric.label}</span>
+                <span className="text-sm font-semibold">
+                  {metric.labels.en || "(untitled statistic)"}
+                </span>
                 <span className="text-xs text-foreground/50">
-                  live {formatNumber(metric.live)} + baseline {formatNumber(statsDraft[metric.key]?.base ?? 0)} ={" "}
+                  shows{" "}
                   <strong className="text-foreground/80">
-                    {formatNumber(computeHomepageStats(statsDraft, liveCounts)[metric.key])}
+                    {formatNumber(previews.find((p) => p.key === metric.key)?.value ?? 0)}
+                    {metric.suffix}
                   </strong>
+                  {metric.source === "manual" ? null : ` (live ${formatNumber(liveCounts[metric.source])} + ${formatNumber(metric.value)})`}
                 </span>
               </div>
-              <div className="mt-3 max-w-xs space-y-1.5">
-                <Label htmlFor={`${metric.key}-base`}>Baseline (added to the live count)</Label>
-                <Input
-                  id={`${metric.key}-base`}
-                  type="number"
-                  min={0}
-                  value={statsDraft[metric.key]?.base ?? 0}
-                  onChange={(e) => updateStatMetric(metric.key, "base", Number(e.target.value))}
-                />
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${metric.key}-en`}>Label (EN)</Label>
+                  <Input
+                    id={`${metric.key}-en`}
+                    value={metric.labels.en}
+                    onChange={(e) => updateMetric(index, { labels: { ...metric.labels, en: e.target.value } })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${metric.key}-ru`}>Label (RU)</Label>
+                  <Input
+                    id={`${metric.key}-ru`}
+                    value={metric.labels.ru}
+                    onChange={(e) => updateMetric(index, { labels: { ...metric.labels, ru: e.target.value } })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${metric.key}-kz`}>Label (KZ)</Label>
+                  <Input
+                    id={`${metric.key}-kz`}
+                    value={metric.labels.kz}
+                    onChange={(e) => updateMetric(index, { labels: { ...metric.labels, kz: e.target.value } })}
+                  />
+                </div>
               </div>
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${metric.key}-source`}>Value from</Label>
+                  <Select
+                    value={metric.source}
+                    onValueChange={(source) => updateMetric(index, { source: source as StatSource })}
+                  >
+                    <SelectTrigger id={`${metric.key}-source`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manual">A number I set</SelectItem>
+                      <SelectItem value="listings">Live listings count</SelectItem>
+                      <SelectItem value="students">Live profiles count</SelectItem>
+                      <SelectItem value="matches">Live conversations count</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${metric.key}-value`}>
+                    {metric.source === "manual" ? "Number shown" : "Added to the live count"}
+                  </Label>
+                  <Input
+                    id={`${metric.key}-value`}
+                    type="number"
+                    min={0}
+                    value={metric.value}
+                    onChange={(e) =>
+                      updateMetric(index, { value: Math.max(0, Math.trunc(Number(e.target.value)) || 0) })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${metric.key}-suffix`}>Suffix</Label>
+                  <Input
+                    id={`${metric.key}-suffix`}
+                    value={metric.suffix}
+                    maxLength={4}
+                    placeholder="+"
+                    onChange={(e) => updateMetric(index, { suffix: e.target.value })}
+                  />
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => moveMetric(index, -1)} disabled={index === 0}>
+                    <ArrowUp className="h-3.5 w-3.5" />
+                    <span className="sr-only">Move up</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => moveMetric(index, 1)}
+                    disabled={index === statsDraft.metrics.length - 1}
+                  >
+                    <ArrowDown className="h-3.5 w-3.5" />
+                    <span className="sr-only">Move down</span>
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => removeMetric(index)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span className="sr-only">Remove</span>
+                  </Button>
+                </div>
+              </div>
+
+              <label className="mt-3 flex w-fit items-center gap-2 text-xs text-foreground/70">
+                <Switch
+                  checked={metric.visible}
+                  onCheckedChange={(visible) => updateMetric(index, { visible })}
+                />
+                Shown on the homepage
+              </label>
             </div>
           ))}
+
+          <Button type="button" variant="outline" onClick={addMetric} disabled={statsDraft.metrics.length >= 12}>
+            <Plus className="h-4 w-4" />
+            Add a statistic
+          </Button>
 
           <Button onClick={saveStats} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

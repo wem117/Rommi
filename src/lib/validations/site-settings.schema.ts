@@ -51,23 +51,47 @@ const platformSettingsSchema = z.object({
   defaultLanguage: z.enum(["en", "ru", "kz"]).optional()
 });
 
-// Only the baseline is configurable now: the figure itself is a live database
-// count. The retired growth fields are still ACCEPTED (and ignored) so a
-// settings row written before this change does not fail validation the next
-// time an admin saves any other setting.
-const statMetricSchema = z
-  .object({ base: z.number().int().min(0).max(100_000_000) })
-  .passthrough();
+/**
+ * Homepage statistics are an admin-owned LIST, so a new figure is a row rather
+ * than a release. Each metric carries its own labels and says where its number
+ * comes from: `manual` renders exactly what was typed, a live source renders a
+ * real database count plus an offset.
+ */
+const statMetricSchema = z.object({
+  key: z.string().trim().min(1).max(40),
+  labels: z.object({
+    en: z.string().trim().max(60),
+    ru: z.string().trim().max(60),
+    kz: z.string().trim().max(60)
+  }),
+  source: z.enum(["manual", "listings", "students", "matches"]),
+  value: z.number().int().min(0).max(100_000_000),
+  suffix: z.string().trim().max(4),
+  visible: z.boolean()
+});
 
-const homepageStatsSchema = z
-  .object({
-    listings: statMetricSchema,
-    students: statMetricSchema,
-    matches: statMetricSchema
-  })
-  .passthrough();
+const homepageStatsSchema = z.object({
+  // A cap, not a design limit: twelve figures is already more than a homepage
+  // strip can carry, and an unbounded array is an unbounded page.
+  metrics: z.array(statMetricSchema).max(12)
+});
+
+/**
+ * Automatic publishing of Telegram imports.
+ *
+ * Lives in settings rather than in an env var precisely because it is the kind
+ * of switch someone wants to throw at 2am without a deploy — usually off,
+ * after seeing something they did not like.
+ */
+export const telegramPublishSchema = z.object({
+  enabled: z.boolean().default(false),
+  // 0-100. The worker holds anything below this for review.
+  minConfidence: z.number().int().min(0).max(100).default(75),
+  requirePhotos: z.boolean().default(false)
+});
 
 export const siteSettingsUpdateSchema = z.object({
+  telegramPublish: telegramPublishSchema.optional(),
   featuredListingsLimit: z.number().int().min(1).max(50).optional(),
   featuredRoommatesLimit: z.number().int().min(1).max(50).optional(),
   maintenanceMode: z.boolean().optional(),

@@ -2,8 +2,25 @@ import "server-only";
 
 import { DEFAULT_PLATFORM_SETTINGS, type PlatformSettings } from "@/lib/data/public-settings";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { DEFAULT_HOMEPAGE_STATS_CONFIG, type HomepageStatsConfig } from "@/lib/utils/homepage-stats";
+import {
+  DEFAULT_HOMEPAGE_STATS_CONFIG,
+  normalizeStatsConfig,
+  type HomepageStatsConfig
+} from "@/lib/utils/homepage-stats";
 import type { HomepageHero, HomepageSection } from "@/lib/validations/site-settings.schema";
+
+/** Automatic publishing of Telegram imports. Off unless an operator says so. */
+export interface TelegramPublishSettings {
+  enabled: boolean;
+  minConfidence: number;
+  requirePhotos: boolean;
+}
+
+export const DEFAULT_TELEGRAM_PUBLISH: TelegramPublishSettings = {
+  enabled: false,
+  minConfidence: 75,
+  requirePhotos: false
+};
 
 export interface SiteSettings {
   featuredListingsLimit: number;
@@ -13,6 +30,7 @@ export interface SiteSettings {
   homepageHero: HomepageHero;
   homepageSections: HomepageSection[];
   homepageStats: HomepageStatsConfig;
+  telegramPublish: TelegramPublishSettings;
   platform: PlatformSettings;
 }
 
@@ -31,6 +49,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
     { key: "faq", visible: true }
   ],
   homepageStats: DEFAULT_HOMEPAGE_STATS_CONFIG,
+  telegramPublish: DEFAULT_TELEGRAM_PUBLISH,
   platform: DEFAULT_PLATFORM_SETTINGS
 };
 
@@ -42,6 +61,7 @@ const KEY_MAP: Record<keyof SiteSettings, string> = {
   homepageHero: "homepage_hero",
   homepageSections: "homepage_sections",
   homepageStats: "homepage_stats",
+  telegramPublish: "telegram_publish",
   platform: "platform"
 };
 
@@ -70,9 +90,12 @@ export async function getSiteSettings(): Promise<SiteSettings> {
       homepageHero: (byKey.get("homepage_hero") as HomepageHero) ?? DEFAULT_SITE_SETTINGS.homepageHero,
       homepageSections:
         (byKey.get("homepage_sections") as HomepageSection[]) ?? DEFAULT_SITE_SETTINGS.homepageSections,
-      homepageStats: {
-        ...DEFAULT_HOMEPAGE_STATS_CONFIG,
-        ...((byKey.get("homepage_stats") as Partial<HomepageStatsConfig>) ?? {})
+      // Read through the normalizer so a row written in the pre-list shape
+      // still renders the operator's own numbers rather than the defaults.
+      homepageStats: normalizeStatsConfig(byKey.get("homepage_stats")),
+      telegramPublish: {
+        ...DEFAULT_TELEGRAM_PUBLISH,
+        ...((byKey.get("telegram_publish") as Partial<TelegramPublishSettings>) ?? {})
       },
       platform: { ...DEFAULT_PLATFORM_SETTINGS, ...((byKey.get("platform") as Partial<PlatformSettings>) ?? {}) }
     };
@@ -81,9 +104,10 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   }
 }
 
-type SiteSettingsUpdate = Partial<Omit<SiteSettings, "platform" | "homepageStats">> & {
+type SiteSettingsUpdate = Partial<Omit<SiteSettings, "platform" | "homepageStats" | "telegramPublish">> & {
   platform?: Partial<PlatformSettings>;
   homepageStats?: HomepageStatsConfig;
+  telegramPublish?: TelegramPublishSettings;
 };
 
 export async function updateSiteSettings(partial: SiteSettingsUpdate) {

@@ -192,6 +192,32 @@ def test_deposit_amounts(text, amount):
     assert extract_price(N(text)).deposit_amount == amount
 
 
+def test_a_price_at_the_end_of_a_sentence_is_still_found():
+    """
+    Regression: the bare-number rule rejected anything followed by punctuation,
+    so "деп 100000." — a price at the end of a sentence, which is where prices
+    usually are — was thrown away over the full stop.
+    """
+    price = extract_price(N("Сдается 1-комнатная, 250 000 тг, деп 100000. Метро рядом."))
+    assert price.amount == 250_000
+    assert price.deposit_amount == 100_000
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("цена 150000.", 150_000),
+        ("цена 150000,", 150_000),
+        ("цена 150000", 150_000),
+        # Still not money: a decimal fraction, or the tail of a longer number.
+        ("цена 150000,50", None),
+        ("цена 1234567890", None),
+    ],
+)
+def test_bare_price_boundaries(text, expected):
+    assert extract_price(N(text)).amount == expected
+
+
 def test_deposit_without_an_amount_is_still_recorded_as_required():
     price = extract_price(N("Первый месяц депозит, заезд с сентября"))
     assert price.deposit_required is True

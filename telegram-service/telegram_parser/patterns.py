@@ -80,7 +80,13 @@ MONEY_THOUSANDS_RE = re.compile(
 
 # A bare number, accepted ONLY on a line that says it is a price. Without that
 # gate "8 707 803 92 90" and "70 м²" both look like money.
-MONEY_BARE_RE = re.compile(r"(?<![\d.,])(?P<amount>\d{5,7})(?![\d.,])")
+#
+# The trailing assertion is `(?![\d.,]*\d)` — "not part of a longer number" —
+# rather than the tighter "not followed by a separator at all". A price is very
+# often the last thing in a sentence ("деп 100000."), and the tighter form threw
+# away every one of those because of the full stop after it, while still
+# correctly rejecting "100000,50" and the tail of "12345678".
+MONEY_BARE_RE = re.compile(r"(?<![\d.,])(?P<amount>\d{5,7})(?![\d.,]*\d)")
 
 PRICE_CONTEXT_RE = re.compile(
     r"(цена|стоимость|стоит|аренда|арендная|оплата|платить|прайс|бюджет|ақысы|бағасы|"

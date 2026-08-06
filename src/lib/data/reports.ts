@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { mapReportRow } from "@/lib/supabase/mappers";
 import type { Report, ReportTargetType } from "@/types/report";

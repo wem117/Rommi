@@ -14,7 +14,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { DEFAULT_PLATFORM_SETTINGS, type PlatformSettings } from "@/lib/data/public-settings";
+import {
+  DEFAULT_PLATFORM_SETTINGS,
+  invalidatePublicSettingsCache,
+  type PlatformSettings
+} from "@/lib/data/public-settings";
 import {
   DEFAULT_HOMEPAGE_STATS_CONFIG,
   EMPTY_HOMEPAGE_STAT_COUNTS,
@@ -77,6 +81,11 @@ export default function AdminSettingsPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Save failed");
       setSettings(json.settings);
+      // getPublicSettings() memoises for the lifetime of the tab, and the
+      // footer, locale provider and homepage all read it. Without this, an
+      // admin saves a new site name and keeps seeing the old one until a hard
+      // reload — which reads as the save having failed.
+      invalidatePublicSettingsCache();
       toast.success("Settings saved");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Save failed");

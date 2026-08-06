@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { apiErrorResponse } from "@/lib/api/error-response";
+import { consume, rateLimitResponse } from "@/lib/api/rate-limit";
 import { revalidatePublic } from "@/lib/api/revalidate";
 import { mapListingRow } from "@/lib/supabase/mappers";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
@@ -18,6 +19,15 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const user = await requireSessionUser();
+
+    // Keyed by USER, not by IP: the caller is authenticated, and an IP key
+    // would let one account duplicate from several networks in parallel. Each
+    // call INSERTs a row, so this is the one owner-scoped endpoint where a
+    // loop is expensive rather than merely rude.
+    if (!(await consume(`my-listings-duplicate:${user.id}`, 20, 60_000))) {
+      return rateLimitResponse();
+    }
+
     const supabase = createSupabaseAdminClient();
 
     const { data: source, error: readError } = await supabase

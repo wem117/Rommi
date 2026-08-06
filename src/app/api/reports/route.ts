@@ -2,19 +2,19 @@ import { NextResponse } from "next/server";
 
 import { apiErrorResponse } from "@/lib/api/error-response";
 import { consume, rateLimitResponse } from "@/lib/api/rate-limit";
-import { createReport } from "@/lib/data/reports";
+import { createReport, getReports } from "@/lib/data/reports";
 import { requireAdminUser } from "@/lib/supabase/admin";
 import { requireSessionUser } from "@/lib/supabase/session";
-import { mapReportRow } from "@/lib/supabase/mappers";
 import { reportCreateSchema, reportUpdateSchema } from "@/lib/validations/admin.schema";
 
 export async function GET() {
   try {
-    const { supabase } = await requireAdminUser();
-    const { data, error } = await supabase.from("reports").select("*").order("created_at", { ascending: false });
-
-    if (error) throw error;
-    return NextResponse.json({ reports: (data ?? []).map(mapReportRow) });
+    await requireAdminUser();
+    // Delegated rather than queried here: the same SELECT lived in both places
+    // and had already drifted — this route used the cookie-scoped client while
+    // getReports() uses service-role, so the two could return different rows
+    // for the same admin.
+    return NextResponse.json({ reports: await getReports() });
   } catch (error) {
     return apiErrorResponse(error);
   }

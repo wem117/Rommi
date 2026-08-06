@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { apiErrorResponse } from "@/lib/api/error-response";
+import { consume, rateLimitResponse } from "@/lib/api/rate-limit";
 import { revalidatePublic } from "@/lib/api/revalidate";
 import { deleteListingPhotos } from "@/lib/data/listing-storage";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
@@ -46,7 +47,11 @@ const patchSchema = z.object({ archived: z.boolean() });
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const { supabase } = await requireOwnedListing(id);
+    const { supabase, user } = await requireOwnedListing(id);
+    // Per user rather than per IP: the caller is authenticated, so the account
+    // is the thing to limit. Each call revalidates the public cache, which is
+    // the cost worth bounding here.
+    if (!(await consume(`my-listings-write:${user.id}`, 60, 60_000))) return rateLimitResponse();
     const input = patchSchema.parse(await request.json());
 
     const { error } = await supabase
@@ -66,7 +71,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const { supabase, listing } = await requireOwnedListing(id);
+    const { supabase, listing, user } = await requireOwnedListing(id);
+    if (!(await consume(`my-listings-write:${user.id}`, 60, 60_000))) return rateLimitResponse();
 
     const { error } = await supabase.from("listings").delete().eq("id", id);
     if (error) throw error;

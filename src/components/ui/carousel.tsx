@@ -111,11 +111,19 @@ export function Carousel({
     // the column to the track's min-content width and the page overflows on
     // mobile (the slides are shrink-0, so their content drives min-content).
     <div className={`relative min-w-0 max-w-full ${className}`}>
+      {/* A focusable carousel region with arrow-key handling is exactly the
+          pattern the WAI-ARIA Authoring Practices prescribe: role="region",
+          aria-roledescription, tabIndex so keyboard users can reach the track,
+          and a keydown handler for navigation. The rule has no way to express
+          "this region IS the widget", so it is disabled here specifically
+          rather than project-wide. */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         ref={trackRef}
         role="region"
         aria-roledescription="carousel"
         aria-label={ariaLabel}
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
         tabIndex={0}
         onKeyDown={handleKeyDown}
         onPointerDown={onPointerDown}

@@ -33,7 +33,11 @@ export function RoommateCard({
   // card contains interactive children — the favorite button and Connect link —
   // which must not be nested inside an anchor). Keyboard: Enter/Space navigate.
   return (
-    <article
+    /* A div, not an <article>: <article> has an implicit non-interactive role,
+       and overriding that to "link" is a genuine ARIA conflict. The card cannot
+       be an <a> because it contains its own interactive children (favourite,
+       Connect), so it carries the role itself. */
+    <div
       role="link"
       tabIndex={0}
       aria-label={profile.fullName}
@@ -122,7 +126,7 @@ export function RoommateCard({
       >
         {t("roommates.connect")}
       </Link>
-    </article>
+    </div>
   );
 }
 

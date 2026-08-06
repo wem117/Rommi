@@ -64,6 +64,29 @@ jobs:
       - name: Unit tests
         run: python -m pytest -v
 
+      # The deploy script is a 200-line bash program embedded in YAML, and
+      # nothing type-checks it. A `#` comment placed inside a backslash-
+      # continued `docker run` once removed the running container and then
+      # failed before starting its replacement — `bash -n` accepts that
+      # happily (it is valid syntax), and shellcheck flags it as SC2215.
+      - name: Shellcheck the embedded deploy script
+        working-directory: .
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import pathlib, re, yaml
+          doc = yaml.safe_load(pathlib.Path(".github/workflows/deploy-telegram-service.yml").read_text())
+          out = pathlib.Path("/tmp/deploy-script.sh")
+          for step in doc["jobs"]["deploy"]["steps"]:
+              script = (step.get("with") or {}).get("script")
+              if not script:
+                  continue
+              # ${{ ... }} is a GitHub expression, not shell; substitute so bash can parse.
+              out.write_text("#!/bin/bash\n" + re.sub(r"\$\{\{[^}]*\}\}", "GH_EXPR", script))
+          PY
+          bash -n /tmp/deploy-script.sh
+          shellcheck -S warning /tmp/deploy-script.sh
+
       - name: Import smoke test (catches import-time errors tests don't reach)
         run: |
           python -c "
@@ -290,18 +313,55 @@ jobs:
             # container logs a clear error and /health reports listener:
             # "stopped" until the operator copies in a session created via
             # `python scripts/create_session.py` (see telegram-service/README.md).
-            docker rm -f roomi-telegram-service >/dev/null 2>&1 || true
+            # Roll-forward with a way back. The old container is STOPPED and
+            # renamed, not destroyed, so if the replacement fails to start or
+            # never answers /health the previous one can be brought straight
+            # back. Destroying it first — as this did until the listener spent
+            # twenty minutes down — means any failure below is an outage that
+            # only a human can end.
+            #
+            # It has to be stopped rather than left running: both bind
+            # 127.0.0.1:8010, and the new container cannot start while the old
+            # one holds the port.
+            docker rm -f roomi-telegram-service-previous >/dev/null 2>&1 || true
+            HAD_PREVIOUS=no
+            if docker inspect roomi-telegram-service >/dev/null 2>&1; then
+              docker stop roomi-telegram-service >/dev/null 2>&1 || true
+              docker rename roomi-telegram-service roomi-telegram-service-previous
+              HAD_PREVIOUS=yes
+            fi
+
+            rollback() {
+              echo "::error::Deploy failed; restoring the previous container." >&2
+              docker logs --tail 60 roomi-telegram-service >&2 2>/dev/null || true
+              docker rm -f roomi-telegram-service >/dev/null 2>&1 || true
+              if [ "$HAD_PREVIOUS" = yes ]; then
+                docker rename roomi-telegram-service-previous roomi-telegram-service
+                docker start roomi-telegram-service >/dev/null 2>&1 || true
+                docker network connect supabase_default roomi-telegram-service 2>/dev/null || true
+                echo "Previous container restored: $(curl -sS --max-time 5 http://127.0.0.1:8010/health || echo unreachable)" >&2
+              fi
+              exit 1
+            }
+
+            # --memory 384m, down from 512m. Dropping the Gemini SDK took the
+            # image from 466 MB to 257 MB and the resident set with it: the
+            # parser allocates nothing per message, photos stream through a
+            # spooled temp file rather than a whole-image buffer, and the
+            # Supabase client is one pooled instance instead of one per call.
+            # Steady state is ~90 MB, so this keeps roughly 4x headroom.
+            #
+            # NOTE: every line below is one backslash-continued command. A `#`
+            # comment cannot go inside it — the shell swallows the rest of the
+            # line and `docker run` never receives its image argument. That
+            # exact mistake removed the running container and then failed
+            # before starting the replacement, taking the listener down until
+            # it was restored by hand.
             docker run -d \
               --name roomi-telegram-service \
               --restart unless-stopped \
               --env-file "$APP_DIR/.env.production" \
               --mount type=volume,source=roomi-telegram-session,target=/app/data \
-              # 384 MB, down from 512. Removing the Gemini SDK took the image
-              # from 466 MB to 257 MB and the resident set with it; the parser
-              # allocates nothing per message, photos stream through a spooled
-              # temp file rather than a whole-image buffer, and the Supabase
-              # client is now one pooled instance instead of one per call.
-              # Headroom over observed steady-state remains ~4x.
               --memory 384m \
               --memory-swap 384m \
               --pids-limit 256 \
@@ -309,13 +369,12 @@ jobs:
               --log-opt max-size=20m \
               --log-opt max-file=5 \
               -p 127.0.0.1:8010:8000 \
-              "$IMAGE"
+              "$IMAGE" || rollback
             docker network connect supabase_default roomi-telegram-service 2>/dev/null || true
-            docker image prune -f
             docker logout ghcr.io || true
 
             echo "Waiting for the service to answer /health..."
-            for i in $(seq 1 30); do
+            for _ in $(seq 1 30); do
               if curl -sS -o /tmp/telegram-health.json --max-time 5 http://127.0.0.1:8010/health; then
                 break
               fi
@@ -325,9 +384,13 @@ jobs:
             HEALTH_BODY="$(cat /tmp/telegram-health.json 2>/dev/null || true)"
             if [ -z "$HEALTH_BODY" ]; then
               echo "Deploy FAILED: the container never answered /health." >&2
-              docker logs --tail 80 roomi-telegram-service >&2 || true
-              exit 1
+              rollback
             fi
+
+            # Only now is the old container surplus. Pruning here rather than
+            # before the health check is what keeps the rollback possible.
+            docker rm -f roomi-telegram-service-previous >/dev/null 2>&1 || true
+            docker image prune -f
 
             echo "Telegram service is live: $HEALTH_BODY"
             case "$HEALTH_BODY" in

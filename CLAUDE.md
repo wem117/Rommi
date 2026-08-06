@@ -48,12 +48,23 @@ storage bucket, nothing else.
   model, no API key, no quota, no per-message cost. The previous Gemini-backed
   version lost every listing that arrived while its free-tier quota was
   exhausted. CI fails the build if any AI SDK ends up imported.
-- **Nothing publishes automatically.** The worker's only write to a
-  user-visible table is a `telegram_listings` row with
-  `status='pending_review'`. The transition to a real listing happens solely in
-  `api/admin/telegram-imports/[id]/approve`, which reuses `createListing()` /
-  `createTemporaryHost()` so an approved import is indistinguishable from a
-  hand-seeded one.
+- **A post becomes one of two kinds of record**, decided by the parser and
+  never inferred at publish time: `listing` (a place on offer) or `roommate` (a
+  person looking, which publishes as a profile in /roommates). Publishing the
+  second as the first puts a student's request up as somebody's rental.
+- **The draft row is always written as `pending_review` first**, then publishing
+  is attempted. A failure anywhere after that leaves a reviewable draft, never a
+  half-published listing.
+- **Automatic publishing is off by default** and gated on every condition in
+  `telegram_parser/publish_gate.py` holding at once (kind, spam score,
+  confidence, required fields, a contact method, all photos uploaded). It is
+  configured in Admin → Telegram, not in code.
+- **The worker never writes to `listings` itself.** Both the Approve button and
+  the automatic path call `publishTelegramImport()`, which reuses
+  `createListing()` / `createTemporaryHost()` — one pipeline, two callers, so an
+  imported listing stays indistinguishable from a hand-seeded one.
+- **Sessions and channels are admin-managed** (`telegram_sessions`,
+  `telegram_sources`); no deploy is needed to change either.
 - **The spam filter runs before the first database write** — a non-housing post
   must cost one regex sweep and leave no row, no photo and no storage object.
 - Behaviour is data: add a ЖК, a spam phrase or a price format to

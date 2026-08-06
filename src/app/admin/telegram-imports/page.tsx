@@ -71,12 +71,24 @@ function toEditable(item: TelegramImport): EditableFields {
   return Object.fromEntries(EDITABLE_KEYS.map((key) => [key, item[key]])) as EditableFields;
 }
 
-/** How the parser read the post's intent. `seeking` is the one to notice. */
-const KIND_LABELS: Record<TelegramImport["listingKind"], { label: string; className: string }> = {
-  offer: { label: "Whole place offered", className: "bg-success/15 text-success" },
-  shared: { label: "Room / shared", className: "bg-primary/15 text-primary" },
-  seeking: { label: "Someone LOOKING for housing", className: "bg-destructive/15 text-destructive" },
-  unknown: { label: "Intent unclear", className: "bg-foreground/10 text-foreground/70" }
+/**
+ * What this draft BECOMES on approval — the decision the reviewer is making.
+ *
+ * A roommate search publishes as a profile in the /roommates directory, not as
+ * a property listing, so the badge says so rather than describing the wording.
+ */
+const DRAFT_KIND_LABELS: Record<TelegramImport["draftKind"], { label: string; className: string }> = {
+  listing: { label: "Property listing", className: "bg-success/15 text-success" },
+  roommate: { label: "Roommate search → profile", className: "bg-primary/15 text-primary" },
+  unknown: { label: "Needs a decision", className: "bg-highlight/25 text-foreground/75" }
+};
+
+/** The wording the parser read, shown as secondary context. */
+const LISTING_KIND_LABELS: Record<TelegramImport["listingKind"], string> = {
+  offer: "whole place offered",
+  shared: "room / shared",
+  seeking: "looking for housing",
+  unknown: "intent unclear"
 };
 
 function Tristate({
@@ -152,10 +164,6 @@ function ImportCard({ item, onChanged }: { item: TelegramImport; onChanged: () =
   }
 
   async function approve() {
-    if (form.lat == null || form.lng == null) {
-      toast.error("Drop a pin on the map before approving.");
-      return;
-    }
     setSaving("approve");
     try {
       const saved = await save();
@@ -169,14 +177,14 @@ function ImportCard({ item, onChanged }: { item: TelegramImport; onChanged: () =
         const json = await res.json();
 
         if (res.ok) {
-          toast.success("Listing published");
+          toast.success(json.kind === "roommate" ? "Roommate profile published" : "Listing published");
           onChanged();
           return;
         }
 
-        if (res.status === 409 && json.needsSeekingConfirmation) {
-          if (!window.confirm(`${json.error}\n\nPublish anyway?`)) return;
-          overrides.confirmSeeking = true;
+        if (res.status === 409 && json.needsKindConfirmation) {
+          if (!window.confirm(`${json.error}\n\nPublish it as a property listing?`)) return;
+          overrides.confirmKindOverride = true;
           continue;
         }
 
@@ -215,7 +223,8 @@ function ImportCard({ item, onChanged }: { item: TelegramImport; onChanged: () =
   }
 
   const busy = saving !== null;
-  const kind = KIND_LABELS[item.listingKind] ?? KIND_LABELS.unknown;
+  const kind = DRAFT_KIND_LABELS[item.draftKind] ?? DRAFT_KIND_LABELS.unknown;
+  const isRoommate = item.draftKind === "roommate";
   const senderName = item.sender?.displayName || item.sender?.username || "";
 
   return (
@@ -225,6 +234,9 @@ function ImportCard({ item, onChanged }: { item: TelegramImport; onChanged: () =
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${kind.className}`}>
               {kind.label}
+            </span>
+            <span className="text-[11px] text-foreground/45">
+              {LISTING_KIND_LABELS[item.listingKind]} · confidence {item.confidence}
             </span>
             {item.parserVersion ? (
               <span className="text-[11px] text-foreground/40">parser {item.parserVersion}</span>
@@ -259,6 +271,11 @@ function ImportCard({ item, onChanged }: { item: TelegramImport; onChanged: () =
               </>
             ) : null}
           </div>
+          {item.publishBlockers.length ? (
+            <p className="mt-2 text-xs text-foreground/50">
+              Held for review: {item.publishBlockers.join("; ")}
+            </p>
+          ) : null}
           {item.extractionError ? (
             <p className="mt-2 flex items-start gap-1.5 text-xs text-destructive">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -511,7 +528,7 @@ function ImportCard({ item, onChanged }: { item: TelegramImport; onChanged: () =
               className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60"
             >
               {saving === "approve" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              Approve &amp; Publish
+              {isRoommate ? "Approve as roommate" : "Approve & Publish"}
             </button>
           </div>
         </div>

@@ -27,6 +27,12 @@ const translations = {
       menu: "Menu",
       closeMenu: "Close menu",
     },
+    account: {
+      title: "Account",
+      personalInformation: "Personal Information",
+      savedListings: "Saved Listings",
+      settings: "Settings",
+    },
     gallery: {
       showAllPhotos: "Show all photos",
       photosLabel: "Photos",
@@ -666,6 +672,12 @@ const translations = {
       menu: "Меню",
       closeMenu: "Закрыть меню",
     },
+    account: {
+      title: "Аккаунт",
+      personalInformation: "Личные данные",
+      savedListings: "Сохранённые объявления",
+      settings: "Настройки",
+    },
     gallery: {
       showAllPhotos: "Все фото",
       photosLabel: "Фотографии",
@@ -1302,6 +1314,12 @@ const translations = {
       loading: "Жүктелуде",
       menu: "Мәзір",
       closeMenu: "Мәзірді жабу",
+    },
+    account: {
+      title: "Аккаунт",
+      personalInformation: "Жеке ақпарат",
+      savedListings: "Сақталған хабарландырулар",
+      settings: "Параметрлер",
     },
     gallery: {
       showAllPhotos: "Барлық фото",

@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
 import { useConversations } from "@/hooks/use-conversations";
+import { AccountMenu } from "@/components/profile/account-menu";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useListings } from "@/hooks/use-listings";
 import { getProfileById, updateProfile } from "@/lib/data/profiles";
@@ -183,6 +184,13 @@ export default function ProfilePage() {
           </div>
         </div>
       </section>
+
+      {/* Everything that belongs to this account, including My listings —
+          which used to sit in the top navigation bar beside the public browse
+          pages. */}
+      <div className="mt-6">
+        <AccountMenu />
+      </div>
 
       <section className="mt-6 rounded-[2rem] bg-white p-4 shadow-soft sm:p-5">
         <div className="flex flex-wrap gap-2">

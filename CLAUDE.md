@@ -36,6 +36,33 @@ Quality gate before finishing any change: `npm run typecheck && npm run lint && 
   Use `catch (error)` (unknown), never `catch (error: any)`.
 - **Route protection** is centralized in `src/middleware.ts` (auth + admin role).
 
+## Telegram import service (`telegram-service/`)
+
+A separate Python worker (Telethon + FastAPI, its own image and deploy
+workflow) that watches configured Telegram channels and stages drafts for
+**Admin Panel → Telegram Imports**. It shares the Supabase project and the
+storage bucket, nothing else.
+
+- **Extraction is deterministic and must stay that way.** `telegram_parser/` is
+  regex, keyword tables and string handling with zero third-party imports — no
+  model, no API key, no quota, no per-message cost. The previous Gemini-backed
+  version lost every listing that arrived while its free-tier quota was
+  exhausted. CI fails the build if any AI SDK ends up imported.
+- **Nothing publishes automatically.** The worker's only write to a
+  user-visible table is a `telegram_listings` row with
+  `status='pending_review'`. The transition to a real listing happens solely in
+  `api/admin/telegram-imports/[id]/approve`, which reuses `createListing()` /
+  `createTemporaryHost()` so an approved import is indistinguishable from a
+  hand-seeded one.
+- **The spam filter runs before the first database write** — a non-housing post
+  must cost one regex sweep and leave no row, no photo and no storage object.
+- Behaviour is data: add a ЖК, a spam phrase or a price format to
+  `telegram_parser/patterns.py` with a test, and bump `PARSER_VERSION`.
+  `telegram-service/README.md` documents the two regex traps that have already
+  cost production data.
+- The `.session` file is a credential: never committed, never in the image,
+  mounted from the `roomi-telegram-session` volume.
+
 ## Styling / design system
 
 - Colors are **design tokens**, not hardcoded hex. Tokens are HSL CSS variables

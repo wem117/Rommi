@@ -110,6 +110,23 @@ WHOLE_HOUSE = """🏡 Сдается дом 2024-го года в аренду �
 
 CRYPTO_SPAM = "Куплю юсдт, жду ваши сообщения"
 
+# Arrived live while the service was being verified, and caught three misses at
+# once — see the tests referencing it below.
+LIVE_SHARED_FLAT = """Здравствуйте! Ищем девушек. ❗️Можно на летнее время .❗️
+Спокойных, без вредных привычек (не пьющих, не курящих).
+
+🏠 3-комнатная квартира — в каждой комнате по 2 девушки.
+🚪 Комнаты изолированные
+
+✅ Есть Wi-Fi
+✅ Холодильник, микроволновка, утюг, стиральная машина и др.
+
+💰 Цена: 45 000 тг + депозит 10 000 тг (коммунальные услуги включены).
+📍 Адрес: Алтын ауыл, 5 минут пешком до СДУ.
+
+📞 Дополнительная информация: в личные сообщения или по телефону
+8 700 112 96 94."""
+
 
 # --- price --------------------------------------------------------------------
 
@@ -441,6 +458,28 @@ def test_zhk(text, zhk):
     assert extract_zhk(N(text)) == zhk
 
 
+@pytest.mark.parametrize(
+    "text",
+    ["в жк алтын аул с сентября", "Адрес: Алтын ауыл, 5 минут до СДУ", "ЖК Алтын Ауыл"],
+)
+def test_the_same_complex_spelled_both_ways_lands_on_one_name(text):
+    """
+    аул / ауыл are the Russian and Kazakh spellings of the same word, and the
+    same complex is written both ways in the same channel. Canonicalising means
+    an admin filtering by ЖК sees one entry, not two.
+    """
+    assert extract_zhk(N(text)) == "Алтын Аул"
+
+
+def test_an_explicitly_labelled_address_is_taken_at_its_word():
+    """
+    "Адрес: ..." names a complex or a district as often as a street, so
+    STREET_RE never sees it — and the post is telling us outright.
+    """
+    parsed = parse_message("Сдается квартира.\nАдрес: Розыбакиева 100, рядом метро.")
+    assert parsed.address == "Розыбакиева 100"
+
+
 def test_zhk_capture_stops_at_a_preposition():
     """
     "в жк алтын аул с сентября" — without a stop list the name swallows the rest
@@ -523,6 +562,26 @@ def test_amenity_keywords(text, amenity):
 )
 def test_listing_kind(text, kind):
     assert extract_listing_kind(N(text)) == kind
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Ищем девушек в 3-комнатную квартиру",
+        "Ищем девушку на подселение",
+        "Ищем 2 девушек",
+        "ищем парней в квартиру",
+    ],
+)
+def test_the_genitive_plural_of_devushka_is_recognised(text):
+    """
+    Regression, found on a live post. "девушек" is the genitive plural of
+    "девушка" and the stem loses its к — so `девушк\\w*` matches девушка,
+    девушки, девушку and девушкам, and misses the one form these posts actually
+    use. "Ищем девушек." — the opening line of a real listing — read as
+    intent unknown.
+    """
+    assert extract_listing_kind(N(text)) == "shared"
 
 
 def test_looking_for_flatmates_is_not_looking_for_a_flat():
@@ -668,6 +727,22 @@ def test_kazakh_dorm_end_to_end():
     assert parsed.price == 140_000
     assert parsed.utilities_included is True
     assert parsed.contact_phone == "+77078039290"
+
+
+def test_the_live_shared_flat_end_to_end():
+    """The post that caught three misses at once, now pinned in full."""
+    parsed = parse_message(LIVE_SHARED_FLAT, default_city="Almaty")
+    assert parsed.price == 45_000
+    assert parsed.deposit_amount == 10_000
+    assert parsed.utilities_included is True
+    assert parsed.rooms == 3
+    assert parsed.listing_kind == "shared"          # was "unknown": девушек
+    assert parsed.zhk == "Алтын Аул"                # was "":       ауыл
+    assert parsed.address == "ЖК Алтын Аул"         # was "":       no street
+    assert parsed.university == "SDU University (Suleyman Demirel)"
+    assert parsed.contact_phone == "+77001129694"
+    assert "WiFi" in parsed.amenities
+    assert "Washing Machine" in parsed.amenities
 
 
 def test_every_real_post_that_should_be_kept_is_kept():

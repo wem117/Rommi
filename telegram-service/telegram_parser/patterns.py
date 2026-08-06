@@ -212,7 +212,7 @@ COLLECTIVE_NUMBERS: tuple[tuple[str, int], ...] = (
 # "нужен пятый человек" — the ordinal names the headcount being completed.
 ORDINAL_PEOPLE_RE = re.compile(
     r"(второй|третий|третья|четвертый|четвёртый|четвертая|пятый|пятая|шестой|шестая)\s+"
-    r"(?:человек|жилец|сосед\w*|девушк\w*|парен\w*|адам)"
+    r"(?:человек|жилец|сосед\w*|девуш\w*|парен\w*|адам)"
 )
 ORDINAL_VALUES: dict[str, int] = {
     "второй": 2, "третий": 3, "третья": 3,
@@ -222,7 +222,7 @@ ORDINAL_VALUES: dict[str, int] = {
 # "до 5 человек", "4 девушки", "3-местные комнаты", "на 2 человека"
 CAPACITY_COUNT_RE = re.compile(
     r"(?:до|на|для)?\s*(?<!\d)(\d{1,2})\s*"
-    r"(?:человек\w*|жильц\w*|студент\w*|девушк\w*|парн\w*|адам\w*|сосед\w*|person|people)"
+    r"(?:человек\w*|жильц\w*|студент\w*|девуш\w*|парн\w*|адам\w*|сосед\w*|person|people)"
 )
 CAPACITY_PLACES_RE = re.compile(r"(?<!\d)(\d{1,2})\s*[-–—]?\s*(?:местн\w*|орынд\w*|орын\b)")
 MAX_PLAUSIBLE_CAPACITY = 20
@@ -296,7 +296,7 @@ DISTRICT_GENERIC_RE = re.compile(
 # ЖК / residential complex. Known names first — a lookup can never over-capture,
 # and these four are most of Roomi's student inventory.
 KNOWN_ZHK: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"алтын\s*аул\w*"), "Алтын Аул"),
+    (re.compile(r"алтын\s*а[уy]ыл\w*|алтын\s*аул\w*"), "Алтын Аул"),
     (re.compile(r"асыл\s*арман\w*"), "Асыл Арман"),
     (re.compile(r"алма\s*сити"), "Алма Сити"),
     (re.compile(r"шахристан\w*"), "Шахристан"),
@@ -321,6 +321,13 @@ ZHK_STOP_WORDS = frozenset(
         "будем", "живем", "живём", "квартира", "квартире", "комната", "этаж", "тг", "тенге",
         "the", "at", "in", "for", "from",
     }
+)
+
+# "Адрес: Алтын ауыл", "Мекенжай: ...". When an author labels the address
+# outright there is nothing to infer — but it often names a complex or a
+# district rather than a street, so STREET_RE alone never sees it.
+ADDRESS_LABEL_RE = re.compile(
+    r"(?:адрес|мекенжай|адресі)\s*[:\-—]\s*([^\n,.;]{3,60})"
 )
 
 # Streets and landmarks: "ул. Розыбакиева", "проспект Абая", "Абая көшесі".
@@ -397,7 +404,7 @@ MAX_AMENITIES = 20
 # the same allowance without the exclusion would read it as a search.
 SEEKING_RE = re.compile(
     r"(ищ(?:у|ем|ут|ущ\w*)\s+"
-    r"(?:(?!девушк|парн|парен|сосед|соседк|жильц|жилец|қыз|студент|адам|человек)[\w-]+\s+){0,3}"
+    r"(?:(?!девуш|парн|парен|сосед|соседк|жильц|жилец|қыз|студент|адам|человек)[\w-]+\s+){0,3}"
     r"(?:квартир\w*|жиль\w*|комнат\w*|подселен\w*|вариант\w*)|"
     r"сниму\b|снимем\b|нужна\s+квартир\w*|нужно\s+жиль\w*|"
     # Kazakh, and deliberately anchored on a HOUSING noun: "қыздар іздейміз"
@@ -410,7 +417,7 @@ OFFERING_RE = re.compile(
     r"пәтер\s+беріле\w*|беріледі|for\s+rent|rent\s+out|available)"
 )
 SHARED_RE = re.compile(
-    r"(подселен\w*|совместн\w*\s+проживан\w*|ищем?\s+(?:девушк\w*|парн\w*|соседк\w*|сосед\w*|жильц\w*|"
+    r"(подселен\w*|совместн\w*\s+проживан\w*|ищем?\s+(?:\d+\s+|одну\s+|двух\s+)?(?:девуш\w*|парн\w*|соседк\w*|сосед\w*|жильц\w*|"
     r"қыздар\w*|студент\w*)|сожител\w*|roommate|қыздар\s+іздей\w*|адам\s+керек|"
     r"керек\s+(?:қыз|адам)|нужен\s+(?:сосед\w*|жилец|пятый|четвертый|третий))"
 )
@@ -425,7 +432,7 @@ POSITIVE_SIGNALS: tuple[tuple[re.Pattern[str], int], ...] = (
     (re.compile(r"(подселен\w*|совместн\w*\s+проживан\w*|сожител\w*|roommate)"), 3),
     (re.compile(r"(общежит\w*|жатақхана\w*|жатакхана\w*|общаг\w*|dormitory)"), 3),
     (re.compile(r"(ищу\s+квартир\w*|ищу\s+жиль\w*|сниму\b|ищем\s+жильц\w*|ищу\s+соседк?\w*|"
-                r"ищем\s+девушк\w*|ищем\s+парн\w*|іздейміз|іздеймін)"), 3),
+                r"ищем\s+девуш\w*|ищем\s+парн\w*|іздейміз|іздеймін)"), 3),
     # "кв" abbreviated is how the terser album captions write it ("кв 2 ком",
     # "Квартира болек вход" — both real posts), and those captions are the ones
     # closest to the threshold.

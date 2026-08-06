@@ -541,8 +541,14 @@ def extract_location(normalized: str, original: str) -> Location:
         location.address = f"ЖК {location.zhk}"
     else:
         street = P.STREET_RE.search(normalized)
+        labelled = P.ADDRESS_LABEL_RE.search(normalized)
         if street:
             location.address = _title_case_tokens(street.group(0).strip(" .,;:"))[:300]
+        elif labelled:
+            # An author who writes "Адрес: ..." is telling us outright; there is
+            # nothing left to infer, even when what follows is a complex or a
+            # district rather than a street.
+            location.address = _title_case_tokens(labelled.group(1).strip(" .,;:"))[:300]
 
     for pattern, university in P.UNIVERSITY_ALIASES:
         if pattern.search(normalized):

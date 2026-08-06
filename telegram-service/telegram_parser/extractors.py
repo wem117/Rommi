@@ -21,17 +21,62 @@ from telegram_parser import patterns as P
 # ---------------------------------------------------------------- normalizing
 
 
+# Latin letters that are visually identical to a Cyrillic one. Phones autocorrect
+# into the wrong keyboard constantly, so "кvартира" and "пoдселение" — each with one
+# Latin character hiding in a Cyrillic word — are ordinary, and every pattern in
+# this parser misses both.
+_HOMOGLYPHS = str.maketrans(
+    {
+        # Only genuine LOWERCASE lookalikes. "h"->"н" and "t"->"т" were here
+        # and are not: those pairs only resemble each other in capitals, and
+        # folding them corrupts ordinary words.
+        "a": "а", "c": "с", "e": "е", "k": "к", "m": "м",
+        "o": "о", "p": "р", "x": "х", "y": "у",
+    }
+)
+
+_CYRILLIC = re.compile(r"[а-яёәғқңөұүһі]")
+_LATIN = re.compile(r"[a-z]")
+_WORD = re.compile(r"[^\W\d_]+")
+# Three or more of the same letter in a row. Russian and Kazakh double letters
+# are always exactly two, so a run of three is emphasis ("сдаётсяяя") and
+# collapsing it to one cannot damage a real word.
+_ELONGATED = re.compile(r"([^\W\d_])\1{2,}")
+
+
+def _fold_word(match: "re.Match[str]") -> str:
+    """Latin lookalikes -> Cyrillic, but only inside a word that is mostly Cyrillic."""
+    word = match.group(0)
+    if not _CYRILLIC.search(word) or not _LATIN.search(word):
+        return word
+    # A word has to be predominantly Cyrillic before its Latin characters are
+    # assumed to be typos. Without that guard, a transliterated name like
+    # "Alma City" or an acronym like "SDU" gets mangled into nonsense.
+    if len(_CYRILLIC.findall(word)) <= len(_LATIN.findall(word)):
+        return word
+    return word.translate(_HOMOGLYPHS)
+
+
 def normalize_text(text: str) -> str:
     """
-    Lowercase, and fold the space-like characters Telegram posts are full of.
+    Lowercase, fold the space-like characters Telegram posts are full of, repair
+    mixed-keyboard typos, and flatten elongated letters.
 
     Not a transliteration and deliberately not a ё->е fold: the pattern tables
     carry both spellings, and a fold here would silently disable every pattern
     written with the letter the author actually used.
+
+    The two repairs are the cheapest typo tolerance available that cannot
+    misfire. Neither guesses at a word: one substitutes characters that are
+    visually IDENTICAL, and only inside a word already mostly in the other
+    alphabet; the other removes repetition that no real word in either language
+    contains.
     """
     if not text:
         return ""
-    return text.replace(" ", " ").replace(" ", " ").replace(" ", " ").lower()
+    lowered = text.replace(" ", " ").replace(" ", " ").replace(" ", " ").lower()
+    folded = _WORD.sub(_fold_word, lowered)
+    return _ELONGATED.sub(r"\1", folded)
 
 
 def tidy_text(text: str) -> str:
@@ -276,11 +321,12 @@ def extract_area(normalized: str) -> float | None:
 
 def extract_floors(normalized: str) -> tuple[int | None, int | None]:
     """Returns (floor, total_floors); either may be None."""
-    match = P.FLOOR_OF_TOTAL_RE.search(normalized)
-    if match:
-        floor, total = int(match.group(1)), int(match.group(2))
-        if 0 < floor <= total <= P.MAX_PLAUSIBLE_FLOOR:
-            return floor, total
+    for pattern in (P.FLOOR_OF_TOTAL_RE, P.FLOOR_THEN_TOTAL_RE):
+        match = pattern.search(normalized)
+        if match:
+            floor, total = int(match.group(1)), int(match.group(2))
+            if 0 < floor <= total <= P.MAX_PLAUSIBLE_FLOOR:
+                return floor, total
 
     floor = None
     for pattern in (P.FLOOR_RE, P.FLOOR_LABEL_RE, P.KZ_FLOOR_RE):
@@ -406,11 +452,11 @@ def extract_amenities(normalized: str) -> list[str]:
     spelling means the same fridge never arrives written two ways.
     """
     found: list[str] = []
-    for name, pattern in P.AMENITY_PATTERNS:
-        if pattern.search(normalized):
-            found.append(name)
-    for name, pattern in P.EXTRA_AMENITY_PATTERNS:
-        if pattern.search(normalized):
+    for name, pattern in (*P.AMENITY_PATTERNS, *P.EXTRA_AMENITY_PATTERNS):
+        # `not in found` rather than a set, so the declared order in the pattern
+        # tables survives — the app groups amenities for display and an
+        # arbitrary order would scramble the groups.
+        if name not in found and pattern.search(normalized):
             found.append(name)
     return found[: P.MAX_AMENITIES]
 
@@ -607,7 +653,16 @@ def extract_location(normalized: str, original: str) -> Location:
             location.university = university
             break
 
-    location.landmarks = [m.group(0).strip() for m in P.LANDMARK_RE.finditer(normalized)][:5]
+    # Deduplicated, order preserved. A post naming "Мега" three times is one
+    # landmark, and a draft listing it three times reads as three.
+    seen: set[str] = set()
+    landmarks: list[str] = []
+    for match in P.LANDMARK_RE.finditer(normalized):
+        landmark = match.group(0).strip()
+        if landmark and landmark not in seen:
+            seen.add(landmark)
+            landmarks.append(landmark)
+    location.landmarks = landmarks[:5]
 
     # `original` is unused for now beyond keeping the signature honest about
     # what a future casing-sensitive rule would need; the address is rebuilt

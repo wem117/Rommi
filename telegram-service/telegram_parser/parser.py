@@ -278,6 +278,14 @@ def parse_message(
         warnings.append("no contact details found")
 
     listing_kind = E.extract_listing_kind(normalized)
+    if listing_kind == "unknown" and property_type and price.amount is not None:
+        # Fallback: a post that names a property type AND a price, and asks for
+        # nothing, is offering something. Plenty of hostel and dorm posts read
+        # "Общежитие рядом с СДУ. 25 000 тг" with no renting verb at all, and
+        # leaving those unclassified sends real inventory to the bottom of the
+        # queue with a "needs a human" flag it does not need.
+        listing_kind = "offer"
+        warnings.append("intent inferred from a stated property type and price, not from the wording")
     draft_kind = _KIND_TO_DRAFT.get(listing_kind, DRAFT_UNKNOWN)
     if draft_kind == DRAFT_ROOMMATE:
         # Not a warning about a bad listing — a statement that this is a

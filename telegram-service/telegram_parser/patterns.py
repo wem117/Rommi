@@ -192,6 +192,9 @@ MAX_PLAUSIBLE_AREA = 2000.0
 
 # "6/9 этаж" and "6 из 9 этажей" carry both numbers at once.
 FLOOR_OF_TOTAL_RE = re.compile(r"(?<!\d)(\d{1,3})\s*(?:/|из|из\s+)\s*(\d{1,3})\s*этаж")
+# "6 этаж из 9" — the same fact with the words the other way round, and by far
+# the more common phrasing in these posts.
+FLOOR_THEN_TOTAL_RE = re.compile(r"(?<!\d)(\d{1,3})\s*этаж\w*\s*(?:из|/)\s*(\d{1,3})")
 FLOOR_RE = re.compile(r"(?<!\d)(\d{1,3})\s*(?:-?[ыий]?й?)?\s*этаж(?!н)")
 FLOOR_LABEL_RE = re.compile(r"этаж\s*[-:—]?\s*(\d{1,3})(?!\d)")
 # "5 этажный дом" is the building's height, not the flat's floor.
@@ -447,13 +450,16 @@ STUDENT_ONLY_RE = re.compile(
 )
 # How many people are being sought, as distinct from how many the place holds.
 ROOMMATE_WANTED_RE = re.compile(
-    r"(?:ищ\w+|нужн\w+|керек|қажет|требуется|требуются)\s+(?:ещ[её]\s+)?"
-    r"(\d{1,2}|одн\w+|двух|двое|трех|трёх|троих)\s*"
+    r"(?:ищ\w+|нуж\w+|керек|қажет|требу\w+)\s+(?:ещ[её]\s+)?"
+    r"(\d{1,2}|один|одного|одн\w+|двух|двое|трех|трёх|троих)\s*"
     r"(?:человек\w*|жильц\w*|сосед\w*|девуш\w*|парн\w*|студент\w*|адам|бала|қыз)"
 )
+# Keys are matched by prefix, so every form whose stem DIFFERS needs its own
+# entry — "один" does not start with "одн" (see note 3 at the top of this file).
 WORD_COUNTS: dict[str, int] = {
-    "одн": 1, "одного": 1, "одну": 1, "двух": 2, "двое": 2, "троих": 3,
-    "трех": 3, "трёх": 3,
+    "один": 1, "одн": 1, "одного": 1, "одну": 1,
+    "двух": 2, "двое": 2, "два": 2,
+    "троих": 3, "трех": 3, "трёх": 3, "три": 3,
 }
 
 # Metro is a first-class landmark in Almaty and Astana: renters filter on it.

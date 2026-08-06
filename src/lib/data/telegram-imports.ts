@@ -141,17 +141,25 @@ const MESSAGE_COLUMNS =
 const SELECT_WITH_MESSAGE = `*, telegram_messages(${MESSAGE_COLUMNS})`;
 
 /**
- * Every non-terminal import, newest first — the "Telegram Imports" queue.
+ * The newest unreviewed imports — the "Telegram Imports" queue.
  * `published`/`rejected` rows are excluded from the default queue view but
  * remain in the table as an audit trail.
  */
+export const TELEGRAM_QUEUE_LIMIT = 200;
+
 export async function getPendingTelegramImports(): Promise<TelegramImport[]> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("telegram_listings")
     .select(SELECT_WITH_MESSAGE)
     .in("status", ["draft", "pending_review"])
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    // Bounded because four busy channels can outrun a reviewer for a while, and
+    // each row carries the full post text plus its parser output. The oldest
+    // drafts beyond this are still in the table and reappear as the queue is
+    // worked down; what must never happen is one page load pulling a thousand
+    // multi-kilobyte rows into a browser.
+    .limit(TELEGRAM_QUEUE_LIMIT);
 
   if (error) throw error;
   return (data ?? []).map(mapRow);

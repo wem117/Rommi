@@ -360,6 +360,59 @@ def test_a_file_that_is_not_an_image_is_rejected_on_its_bytes(monkeypatch):
     assert asyncio.run(media.download_media([NotAnImage()], "draft-1")) == []
 
 
+# --- album recovery for rows that predate photo_message_ids --------------------
+
+
+class FakeClient:
+    """Answers get_messages(ids=[...]) out of a fixed chat."""
+
+    def __init__(self, messages):
+        self._by_id = {m.id: m for m in messages}
+        self.calls: list[list[int]] = []
+
+    async def get_messages(self, _entity, ids):
+        self.calls.append(list(ids))
+        return [self._by_id.get(i) for i in ids]
+
+
+def test_a_backfilled_album_is_reassembled_from_its_neighbours():
+    """
+    Rows recorded before photo_message_ids existed know only the caption's id.
+    Without this scan every backfilled draft arrives with one photo out of six.
+    """
+    album = [FakeMessage(200 + i, "", grouped_id=555, photo=object()) for i in range(6)]
+    album[0].raw_text = REAL_POST
+    unrelated = FakeMessage(210, "another post entirely", grouped_id=999, photo=object())
+    client = FakeClient(album + [unrelated])
+
+    group = asyncio.run(tl._recover_album_siblings(client, object(), album[0]))  # noqa: SLF001
+
+    assert [m.id for m in group] == [200, 201, 202, 203, 204, 205]
+    assert 210 not in [m.id for m in group], "a neighbour from a different album must not be pulled in"
+
+
+def test_a_standalone_message_is_not_scanned_for_siblings():
+    """No grouped_id means no album, and no reason to spend a Telegram call."""
+    client = FakeClient([])
+    message = FakeMessage(300, REAL_POST)
+
+    group = asyncio.run(tl._recover_album_siblings(client, object(), message))  # noqa: SLF001
+
+    assert group == [message]
+    assert client.calls == [], "a non-album message must cost no extra API call"
+
+
+def test_album_recovery_survives_a_telegram_failure():
+    class Failing(FakeClient):
+        async def get_messages(self, _entity, ids):
+            raise RuntimeError("flood wait")
+
+    message = FakeMessage(300, REAL_POST, grouped_id=555, photo=object())
+    group = asyncio.run(tl._recover_album_siblings(Failing([]), object(), message))  # noqa: SLF001
+
+    assert group == [message], "the caption alone is still a usable draft"
+
+
 def test_the_upload_body_really_streams_through_httpx():
     """
     Regression, caught only by making the call for real.

@@ -578,7 +578,57 @@ async def _refetch_messages(client, row: dict[str, Any]) -> list[Any]:
         )
         return []
 
-    return [m for m in (messages or []) if m is not None]
+    found = [m for m in (messages or []) if m is not None]
+
+    # Recovery for rows recorded before photo_message_ids existed: the stored id
+    # is the caption's, and its album siblings were never written down. The
+    # fetched message still knows its grouped_id, and Telegram numbers album
+    # members consecutively — so one bounded scan of the neighbouring ids
+    # reassembles the post. Without this every backfilled draft arrives with one
+    # photo out of however many the poster attached.
+    if len(found) == 1 and len(wanted) == 1:
+        found = await _recover_album_siblings(client, entity, found[0])
+
+    return found
+
+
+# Telegram caps an album at 10 messages, so a window of 10 either side reaches
+# every sibling regardless of where the caption sits in the group.
+ALBUM_ID_WINDOW = 10
+
+
+async def _recover_album_siblings(client, entity, message: Any) -> list[Any]:
+    """The album `message` belongs to, or just `message` if it is not in one."""
+    grouped_id = getattr(message, "grouped_id", None)
+    if not grouped_id:
+        return [message]
+
+    primary_id = int(message.id)
+    window = [
+        candidate
+        for candidate in range(primary_id - ALBUM_ID_WINDOW, primary_id + ALBUM_ID_WINDOW + 1)
+        if candidate > 0 and candidate != primary_id
+    ]
+
+    try:
+        siblings = await client.get_messages(entity, ids=window)
+    except Exception:  # noqa: BLE001 - the caption alone is still a usable draft
+        logger.warning("Could not scan for album siblings", extra={"message_id": primary_id})
+        return [message]
+
+    group = [message]
+    group.extend(
+        sibling
+        for sibling in (siblings or [])
+        if sibling is not None and getattr(sibling, "grouped_id", None) == grouped_id
+    )
+    group.sort(key=lambda m: getattr(m, "id", 0))
+    if len(group) > 1:
+        logger.info(
+            "Recovered album siblings for a queued message",
+            extra={"message_id": primary_id, "album_size": len(group)},
+        )
+    return group
 
 
 async def sweep_retries(client) -> int:

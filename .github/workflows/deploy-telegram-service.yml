@@ -390,6 +390,18 @@ jobs:
             docker network connect supabase_default roomi-telegram-service 2>/dev/null || true
             docker logout ghcr.io || true
 
+            # Two separate waits, because they mean different things.
+            #
+            # First: does the container serve at all? Failing that is a failed
+            # deploy and rolls back.
+            #
+            # Second: has the LISTENER reached "connected"? That takes a second
+            # or two longer than the HTTP server does — MTProto has to open its
+            # own connection and authenticate off the session file. Reading the
+            # body once, the moment /health first answers, races that and
+            # reports "not connected yet" on a perfectly good deploy. A warning
+            # that fires on healthy deploys is worse than no warning: it teaches
+            # everyone to ignore the one that matters.
             echo "Waiting for the service to answer /health..."
             for _ in $(seq 1 30); do
               if curl -sS -o /tmp/telegram-health.json --max-time 5 http://127.0.0.1:8010/health; then
@@ -403,6 +415,15 @@ jobs:
               echo "Deploy FAILED: the container never answered /health." >&2
               rollback
             fi
+
+            echo "Waiting for the Telegram listener to connect..."
+            for _ in $(seq 1 20); do
+              case "$HEALTH_BODY" in
+                *'"listener": "connected"'*|*'"listener":"connected"'*) break ;;
+              esac
+              sleep 3
+              HEALTH_BODY="$(curl -sS --max-time 5 http://127.0.0.1:8010/health || echo "$HEALTH_BODY")"
+            done
 
             # Only now is the old container surplus. Pruning here rather than
             # before the health check is what keeps the rollback possible.

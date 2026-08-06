@@ -169,7 +169,7 @@ export default function MyListingsClient({
               aria-label={t("myListings.filterStatus")}
               className="h-11 rounded-xl border border-border bg-card px-3 text-sm"
             >
-              {(["all", "published", "draft", "archived", "rejected"] as const).map((s) => (
+              {(["all", "published", "pending", "draft", "archived", "rejected"] as const).map((s) => (
                 <option key={s} value={s}>{t(`myListings.status.${s}`)}</option>
               ))}
             </select>
@@ -307,6 +307,7 @@ export default function MyListingsClient({
 
 const STATUS_TONE: Record<MyListingStatus, string> = {
   published: "bg-success/15 text-success",
+  pending: "bg-primary/15 text-primary",
   draft: "bg-highlight/20 text-foreground/70",
   archived: "bg-surface-muted text-foreground/60",
   rejected: "bg-destructive/15 text-destructive"

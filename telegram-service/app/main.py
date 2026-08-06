@@ -17,6 +17,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.db import close_client
 from app.logging_config import configure_logging
 from telegram_listener import get_listener_status, run_forever
 
@@ -40,6 +41,9 @@ async def lifespan(app: FastAPI):
                 await _listener_task
             except asyncio.CancelledError:
                 pass
+        # The Supabase client is process-wide and pooled; closing it releases
+        # its sockets instead of leaving them to the garbage collector.
+        await close_client()
         logger.info("Telegram listener task stopped")
 
 

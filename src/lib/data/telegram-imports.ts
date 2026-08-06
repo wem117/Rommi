@@ -23,12 +23,31 @@ export interface TelegramImport {
   totalFloors: number | null;
   amenities: string[];
   contactPhone: string;
+  /** The phone exactly as the post wrote it, beside the normalized form. */
+  contactPhoneRaw: string;
   contactTelegram: string;
   contactWhatsapp: string;
+  contactWhatsappRaw: string;
   photoUrls: string[];
   lat: number | null;
   lng: number | null;
-  rawAiOutput: unknown;
+  /** Residential complex — the address form Kazakhstani renters actually use. */
+  zhk: string;
+  university: string;
+  capacity: number | null;
+  depositAmount: number | null;
+  depositRequired: boolean | null;
+  depositNote: string;
+  utilitiesIncluded: boolean | null;
+  utilitiesNote: string;
+  /**
+   * What the post is doing: offering a whole place, offering a share, or
+   * LOOKING for one. `seeking` is the one that matters — approving it would
+   * publish a student's request as somebody's rental.
+   */
+  listingKind: "offer" | "shared" | "seeking" | "unknown";
+  parserVersion: string;
+  parserOutput: unknown;
   extractionError: string | null;
   reviewedBy: string | null;
   reviewedAt: string | null;
@@ -37,10 +56,21 @@ export interface TelegramImport {
   updatedAt: string;
   /** The original Telegram message text, joined in for review context. */
   sourceContent: string | null;
+  /** Who posted it, exactly as Telegram reports them. */
+  sender: {
+    telegramId: number | null;
+    username: string;
+    firstName: string;
+    lastName: string;
+    displayName: string;
+  } | null;
+  /** Telegram's own send time, which is not when we received it. */
+  messageDate: string | null;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapRow(row: any): TelegramImport {
+  const message = row.telegram_messages ?? null;
   return {
     id: row.id,
     telegramMessageId: row.telegram_message_id,
@@ -59,21 +89,56 @@ function mapRow(row: any): TelegramImport {
     totalFloors: row.total_floors ?? null,
     amenities: row.amenities ?? [],
     contactPhone: row.contact_phone ?? "",
+    contactPhoneRaw: row.contact_phone_raw ?? "",
     contactTelegram: row.contact_telegram ?? "",
     contactWhatsapp: row.contact_whatsapp ?? "",
+    contactWhatsappRaw: row.contact_whatsapp_raw ?? "",
     photoUrls: row.photo_urls ?? [],
     lat: row.lat ?? null,
     lng: row.lng ?? null,
-    rawAiOutput: row.raw_ai_output ?? null,
+    zhk: row.zhk ?? "",
+    university: row.university ?? "",
+    capacity: row.capacity ?? null,
+    depositAmount: row.deposit_amount ?? null,
+    depositRequired: row.deposit_required ?? null,
+    depositNote: row.deposit_note ?? "",
+    utilitiesIncluded: row.utilities_included ?? null,
+    utilitiesNote: row.utilities_note ?? "",
+    listingKind: row.listing_kind ?? "unknown",
+    parserVersion: row.parser_version ?? "",
+    parserOutput: row.parser_output ?? null,
     extractionError: row.extraction_error ?? null,
     reviewedBy: row.reviewed_by ?? null,
     reviewedAt: row.reviewed_at ?? null,
     listingId: row.listing_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    sourceContent: row.telegram_messages?.content ?? null
+    sourceContent: message?.content ?? null,
+    sender: message
+      ? {
+          telegramId: message.sender_telegram_id ?? null,
+          username: message.sender_username ?? "",
+          firstName: message.sender_first_name ?? "",
+          lastName: message.sender_last_name ?? "",
+          displayName: message.sender_display_name ?? ""
+        }
+      : null,
+    messageDate: message?.message_date ?? null
   };
 }
+
+/**
+ * Only the message columns the review UI actually renders.
+ *
+ * `telegram_messages.content` can be several kilobytes of post text, and the
+ * queue reads every pending row at once — naming the columns keeps the join
+ * from dragging back the retry bookkeeping (attempts, last_error,
+ * photo_message_ids) that nothing on this page displays.
+ */
+const MESSAGE_COLUMNS =
+  "content,message_date,sender_telegram_id,sender_username,sender_first_name,sender_last_name,sender_display_name";
+
+const SELECT_WITH_MESSAGE = `*, telegram_messages(${MESSAGE_COLUMNS})`;
 
 /**
  * Every non-terminal import, newest first — the "Telegram Imports" queue.
@@ -84,7 +149,7 @@ export async function getPendingTelegramImports(): Promise<TelegramImport[]> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("telegram_listings")
-    .select("*, telegram_messages(content)")
+    .select(SELECT_WITH_MESSAGE)
     .in("status", ["draft", "pending_review"])
     .order("created_at", { ascending: false });
 
@@ -96,7 +161,7 @@ export async function getTelegramImportById(id: string): Promise<TelegramImport 
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("telegram_listings")
-    .select("*, telegram_messages(content)")
+    .select(SELECT_WITH_MESSAGE)
     .eq("id", id)
     .maybeSingle();
 
@@ -124,6 +189,12 @@ const FIELD_MAP: Record<keyof TelegramImportUpdateInput, string> = {
   photoUrls: "photo_urls",
   lat: "lat",
   lng: "lng",
+  zhk: "zhk",
+  university: "university",
+  capacity: "capacity",
+  depositAmount: "deposit_amount",
+  depositRequired: "deposit_required",
+  utilitiesIncluded: "utilities_included",
   status: "status"
 };
 
@@ -139,7 +210,7 @@ export async function updateTelegramImport(id: string, input: TelegramImportUpda
     .from("telegram_listings")
     .update(payload)
     .eq("id", id)
-    .select("*, telegram_messages(content)")
+    .select(SELECT_WITH_MESSAGE)
     .single();
 
   if (error) throw error;

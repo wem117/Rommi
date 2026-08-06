@@ -1,36 +1,41 @@
 """
-Telegram -> AI -> Roomi listing import worker.
+Telegram -> Roomi listing import worker.
 
 Entry point (also importable — see app/main.py, which runs this as a FastAPI
 background task). Can run standalone:
 
     python telegram_listener.py
 
-Required functions (per spec), each independently testable:
-    listen_messages()      registers Telethon handlers for every enabled source
-    extract_listing()      re-exported from app.extraction — AI text extraction
-    download_media()       re-exported from app.media — Telegram photo -> Storage
-    create_draft_listing() writes the reviewed-later row to telegram_listings
+The pipeline, in the order a message travels it:
 
-Reliability posture: nothing raised while processing a SINGLE message is
-allowed to stop the listener. Telegram unavailability, an AI failure, an
-invalid/empty message, or a photo that fails to download are all caught and
-logged rather than propagated.
+    Telegram message
+        -> album reassembly        (app/albums.py — six events, one post)
+        -> spam filter             (telegram_parser/spam_filter.py)
+        -> deterministic parser    (telegram_parser/parser.py)
+        -> photo processing        (app/media.py — streamed, never buffered)
+        -> telegram_listings draft (status='pending_review')
+        -> admin review            (Admin Panel -> Telegram Imports)
+        -> manual approval         (the EXISTING createListing() pipeline)
 
-What happens to the message afterwards depends on WHY it failed:
+Nothing is ever published automatically. This worker's only write to a
+user-visible table is a draft with status='pending_review'; the transition to a
+real listing happens exclusively in the Next.js approve route, behind
+requireAdminUser().
 
-  * Permanent (no text, unparseable AI output, not a rental listing) — marked
-    processed. Retrying cannot change the outcome, and replaying it would burn
-    quota that a recoverable message needs.
-  * Retryable (Gemini quota/429, model overloaded, network blip, Telegram
-    flood wait) — left UNPROCESSED with `attempts`/`next_attempt_at` set, and
-    picked up again by sweep_retries() once the backoff elapses. This survives
-    a container restart because the state lives in the database, not in memory.
+Two properties are load-bearing and easy to lose:
 
-That distinction is the fix for a real data-loss bug: the previous version
-marked every message processed in a `finally:` block, so a Gemini quota outage
-silently retired every listing that arrived during it — no error, no draft, and
-nothing to indicate anything had been lost.
+  * The spam filter runs BEFORE the first database write. A message that is not
+    about housing costs one regex sweep and nothing else — no row, no photo
+    download, no storage object, no draft for a human to dismiss.
+  * Extraction is deterministic. There is no quota to exhaust, so a failure is
+    always about the moment (Supabase unreachable) and never about the message.
+    That distinction used to be the difference between a listing and a silent
+    data loss: when Gemini's per-day quota ran out, 18 real listings were retried
+    eight times each and then retired unseen.
+
+Reliability posture: nothing raised while processing a SINGLE message is allowed
+to stop the listener. Telegram unavailability, a malformed message, or a photo
+that fails to download are all caught and logged rather than propagated.
 """
 
 from __future__ import annotations
@@ -44,8 +49,11 @@ from typing import Any
 from telethon import events, utils
 from telethon.errors import FloodWaitError
 
+from app.albums import AlbumBuffer
 from app.config import settings
 from app.db import (
+    SupabaseError,
+    close_client,
     create_telegram_listing,
     get_due_messages,
     get_enabled_sources,
@@ -55,12 +63,25 @@ from app.db import (
     record_message_if_new,
     schedule_message_retry,
 )
-from app.extraction import ExtractionResult, extract_listing  # noqa: F401 - re-exported
 from app.logging_config import configure_logging
-from app.media import download_media  # noqa: F401 - re-exported
+from app.media import download_media  # noqa: F401 - re-exported (see module docstring)
 from app.telethon_client import build_client, connect_or_raise
+from telegram_parser import (
+    PARSER_VERSION,
+    ParsedListing,
+    RecentContentFilter,
+    TelegramSender,
+    classify,
+    normalize_text,
+    parse_message,
+)
 
 logger = logging.getLogger(__name__)
+
+# Catches an advertiser re-posting identical TEXT under a new message id, which
+# the database's (source, message_id) constraint cannot see. Bounded — see
+# RecentContentFilter.
+_recent_content = RecentContentFilter(capacity=256)
 
 
 def peer_keys(entity: Any) -> set[int]:
@@ -112,140 +133,207 @@ def resolve_source_id(entity_to_source: dict[int, str], chat_id: int | None) -> 
     return entity_to_source.get(raw_id)
 
 
+# --------------------------------------------------------------------- sender
+
+
+async def read_sender(message: Any) -> TelegramSender:
+    """
+    Who posted, as far as Telegram will say.
+
+    Best-effort by design: a channel post has no user sender, a forwarded one
+    may have a hidden sender, and `get_sender()` can cost a network round-trip.
+    None of that is worth failing an import over, so every field degrades to
+    empty independently.
+    """
+    sender_obj = getattr(message, "sender", None)
+    if sender_obj is None:
+        try:
+            sender_obj = await message.get_sender()
+        except Exception:  # noqa: BLE001 - unresolvable sender is not an error
+            sender_obj = None
+
+    if sender_obj is None:
+        # A channel post signed by its author carries the name and nothing else.
+        author = (getattr(message, "post_author", "") or "").strip()
+        return TelegramSender(display_name=author)
+
+    first = (getattr(sender_obj, "first_name", "") or "").strip()
+    last = (getattr(sender_obj, "last_name", "") or "").strip()
+    title = (getattr(sender_obj, "title", "") or "").strip()
+    username = (getattr(sender_obj, "username", "") or "").strip()
+
+    # A channel's `title` IS its display name; a user's is assembled from the
+    # name parts. Storing the assembled form under a separate key from the parts
+    # is deliberate — an admin chasing a poster needs both.
+    display = title or " ".join(part for part in (first, last) if part) or username
+
+    telegram_id = getattr(sender_obj, "id", None)
+    return TelegramSender(
+        telegram_id=telegram_id if isinstance(telegram_id, int) else None,
+        username=username,
+        first_name=first,
+        last_name=last,
+        display_name=display,
+        is_bot=bool(getattr(sender_obj, "bot", False)),
+    )
+
+
+def _message_payload(
+    source_id: str,
+    primary: Any,
+    group: list[Any],
+    sender: TelegramSender,
+    content: str,
+) -> dict[str, Any]:
+    """The `telegram_messages` row: the post exactly as it arrived."""
+    sent_at = getattr(primary, "date", None)
+    photo_ids = [int(m.id) for m in group if getattr(m, "photo", None) and getattr(m, "id", None)]
+
+    return {
+        "telegram_source_id": source_id,
+        "telegram_message_id": int(primary.id),
+        "content": content,
+        "grouped_id": int(primary.grouped_id) if getattr(primary, "grouped_id", None) else None,
+        "photo_message_ids": photo_ids,
+        "message_date": sent_at.isoformat() if sent_at else None,
+        "sender_telegram_id": sender.telegram_id,
+        "sender_username": sender.username,
+        "sender_first_name": sender.first_name,
+        "sender_last_name": sender.last_name,
+        "sender_display_name": sender.display_name,
+        "sender_is_bot": sender.is_bot,
+    }
+
+
+# ---------------------------------------------------------------------- draft
+
+
 async def create_draft_listing(
     message_row_id: str,
-    result: ExtractionResult,
+    parsed: ParsedListing,
     photo_urls: list[str],
 ) -> dict[str, Any]:
     """
-    Persists one AI-extracted listing to telegram_listings with
+    Persists one parsed listing to telegram_listings with
     status='pending_review', ready for Admin Panel -> Telegram Imports.
 
-    Always succeeds in the sense of writing SOMETHING: even a failed
-    extraction is recorded (with `extraction_error` set and blank fields) so a
-    message that looked like a listing but couldn't be parsed is still visible
-    to a human instead of silently disappearing.
+    `status` is not a parameter and never will be: this function is the only
+    thing in the service that writes to this table, and 'pending_review' is the
+    only status it may write. Publishing is a human action taken in the admin
+    panel, through the same createListing() pipeline a hand-seeded listing uses.
     """
     draft_id = str(uuid.uuid4())
-    validated = result.validated
-
-    payload: dict[str, Any] = {
-        "id": draft_id,
-        "telegram_message_id": message_row_id,
-        "status": "pending_review",
-        "raw_ai_output": result.raw_output,
-        "extraction_error": result.error,
-        "photo_urls": photo_urls,
-    }
-
-    if validated is not None:
-        payload.update(
-            {
-                "title": validated.title,
-                "description": validated.description,
-                "city": validated.city,
-                "district": validated.district,
-                "address": validated.address,
-                "price": validated.price,
-                "currency": validated.currency,
-                "rooms": validated.rooms,
-                "property_type": validated.property_type,
-                "area": validated.area,
-                "floor": validated.floor,
-                "total_floors": validated.total_floors,
-                "amenities": validated.amenities,
-                "contact_phone": validated.contact_phone,
-                "contact_telegram": validated.contact_telegram,
-                "contact_whatsapp": validated.contact_whatsapp,
-            }
-        )
+    payload = parsed.to_draft_payload()
+    payload.update(
+        {
+            "id": draft_id,
+            "telegram_message_id": message_row_id,
+            "status": "pending_review",
+            "photo_urls": photo_urls,
+        }
+    )
 
     row = await create_telegram_listing(payload)
     logger.info(
         "Draft listing created",
-        extra={"draft_id": draft_id, "has_error": bool(result.error), "photos": len(photo_urls)},
+        extra={
+            "draft_id": draft_id,
+            "photos": len(photo_urls),
+            "price": parsed.price,
+            "city": parsed.city,
+            "kind": parsed.listing_kind,
+            "warnings": len(parsed.warnings),
+        },
     )
     return row
 
 
 def retry_delay_seconds(attempts: int) -> float:
-    """
-    Exponential backoff for the Nth failed attempt, capped.
-
-    The cap is what matters here: the failure this queue exists for is a
-    per-day Gemini quota, so unbounded doubling would overshoot the window that
-    the quota actually resets in and leave listings sitting for days.
-    """
+    """Exponential backoff for the Nth failed attempt, capped."""
     if attempts < 1:
         attempts = 1
     delay = settings.retry_base_seconds * (2 ** (attempts - 1))
     return min(delay, settings.retry_max_seconds)
 
 
-async def _attempt_extraction(
+def is_retryable(exc: BaseException) -> bool:
+    """
+    Whether trying this message again later could plausibly succeed.
+
+    With extraction now deterministic, the answer is decided entirely by
+    TRANSPORT: a message that failed to parse will fail identically forever, so
+    only Supabase/Storage/network faults are worth queueing. This is a much
+    smaller and more honest set than the AI-era version, which had to guess at
+    quota semantics from exception text.
+    """
+    if isinstance(exc, (SupabaseError, TimeoutError, ConnectionError, OSError)):
+        return True
+    return exc.__class__.__module__.split(".")[0] == "httpx"
+
+
+# ------------------------------------------------------------------ pipeline
+
+
+async def _attempt_import(
     message_row_id: str,
     content: str,
-    message: Any | None,
-) -> tuple[bool, str | None]:
-    """
-    Runs AI extraction for one message and writes the draft when it yields one.
-
-    Returns `(finished, error)`. `finished=False` means the failure was about
-    the moment rather than the message — the caller must leave it queued.
-    """
-    if not content:
-        return True, "message has no text"
-
-    result = await extract_listing(content)
-
-    if result.retryable:
-        # Quota/transport failure: say nothing permanent about this message.
-        return False, result.error
-
-    if result.validated is None:
-        logger.warning(
-            "Extraction failed permanently; no draft created",
-            extra={"message_row_id": message_row_id, "error": result.error},
-        )
-        return True, result.error
-
-    if not result.validated.is_rental_listing:
-        return True, None
-
-    # A message can reach here twice (re-queued after a partial failure), and
-    # telegram_listings has no unique constraint on telegram_message_id because
-    # a message legitimately may produce no draft at all.
+    group: list[Any],
+    sender: TelegramSender,
+    default_city: str,
+) -> None:
+    """Parse -> photos -> draft, for one message. Raises on a transport fault."""
     if await listing_exists_for_message(message_row_id):
-        logger.info("Draft already exists for this message; not creating another",
-                    extra={"message_row_id": message_row_id})
-        return True, None
+        logger.info(
+            "Draft already exists for this message; not creating another",
+            extra={"message_row_id": message_row_id},
+        )
+        return
 
-    photo_urls = await download_media(message, str(uuid.uuid4())) if message is not None else []
-    await create_draft_listing(message_row_id, result, photo_urls)
-    return True, None
+    parsed = parse_message(content, sender=sender, default_city=default_city)
+
+    # The draft id is minted here so photos land under the path the draft will
+    # reference, and so a retry that got as far as uploading does not orphan the
+    # objects it wrote.
+    photo_urls = await download_media(group, message_row_id) if group else []
+
+    await create_draft_listing(message_row_id, parsed, photo_urls)
 
 
-async def _run_attempt(message_row: dict[str, Any], content: str, message: Any | None) -> None:
+async def _run_attempt(
+    message_row: dict[str, Any],
+    content: str,
+    group: list[Any],
+    sender: TelegramSender,
+    default_city: str,
+) -> None:
     """
-    Executes one extraction attempt and records its outcome durably.
+    Executes one import attempt and records its outcome durably.
 
     This is the ONLY place that decides between "done" and "try again later".
-    The previous version marked every message processed in a `finally:`, which
-    meant a Gemini 429 retired a perfectly good listing forever.
+    An earlier version marked every message processed in a `finally:`, which
+    meant a transient failure retired a perfectly good listing forever.
     """
     message_row_id = message_row["id"]
     attempts = int(message_row.get("attempts") or 0)
 
+    finished, error = True, None
     try:
-        finished, error = await _attempt_extraction(message_row_id, content, message)
+        await _attempt_import(message_row_id, content, group, sender, default_city)
     except FloodWaitError as exc:
         # Telegram's own rate limit — inherently temporary, so it is a retry,
         # not a completion.
         logger.warning("Telegram flood wait", extra={"seconds": exc.seconds})
         finished, error = False, f"telegram flood wait {exc.seconds}s"
-    except Exception as exc:  # noqa: BLE001 - "do not crash if ... invalid message"
-        logger.exception("Unhandled error processing message")
-        finished, error = True, str(exc)[:500]
+    except Exception as exc:  # noqa: BLE001 - "do not crash on an invalid message"
+        if is_retryable(exc):
+            logger.warning(
+                "Import failed for a transient reason; will retry",
+                extra={"message_row_id": message_row_id, "error": str(exc)[:300]},
+            )
+            finished, error = False, str(exc)[:500]
+        else:
+            logger.exception("Unhandled error processing message")
+            finished, error = True, str(exc)[:500]
 
     try:
         if finished:
@@ -253,26 +341,23 @@ async def _run_attempt(message_row: dict[str, Any], content: str, message: Any |
             return
 
         attempts += 1
-        if attempts >= settings.max_extraction_attempts:
+        if attempts >= settings.max_process_attempts:
             logger.error(
-                "Giving up on message after repeated retryable failures",
+                "Giving up on message after repeated transient failures",
                 extra={"message_row_id": message_row_id, "attempts": attempts, "error": error},
             )
-            await mark_message_processed(
-                message_row_id, f"gave up after {attempts} attempts: {error}"
-            )
+            await mark_message_processed(message_row_id, f"gave up after {attempts} attempts: {error}")
             return
 
         delay = retry_delay_seconds(attempts)
         next_at = datetime.now(timezone.utc) + timedelta(seconds=delay)
         logger.info(
-            "Message re-queued after a retryable AI failure",
+            "Message re-queued after a transient failure",
             extra={
                 "message_row_id": message_row_id,
                 "attempts": attempts,
                 "retry_in_seconds": round(delay),
                 "next_attempt_at": next_at.isoformat(),
-                "error": (error or "")[:200],
             },
         )
         await schedule_message_retry(message_row_id, attempts, next_at.isoformat(), error or "")
@@ -280,29 +365,93 @@ async def _run_attempt(message_row: dict[str, Any], content: str, message: Any |
         logger.exception("Failed to record message outcome", extra={"message_row_id": message_row_id})
 
 
-async def _process_message(event: events.NewMessage.Event, source_id: str) -> None:
-    message = event.message
-    content = (message.raw_text or message.message or "").strip()
+def choose_primary(group: list[Any]) -> tuple[Any, str]:
+    """
+    The message that carries the post, and its text.
+
+    In an album the caption sits on exactly one member and Telegram does not
+    promise which. The one WITH text is the post; if none has any, the
+    lowest-numbered member represents the group so the dedup key is stable
+    across restarts and re-fetches.
+    """
+    for message in group:
+        text = (getattr(message, "raw_text", None) or getattr(message, "message", None) or "").strip()
+        if text:
+            return message, text
+    return group[0], ""
+
+
+async def process_group(group: list[Any], source: dict[str, Any]) -> None:
+    """
+    One post — a single message or a reassembled album — end to end.
+
+    Order matters: the spam verdict is reached before anything is written, so a
+    crypto advert costs one regex sweep and leaves no trace in the database.
+    """
+    if not group:
+        return
+
+    source_id = source["id"]
+    primary, content = choose_primary(group)
+    has_photos = any(getattr(m, "photo", None) for m in group)
 
     try:
-        message_row = await record_message_if_new(source_id, message.id, content)
+        sender = await read_sender(primary)
+    except Exception:  # noqa: BLE001
+        sender = TelegramSender()
+
+    verdict = classify(
+        normalize_text(content),
+        has_photos=has_photos,
+        sender_is_bot=sender.is_bot,
+        min_score=settings.spam_min_score,
+    )
+    if not verdict.keep:
+        logger.info(
+            "Message ignored before any database write",
+            extra={
+                "source_id": source_id,
+                "telegram_message_id": getattr(primary, "id", None),
+                "chars": len(content),
+                **verdict.as_log_extra(),
+            },
+        )
+        return
+
+    if content and _recent_content.is_repeat(content):
+        logger.info(
+            "Duplicate post text seen recently; ignored",
+            extra={"source_id": source_id, "telegram_message_id": getattr(primary, "id", None)},
+        )
+        return
+
+    try:
+        message_row = await record_message_if_new(
+            _message_payload(source_id, primary, group, sender, content)
+        )
     except Exception:  # noqa: BLE001 - a DB hiccup must not crash the listener
         logger.exception("Failed to record incoming message", extra={"source_id": source_id})
         return
 
     if message_row is None:
         # Already recorded in a previous run — the unique constraint is the
-        # authoritative guard, this is not just an in-memory dedup cache.
+        # authoritative guard, not just an in-memory "seen" set.
         return
 
     logger.info(
         "Recorded incoming message",
-        extra={"source_id": source_id, "message_row_id": message_row["id"], "chars": len(content)},
+        extra={
+            "source_id": source_id,
+            "message_row_id": message_row["id"],
+            "chars": len(content),
+            "photos": sum(1 for m in group if getattr(m, "photo", None)),
+            "spam_score": verdict.score,
+        },
     )
-    await _run_attempt(message_row, content, message)
+    await _run_attempt(message_row, content, group, sender, source.get("default_city") or "")
 
 
-async def listen_messages(client) -> None:
+async def listen_messages(client) -> AlbumBuffer | None:
     """
     Resolves every enabled telegram_sources row to a Telegram entity and
     registers a single NewMessage handler covering all of them. Sources are
@@ -310,17 +459,20 @@ async def listen_messages(client) -> None:
     restarts the listener), so enabling/disabling a source in the admin panel
     takes effect on the next restart without a code change.
 
-    A source whose username can't be resolved (typo, bot not a member, chat
-    deleted) is logged and skipped rather than aborting startup for every
-    other source.
+    A source whose username can't be resolved (typo, account not a member, chat
+    deleted) is logged and skipped rather than aborting startup for every other
+    source.
+
+    Returns the album buffer so the caller can shut it down cleanly.
     """
     sources = await get_enabled_sources()
     if not sources:
         logger.warning("No enabled telegram_sources; listener has nothing to watch")
-        return
+        return None
 
     entities = []
     entity_to_source: dict[int, str] = {}
+    by_id: dict[str, dict[str, Any]] = {}
 
     for source in sources:
         username = source["telegram_username"]
@@ -330,12 +482,20 @@ async def listen_messages(client) -> None:
             logger.exception("Could not resolve source; skipping", extra={"source": username})
             continue
         entities.append(entity)
+        by_id[source["id"]] = source
         for key in peer_keys(entity):
             entity_to_source[key] = source["id"]
 
     if not entities:
         logger.error("No sources could be resolved; listener has nothing to watch")
-        return
+        return None
+
+    async def flush_album(group: list[Any], source_id: str) -> None:
+        source = by_id.get(source_id)
+        if source is not None:
+            await process_group(group, source)
+
+    buffer = AlbumBuffer(settings.album_wait_seconds, flush_album)
 
     @client.on(events.NewMessage(chats=entities))
     async def _handler(event: events.NewMessage.Event) -> None:  # noqa: ANN001
@@ -350,45 +510,64 @@ async def listen_messages(client) -> None:
                 extra={"chat_id": event.chat_id, "known_peers": len(entity_to_source)},
             )
             return
-        await _process_message(event, source_id)
 
-    logger.info("Listening for new messages", extra={"source_count": len(entities)})
+        message = event.message
+        grouped_id = getattr(message, "grouped_id", None)
+        if grouped_id:
+            await buffer.add(int(grouped_id), message, source_id)
+            return
+
+        source = by_id.get(source_id)
+        if source is not None:
+            await process_group([message], source)
+
+    logger.info(
+        "Listening for new messages",
+        extra={"source_count": len(entities), "parser_version": PARSER_VERSION},
+    )
+    return buffer
 
 
-async def _refetch_message(client, row: dict[str, Any]) -> Any | None:
+# ----------------------------------------------------------------- retry queue
+
+
+async def _refetch_messages(client, row: dict[str, Any]) -> list[Any]:
     """
-    Re-fetches the original Telegram message so a retry can still collect its
-    photos.
+    Re-fetches the original Telegram messages so a retry can still collect the
+    post's photos — including every member of an album, via the ids recorded
+    when the post first arrived.
 
-    Best-effort by design: the message may have been deleted, or the chat may no
-    longer resolve. A draft with no photos is worth far more than no draft, so a
-    failure here downgrades the retry to text-only rather than aborting it.
+    Best-effort by design: the messages may have been deleted, or the chat may
+    no longer resolve. A draft with no photos is worth far more than no draft,
+    so a failure here downgrades the retry to text-only rather than aborting it.
     """
+    wanted = list(row.get("photo_message_ids") or [])
+    if int(row["telegram_message_id"]) not in wanted:
+        wanted.append(int(row["telegram_message_id"]))
+
     try:
         source = await get_source_by_id(row["telegram_source_id"])
         if source is None:
-            return None
+            return []
         entity = await client.get_entity(source["telegram_username"])
-        messages = await client.get_messages(entity, ids=[int(row["telegram_message_id"])])
+        messages = await client.get_messages(entity, ids=wanted)
     except Exception:  # noqa: BLE001
         logger.warning(
             "Could not re-fetch original message; retrying text-only",
             extra={"message_row_id": row.get("id")},
         )
-        return None
+        return []
 
-    if not messages:
-        return None
-    return messages[0]
+    return [m for m in (messages or []) if m is not None]
 
 
 async def sweep_retries(client) -> int:
     """
-    Processes one batch of messages whose extraction failed retryably and whose
+    Processes one batch of messages whose import failed transiently and whose
     backoff has elapsed. Returns how many were attempted.
 
-    This is what makes a quota outage self-healing: nothing needs to re-post to
-    Telegram, and no operator has to replay anything by hand.
+    This is what makes a Supabase outage self-healing: nothing needs to re-post
+    to Telegram, and no operator has to replay anything by hand.
     """
     now_iso = datetime.now(timezone.utc).isoformat()
     try:
@@ -400,10 +579,25 @@ async def sweep_retries(client) -> int:
     if not due:
         return 0
 
-    logger.info("Retrying messages whose extraction failed earlier", extra={"count": len(due)})
+    logger.info("Retrying messages that failed earlier", extra={"count": len(due)})
     for row in due:
-        message = await _refetch_message(client, row)
-        await _run_attempt(row, (row.get("content") or "").strip(), message)
+        group = await _refetch_messages(client, row)
+        sender = TelegramSender(
+            telegram_id=row.get("sender_telegram_id"),
+            username=row.get("sender_username") or "",
+            first_name=row.get("sender_first_name") or "",
+            last_name=row.get("sender_last_name") or "",
+            display_name=row.get("sender_display_name") or "",
+            is_bot=bool(row.get("sender_is_bot")),
+        )
+        source = await get_source_by_id(row["telegram_source_id"])
+        await _run_attempt(
+            row,
+            (row.get("content") or "").strip(),
+            group,
+            sender,
+            (source or {}).get("default_city") or "",
+        )
     return len(due)
 
 
@@ -418,6 +612,8 @@ async def run_retry_sweeper(client) -> None:
         except Exception:  # noqa: BLE001 - a bad sweep must not end the loop
             logger.exception("Retry sweep failed; will try again next interval")
 
+
+# --------------------------------------------------------------------- runtime
 
 # Real Telegram connection state, distinct from "the supervisor asyncio task
 # is alive". The task is DESIGNED to never die (that's the whole point of
@@ -438,19 +634,19 @@ async def run_forever() -> None:
     Supervisor loop: (re)connects, listens, and — if the client ever
     disconnects unexpectedly or an unhandled error escapes the handler
     registration itself — waits and restarts, rather than exiting the process.
-    Satisfies "Do not crash if: Telegram unavailable".
     """
     backoff = 5
     while True:
         client = build_client()
+        buffer: AlbumBuffer | None = None
         try:
             await connect_or_raise(client)
             _status.update(state="connected", detail=None)
-            await listen_messages(client)
+            buffer = await listen_messages(client)
 
-            # Drain anything left queued by a previous connection (a quota
-            # outage that spanned a restart) before settling into the periodic
-            # sweep, so recovery does not wait out a full interval first.
+            # Drain anything left queued by a previous connection (an outage
+            # that spanned a restart) before settling into the periodic sweep,
+            # so recovery does not wait out a full interval first.
             await sweep_retries(client)
 
             sweeper = asyncio.create_task(run_retry_sweeper(client))
@@ -465,10 +661,14 @@ async def run_forever() -> None:
 
             _status.update(state="disconnected", detail="client.run_until_disconnected() returned")
             backoff = 5  # reset after a clean run
+        except asyncio.CancelledError:
+            raise
         except Exception as exc:  # noqa: BLE001
             logger.exception("Telegram listener crashed; restarting after backoff")
             _status.update(state="error", detail=str(exc)[:300])
         finally:
+            if buffer is not None:
+                await buffer.close()
             try:
                 await client.disconnect()
             except Exception:  # noqa: BLE001
@@ -480,8 +680,11 @@ async def run_forever() -> None:
 
 def main() -> None:
     configure_logging()
-    logger.info("Starting Roomi telegram-service", extra={"model": settings.gemini_model})
-    asyncio.run(run_forever())
+    logger.info("Starting Roomi telegram-service", extra={"parser_version": PARSER_VERSION})
+    try:
+        asyncio.run(run_forever())
+    finally:
+        asyncio.run(close_client())
 
 
 if __name__ == "__main__":

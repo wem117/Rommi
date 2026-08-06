@@ -45,6 +45,19 @@ describe("listingStatus", () => {
     expect(listingStatus(listing({ removed: true, archived: true }))).toBe("archived");
   });
 
+  it("reports a listing awaiting moderation as pending, not published", () => {
+    // The gap this closes: `pending` fell through to the default arm, so a
+    // listing sitting in the moderation queue told its owner it was live.
+    expect(listingStatus(listing({ status: "pending" }))).toBe("pending");
+  });
+
+  it("lets the owner's own draft outrank the moderation queue", () => {
+    // A listing the owner has hidden is theirs to finish, whatever a moderator
+    // may also think of it.
+    expect(listingStatus(listing({ status: "pending", removed: true }))).toBe("draft");
+    expect(listingStatus(listing({ status: "pending", archived: true }))).toBe("archived");
+  });
+
   it("lets moderation win over everything", () => {
     // A rejected listing is not "published" no matter what the other flags say.
     expect(listingStatus(listing({ status: "rejected" }))).toBe("rejected");

@@ -1,8 +1,14 @@
+# Deliberately short. Extraction is deterministic (telegram_parser/), so there
+# is no AI SDK here — dropping google-generativeai also drops grpcio, protobuf,
+# google-api-core and the rest of the Google client stack it pulled in, which
+# was the single largest thing in the image.
 telethon==1.36.0
 fastapi==0.115.6
-uvicorn[standard]==0.32.1
+# Plain uvicorn rather than uvicorn[standard]: this service serves ONE health
+# endpoint, so websockets, watchfiles and httptools are weight with no use.
+# uvloop is kept explicitly because it speeds up the event loop Telethon lives
+# on, and uvicorn's "auto" loop picks it up when it is importable.
+uvicorn==0.32.1
+uvloop==0.21.0
 httpx==0.28.1
 python-dotenv==1.0.1
-google-generativeai==0.8.3
-pydantic==2.10.4
-tenacity==9.0.0

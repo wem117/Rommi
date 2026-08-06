@@ -1,14 +1,20 @@
 """
 Supabase access for the telegram-service.
 
-Talks to the SAME Supabase project the Next.js app uses (existing
-Roomi database — see the task spec), via plain PostgREST/Storage HTTP calls
-with the service-role key. Raw HTTP rather than the supabase-py SDK: the
-handful of operations needed here (select with equality filters, insert with
-on-conflict-do-nothing, update-by-id, a storage upload) are simple enough that
-direct REST calls are easier to audit than a SDK's async client version matrix,
-and they mirror exactly how the existing Next.js admin routes think about the
-same tables.
+Talks to the SAME Supabase project the Next.js app uses via plain
+PostgREST/Storage HTTP calls with the service-role key. Raw HTTP rather than the
+supabase-py SDK: the handful of operations needed here (select with equality
+filters, insert with on-conflict-do-nothing, update-by-id, a storage upload) are
+simple enough that direct REST calls are easier to audit than an SDK's async
+client version matrix, and they mirror exactly how the existing Next.js admin
+routes think about the same tables.
+
+ONE client, for the life of the process. The previous version built a fresh
+`httpx.AsyncClient` per call — a new connection pool, a new TLS handshake and a
+new set of buffers for every message, every retry sweep and every photo. On a
+512 MB container watching four channels that is pure waste: connections are
+pooled and keep-alive'd here instead, which is both less memory and fewer
+round-trips.
 
 Every table this module touches (telegram_sources, telegram_messages,
 telegram_listings) has RLS enabled with ZERO policies — see
@@ -19,8 +25,9 @@ this service authenticates with.
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from typing import Any
+from typing import Any, BinaryIO
 
 import httpx
 
@@ -34,13 +41,47 @@ _REST_HEADERS = {
     "Content-Type": "application/json",
 }
 
+# Small on purpose. This worker issues a handful of sequential requests per
+# message; a large pool would reserve buffers it never uses.
+_LIMITS = httpx.Limits(max_connections=8, max_keepalive_connections=4, keepalive_expiry=60.0)
+
+_client: httpx.AsyncClient | None = None
+_client_lock = asyncio.Lock()
+
 
 class SupabaseError(RuntimeError):
     """A PostgREST/Storage call returned a non-2xx response."""
 
 
-def _client() -> httpx.AsyncClient:
-    return httpx.AsyncClient(base_url=settings.supabase_url, headers=_REST_HEADERS, timeout=30.0)
+async def get_client() -> httpx.AsyncClient:
+    """
+    The process-wide Supabase client, created on first use.
+
+    Double-checked under a lock: the listener and the retry sweeper are separate
+    tasks on the same event loop, and both can reach this on the very first
+    message. Creating two clients would leak one of them silently.
+    """
+    global _client
+    if _client is not None and not _client.is_closed:
+        return _client
+
+    async with _client_lock:
+        if _client is None or _client.is_closed:
+            _client = httpx.AsyncClient(
+                base_url=settings.supabase_url,
+                headers=_REST_HEADERS,
+                timeout=httpx.Timeout(30.0, connect=10.0),
+                limits=_LIMITS,
+            )
+    return _client
+
+
+async def close_client() -> None:
+    """Releases pooled connections on shutdown. Safe to call more than once."""
+    global _client
+    if _client is not None and not _client.is_closed:
+        await _client.aclose()
+    _client = None
 
 
 async def _raise_for_status(response: httpx.Response, context: str) -> None:
@@ -81,21 +122,31 @@ async def _raise_for_status(response: httpx.Response, context: str) -> None:
 
 async def get_enabled_sources() -> list[dict[str, Any]]:
     """All sources the worker should currently be listening to."""
-    async with _client() as client:
-        response = await client.get(
-            "/rest/v1/telegram_sources",
-            params={"select": "*", "enabled": "eq.true"},
-        )
-        await _raise_for_status(response, "get_enabled_sources")
-        return response.json()
+    client = await get_client()
+    response = await client.get(
+        "/rest/v1/telegram_sources",
+        params={"select": "*", "enabled": "eq.true"},
+    )
+    await _raise_for_status(response, "get_enabled_sources")
+    return response.json()
+
+
+async def get_source_by_id(source_id: str) -> dict[str, Any] | None:
+    """Used by the retry sweeper to re-resolve the chat a stored message came from."""
+    client = await get_client()
+    response = await client.get(
+        "/rest/v1/telegram_sources",
+        params={"select": "*", "id": f"eq.{source_id}", "limit": "1"},
+    )
+    await _raise_for_status(response, "get_source_by_id")
+    rows = response.json()
+    return rows[0] if rows else None
 
 
 # --- telegram_messages --------------------------------------------------------
 
 
-async def record_message_if_new(
-    source_id: str, telegram_message_id: int, content: str
-) -> dict[str, Any] | None:
+async def record_message_if_new(payload: dict[str, Any]) -> dict[str, Any] | None:
     """
     Inserts the message row, or returns None if it was already recorded.
 
@@ -116,19 +167,15 @@ async def record_message_if_new(
     duplicate comes back 201 with an empty body, so `rows` is empty and this
     returns None, which is the contract stated above.
     """
-    async with _client() as client:
-        response = await client.post(
-            "/rest/v1/telegram_messages?on_conflict=telegram_source_id,telegram_message_id",
-            headers={"Prefer": "resolution=ignore-duplicates,return=representation"},
-            json={
-                "telegram_source_id": source_id,
-                "telegram_message_id": telegram_message_id,
-                "content": content,
-            },
-        )
-        await _raise_for_status(response, "record_message_if_new")
-        rows = response.json()
-        return rows[0] if rows else None
+    client = await get_client()
+    response = await client.post(
+        "/rest/v1/telegram_messages?on_conflict=telegram_source_id,telegram_message_id",
+        headers={"Prefer": "resolution=ignore-duplicates,return=representation"},
+        json=payload,
+    )
+    await _raise_for_status(response, "record_message_if_new")
+    rows = response.json()
+    return rows[0] if rows else None
 
 
 async def mark_message_processed(message_id: str, last_error: str | None = None) -> None:
@@ -136,13 +183,13 @@ async def mark_message_processed(message_id: str, last_error: str | None = None)
     Marks a message finished — successfully, or failed in a way retrying cannot
     fix. `next_attempt_at` is cleared so a finished row can never look due.
     """
-    async with _client() as client:
-        response = await client.patch(
-            "/rest/v1/telegram_messages",
-            params={"id": f"eq.{message_id}"},
-            json={"processed": True, "next_attempt_at": None, "last_error": last_error},
-        )
-        await _raise_for_status(response, "mark_message_processed")
+    client = await get_client()
+    response = await client.patch(
+        "/rest/v1/telegram_messages",
+        params={"id": f"eq.{message_id}"},
+        json={"processed": True, "next_attempt_at": None, "last_error": last_error},
+    )
+    await _raise_for_status(response, "mark_message_processed")
 
 
 async def schedule_message_retry(
@@ -151,26 +198,26 @@ async def schedule_message_retry(
     """
     Leaves the message UNPROCESSED and due again at `next_attempt_at`.
 
-    The counterpart to mark_message_processed(): this is the path a Gemini quota
-    failure takes, so the message stays in the queue instead of being retired
-    unseen.
+    The counterpart to mark_message_processed(): this is the path a Supabase or
+    Storage outage takes, so the message stays in the queue instead of being
+    retired unseen.
     """
-    async with _client() as client:
-        response = await client.patch(
-            "/rest/v1/telegram_messages",
-            params={"id": f"eq.{message_id}"},
-            json={
-                "attempts": attempts,
-                "next_attempt_at": next_attempt_at,
-                "last_error": last_error[:2000],
-            },
-        )
-        await _raise_for_status(response, "schedule_message_retry")
+    client = await get_client()
+    response = await client.patch(
+        "/rest/v1/telegram_messages",
+        params={"id": f"eq.{message_id}"},
+        json={
+            "attempts": attempts,
+            "next_attempt_at": next_attempt_at,
+            "last_error": last_error[:2000],
+        },
+    )
+    await _raise_for_status(response, "schedule_message_retry")
 
 
 async def get_due_messages(limit: int, now_iso: str) -> list[dict[str, Any]]:
     """
-    Unprocessed messages eligible for another extraction attempt, oldest first.
+    Unprocessed messages eligible for another attempt, oldest first.
 
     `next_attempt_at` is NULL for a message that has never been retried (and for
     every row that predates the retry columns), so the filter has to accept NULL
@@ -178,31 +225,19 @@ async def get_due_messages(limit: int, now_iso: str) -> list[dict[str, Any]]:
     true, which would make exactly the messages most in need of a first retry
     invisible to this query.
     """
-    async with _client() as client:
-        response = await client.get(
-            "/rest/v1/telegram_messages",
-            params={
-                "select": "*",
-                "processed": "eq.false",
-                "or": f"(next_attempt_at.is.null,next_attempt_at.lte.{now_iso})",
-                "order": "created_at.asc",
-                "limit": str(limit),
-            },
-        )
-        await _raise_for_status(response, "get_due_messages")
-        return response.json()
-
-
-async def get_source_by_id(source_id: str) -> dict[str, Any] | None:
-    """Used by the retry sweeper to re-resolve the chat a stored message came from."""
-    async with _client() as client:
-        response = await client.get(
-            "/rest/v1/telegram_sources",
-            params={"select": "*", "id": f"eq.{source_id}", "limit": "1"},
-        )
-        await _raise_for_status(response, "get_source_by_id")
-        rows = response.json()
-        return rows[0] if rows else None
+    client = await get_client()
+    response = await client.get(
+        "/rest/v1/telegram_messages",
+        params={
+            "select": "*",
+            "processed": "eq.false",
+            "or": f"(next_attempt_at.is.null,next_attempt_at.lte.{now_iso})",
+            "order": "created_at.asc",
+            "limit": str(limit),
+        },
+    )
+    await _raise_for_status(response, "get_due_messages")
+    return response.json()
 
 
 async def listing_exists_for_message(message_row_id: str) -> bool:
@@ -214,52 +249,61 @@ async def listing_exists_for_message(message_row_id: str) -> bool:
     message — the DB has no unique constraint on telegram_listings
     .telegram_message_id (a message legitimately may produce none).
     """
-    async with _client() as client:
-        response = await client.get(
-            "/rest/v1/telegram_listings",
-            params={"select": "id", "telegram_message_id": f"eq.{message_row_id}", "limit": "1"},
-        )
-        await _raise_for_status(response, "listing_exists_for_message")
-        return bool(response.json())
+    client = await get_client()
+    response = await client.get(
+        "/rest/v1/telegram_listings",
+        params={"select": "id", "telegram_message_id": f"eq.{message_row_id}", "limit": "1"},
+    )
+    await _raise_for_status(response, "listing_exists_for_message")
+    return bool(response.json())
 
 
 # --- telegram_listings --------------------------------------------------------
 
 
 async def create_telegram_listing(payload: dict[str, Any]) -> dict[str, Any]:
-    async with _client() as client:
-        response = await client.post(
-            "/rest/v1/telegram_listings",
-            headers={"Prefer": "return=representation"},
-            json=payload,
-        )
-        await _raise_for_status(response, "create_telegram_listing")
-        return response.json()[0]
+    client = await get_client()
+    response = await client.post(
+        "/rest/v1/telegram_listings",
+        headers={"Prefer": "return=representation"},
+        json=payload,
+    )
+    await _raise_for_status(response, "create_telegram_listing")
+    return response.json()[0]
 
 
 # --- Storage ------------------------------------------------------------------
 
 
-async def upload_photo(path: str, content: bytes, content_type: str) -> str:
+async def upload_photo_stream(path: str, stream: BinaryIO, size: int, content_type: str) -> str:
     """
-    Uploads to the SAME bucket the Next.js app's /api/upload route writes to
+    Uploads a photo by STREAMING an open file object, never by materialising it.
+
+    Same bucket the Next.js app's /api/upload route writes to
     (NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET, default "roommate-assets") — the
-    existing storage structure, not a new one. Returns the public URL, built
-    the same way src/app/api/upload/route.ts does: re-anchored to the PUBLIC
-    Supabase origin even when this service talks to an internal gateway URL,
-    because the resulting link is stored in the database and eventually loaded
-    by a browser that cannot resolve an internal hostname.
+    existing storage structure, not a new one.
+
+    `size` is passed explicitly so a Content-Length goes out with the request:
+    without it httpx falls back to chunked transfer-encoding, which the Storage
+    API behind Kong rejects. Handing httpx the file object rather than its bytes
+    is what keeps peak memory at one chunk instead of one whole image.
+
+    Returns the public URL, built the same way src/app/api/upload/route.ts does:
+    anchored to the PUBLIC Supabase origin even when this service talks to an
+    internal gateway, because the link is stored in the database and eventually
+    loaded by a browser that cannot resolve an internal hostname.
     """
     bucket = settings.supabase_storage_bucket
-    async with _client() as client:
-        response = await client.post(
-            f"/storage/v1/object/{bucket}/{path}",
-            headers={"Content-Type": content_type, "x-upsert": "false"},
-            content=content,
-        )
-        await _raise_for_status(response, "upload_photo")
+    client = await get_client()
+    response = await client.post(
+        f"/storage/v1/object/{bucket}/{path}",
+        headers={
+            "Content-Type": content_type,
+            "Content-Length": str(size),
+            "x-upsert": "false",
+        },
+        content=stream,
+    )
+    await _raise_for_status(response, "upload_photo")
 
-    import os
-
-    public_base = os.environ.get("NEXT_PUBLIC_SUPABASE_URL", settings.supabase_url).rstrip("/")
-    return f"{public_base}/storage/v1/object/public/{bucket}/{path}"
+    return f"{settings.supabase_public_url}/storage/v1/object/public/{bucket}/{path}"

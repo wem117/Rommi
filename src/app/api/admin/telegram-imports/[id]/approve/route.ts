@@ -30,6 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const body = await request.json().catch(() => ({}));
     const { lat, lng, university } = telegramImportApproveSchema.parse(body);
     const ignoreDuplicates = z.boolean().optional().default(false).parse(body.ignoreDuplicates);
+    const confirmSeeking = z.boolean().optional().default(false).parse(body.confirmSeeking);
 
     const item = await getTelegramImportById(id);
     if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -39,6 +40,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (!item.title.trim() || !item.description.trim() || !item.price || !item.city.trim()) {
       return NextResponse.json({ error: REQUIRED_FIELDS_MESSAGE }, { status: 400 });
+    }
+
+    // A `seeking` post is a student asking for a room, not one on offer.
+    // Publishing it would put their request up as somebody's rental, with a
+    // temporary host profile carrying their phone number. The parser flags
+    // these; this refuses them unless the admin says, in this request, that
+    // they have read the post and disagree.
+    if (item.listingKind === "seeking" && !confirmSeeking) {
+      return NextResponse.json(
+        {
+          error:
+            "This post looks like someone LOOKING for housing, not offering it. " +
+            "Publishing it would list their request as a rental. Re-check the original " +
+            "message, then confirm if the parser got it wrong.",
+          needsSeekingConfirmation: true
+        },
+        { status: 409 }
+      );
     }
 
     if (item.currency !== "KZT") {
@@ -61,7 +80,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     const ownerId = await createTemporaryHost({
-      displayName: item.title.trim() || "Telegram listing",
+      // The poster's own Telegram display name when we have it — a host card
+      // reading "Aigerim" is worth more to a renter than one repeating the
+      // listing's title back at them.
+      displayName: item.sender?.displayName?.trim() || item.title.trim() || "Telegram listing",
       photoURL: "",
       phone: item.contactPhone,
       whatsapp: item.contactWhatsapp,
@@ -73,14 +95,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       title: item.title,
       description: item.description,
       propertyType: (item.propertyType as never) || "apartment",
-      listingType: "private_room",
+      // A shared post is a room in an occupied flat; an offer of the whole
+      // place is not. Defaulting everything to private_room mislabelled every
+      // whole-apartment listing the import produced.
+      listingType: item.listingKind === "offer" ? "entire_place" : "private_room",
       monthlyRent: item.price,
-      depositRequired: false,
-      depositAmount: 0,
+      depositRequired: item.depositRequired ?? false,
+      depositAmount: item.depositAmount ?? 0,
       city: item.city,
       district: item.district,
-      address: item.address,
-      university: university || "",
+      // The complex is the address renters navigate by; fall back to it when
+      // the post named no street.
+      address: item.address || (item.zhk ? `ЖК ${item.zhk}` : ""),
+      university: university || item.university || "",
       lat,
       lng,
       bedrooms: item.rooms ?? 1,

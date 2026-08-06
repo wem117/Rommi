@@ -1,17 +1,22 @@
 """
-Environment configuration for the Telegram -> AI -> Roomi import service.
+Environment configuration for the Telegram -> Roomi import service.
 
 Loaded once at import time from process env (populated by python-dotenv from a
 local `.env` in development; from the container's env in production — see
-Dockerfile / docker-compose.yml). Nothing here has a default for a secret:
+Dockerfile / the deploy workflow). Nothing here has a default for a secret:
 missing secrets fail loudly at startup instead of silently running with an
 empty credential.
+
+There is deliberately no AI provider in this file any more. Extraction is
+deterministic (telegram_parser/), so there is no API key to rotate, no quota to
+exhaust and no per-message cost — the three properties that between them cost
+this service every listing it received during a Gemini free-tier outage.
 """
 
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
@@ -32,7 +37,7 @@ def _optional(name: str, default: str = "") -> str:
     return os.environ.get(name, default).strip()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Settings:
     # --- Telegram MTProto -------------------------------------------------
     telegram_api_id: int
@@ -41,38 +46,38 @@ class Settings:
     # telegram-service/*.session).
     telegram_session_path: str
 
-    # --- AI extraction ------------------------------------------------------
-    gemini_api_key: str
-    gemini_model: str
-
     # --- Supabase (same project the Next.js app uses) -----------------------
     # Prefer the internal gateway address when running on the same host as the
     # rest of the stack (see src/lib/supabase/config.ts's `serverUrl` for the
     # identical rationale in the Next.js app); falls back to the public URL.
     supabase_url: str
+    supabase_public_url: str
     supabase_service_role_key: str
     supabase_storage_bucket: str
 
-    # --- Reliability tuning ---------------------------------------------------
-    # Per-message processing timeout guard and a floor between AI calls so a
-    # burst of messages cannot blow through Gemini's rate limit.
-    ai_min_interval_seconds: float
-    max_retries: int
-    log_level: str
+    # --- Parsing / filtering --------------------------------------------------
+    # Weighted-signal threshold below which a message is dropped without being
+    # written down at all. See telegram_parser/spam_filter.py.
+    spam_min_score: int
+    # Telegram delivers an album as N separate messages that arrive within a few
+    # hundred milliseconds of each other, with the caption on only one of them.
+    # This is how long to wait for the rest before treating the group as
+    # complete. Too short and photos are lost; too long and the worker holds
+    # message objects in memory for no reason.
+    album_wait_seconds: float
 
-    # --- Durable AI retry queue -----------------------------------------------
-    # A Gemini quota failure outlives any in-process retry: the free tier's cap
-    # is per-DAY. These govern the database-backed queue that carries a message
-    # across that window (and across a container restart) instead of retiring it
-    # unprocessed. Defaults: give up after ~8 attempts spanning roughly a day,
-    # sweeping every 5 minutes.
-    max_extraction_attempts: int
+    # --- Reliability tuning ---------------------------------------------------
+    log_level: str
+    # A message whose processing failed for a transient reason (Supabase
+    # unreachable, storage 5xx) stays unprocessed and is retried on this
+    # schedule. The ceiling is minutes rather than the old six HOURS: without an
+    # AI provider there is no per-day quota to outlast, and every remaining
+    # failure mode is an outage measured in minutes.
+    max_process_attempts: int
     retry_base_seconds: float
     retry_max_seconds: float
     retry_sweep_interval_seconds: float
     retry_batch_size: int
-
-    extra: dict = field(default_factory=dict)
 
 
 def load_settings() -> Settings:
@@ -82,23 +87,26 @@ def load_settings() -> Settings:
     except ValueError as exc:
         raise RuntimeError("TELEGRAM_API_ID must be an integer") from exc
 
-    supabase_url = _optional("SUPABASE_INTERNAL_URL") or _require("NEXT_PUBLIC_SUPABASE_URL")
+    public_url = _require("NEXT_PUBLIC_SUPABASE_URL").rstrip("/")
+    supabase_url = (_optional("SUPABASE_INTERNAL_URL") or public_url).rstrip("/")
 
     return Settings(
         telegram_api_id=api_id,
         telegram_api_hash=_require("TELEGRAM_API_HASH"),
         telegram_session_path=_optional("TELEGRAM_SESSION_PATH", "roomi_session"),
-        gemini_api_key=_require("GEMINI_API_KEY"),
-        gemini_model=_optional("GEMINI_MODEL", "gemini-2.0-flash"),
-        supabase_url=supabase_url.rstrip("/"),
+        supabase_url=supabase_url,
+        # Photo URLs are stored in the database and later loaded by a BROWSER,
+        # which cannot resolve an internal Docker hostname — so the public
+        # origin is kept separately from the one this process talks to.
+        supabase_public_url=public_url,
         supabase_service_role_key=_require("SUPABASE_SERVICE_ROLE_KEY"),
         supabase_storage_bucket=_optional("NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET", "roommate-assets"),
-        ai_min_interval_seconds=float(_optional("AI_MIN_INTERVAL_SECONDS", "1.0")),
-        max_retries=int(_optional("MAX_RETRIES", "3")),
+        spam_min_score=int(_optional("SPAM_MIN_SCORE", "2")),
+        album_wait_seconds=float(_optional("ALBUM_WAIT_SECONDS", "2.5")),
         log_level=_optional("LOG_LEVEL", "INFO"),
-        max_extraction_attempts=int(_optional("MAX_EXTRACTION_ATTEMPTS", "8")),
-        retry_base_seconds=float(_optional("RETRY_BASE_SECONDS", "60")),
-        retry_max_seconds=float(_optional("RETRY_MAX_SECONDS", "21600")),  # 6h ceiling
+        max_process_attempts=int(_optional("MAX_PROCESS_ATTEMPTS", "5")),
+        retry_base_seconds=float(_optional("RETRY_BASE_SECONDS", "30")),
+        retry_max_seconds=float(_optional("RETRY_MAX_SECONDS", "900")),
         retry_sweep_interval_seconds=float(_optional("RETRY_SWEEP_INTERVAL_SECONDS", "300")),
         retry_batch_size=int(_optional("RETRY_BATCH_SIZE", "20")),
     )

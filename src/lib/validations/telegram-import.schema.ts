@@ -31,6 +31,13 @@ export const telegramImportUpdateSchema = z.object({
   photoUrls: z.array(z.string().trim().url()).max(10).optional(),
   lat: z.number().min(-90).max(90).nullable().optional(),
   lng: z.number().min(-180).max(180).nullable().optional(),
+  // Fields the deterministic parser fills in and the admin corrects.
+  zhk: z.string().trim().max(120).optional(),
+  university: z.string().trim().max(160).optional(),
+  capacity: z.number().int().min(0).max(20).nullable().optional(),
+  depositAmount: z.number().int().min(0).max(MAX_MONTHLY_RENT).nullable().optional(),
+  depositRequired: z.boolean().nullable().optional(),
+  utilitiesIncluded: z.boolean().nullable().optional(),
   status: z.enum(["draft", "pending_review"]).optional()
 });
 

@@ -53,7 +53,11 @@ def configure_logging() -> None:
     root.addHandler(handler)
     root.setLevel(settings.log_level.upper())
 
-    # Telethon is chatty at INFO; keep it at WARNING unless the operator asks
-    # for full verbosity via LOG_LEVEL=DEBUG.
+    # Telethon and httpx are both chatty at INFO — httpx logs a line per HTTP
+    # call, which on this worker means several per message, none of which says
+    # anything the service's own log lines do not. Left at WARNING unless the
+    # operator asks for full verbosity via LOG_LEVEL=DEBUG. Quiet logs are also
+    # cheaper logs: the container caps its json-file driver at 20 MB x 5.
     if settings.log_level.upper() != "DEBUG":
-        logging.getLogger("telethon").setLevel(logging.WARNING)
+        for noisy in ("telethon", "httpx", "httpcore"):
+            logging.getLogger(noisy).setLevel(logging.WARNING)

@@ -566,6 +566,7 @@ const translations = {
       status: {
         all: "All statuses",
         published: "Published",
+        pending: "Pending review",
         draft: "Draft",
         archived: "Archived",
         rejected: "Rejected"
@@ -1202,6 +1203,7 @@ const translations = {
       status: {
         all: "Все статусы",
         published: "Опубликовано",
+        pending: "На проверке",
         draft: "Черновик",
         archived: "В архиве",
         rejected: "Отклонено"
@@ -1837,6 +1839,7 @@ const translations = {
       status: {
         all: "Барлық күйлер",
         published: "Жарияланған",
+        pending: "Тексеруде",
         draft: "Нобай",
         archived: "Мұрағатта",
         rejected: "Қабылданбаған"

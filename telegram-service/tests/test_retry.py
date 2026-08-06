@@ -1,16 +1,19 @@
 """
-Regression tests for the durable AI retry queue.
+Regression tests for the durable retry queue.
 
 THE BUG THESE EXIST FOR
 -----------------------
-_process_message() ended in `finally: await mark_message_processed(...)`, so a
-message whose extraction died on a Gemini 429 was retired as "done". Production
-was sitting on an exhausted free-tier quota, which meant every listing arriving
-during the outage would have been silently discarded — no draft, no error state,
-nothing to show anything had been lost.
+_process_message() once ended in `finally: await mark_message_processed(...)`,
+so a message whose import died on a transient fault was retired as "done".
+Production was sitting on an exhausted AI quota at the time, which meant every
+listing arriving during the outage was silently discarded — no draft, no error
+state, nothing to show anything had been lost.
 
-The rule under test: a failure caused by the MOMENT keeps the message queued; a
-failure caused by the MESSAGE completes it.
+The AI is gone, which removes the failure mode that caused the incident but not
+the rule it taught: a failure caused by the MOMENT keeps the message queued; a
+failure caused by the MESSAGE completes it. With deterministic parsing the first
+category is now exactly "the network or Supabase was unavailable" — a much
+smaller and more honest set than guessing at quota semantics from exception text.
 
 Driven with asyncio.run() rather than pytest-asyncio (not in requirements.txt —
 see test_db_errors.py).
@@ -22,64 +25,48 @@ import pytest
 
 import telegram_listener as tl
 from app.config import settings
-from app.extraction import ExtractionResult, is_retryable_ai_error
+from app.db import SupabaseError
+from telegram_parser import TelegramSender
 
 
 # --- error classification -----------------------------------------------------
 
 
-class _Status:
-    def __init__(self, name):
-        self.name = name
-
-
-class _GrpcError(Exception):
-    def __init__(self, name):
-        super().__init__(name)
-        self._name = name
-
-    def code(self):
-        return _Status(self._name)
-
-
 @pytest.mark.parametrize(
     "exc",
     [
-        Exception("429 You exceeded your current quota, please check your plan"),
-        Exception("ResourceExhausted: quota exceeded"),
-        Exception("503 The model is overloaded. Please try again later."),
-        Exception("rate limit reached for this model"),
+        SupabaseError("create_telegram_listing failed: 503"),
         TimeoutError("read timed out"),
         ConnectionError("connection reset"),
-        _GrpcError("RESOURCE_EXHAUSTED"),
-        _GrpcError("UNAVAILABLE"),
+        OSError("network is unreachable"),
     ],
 )
-def test_transient_failures_are_retryable(exc):
-    assert is_retryable_ai_error(exc) is True
+def test_transport_failures_are_retryable(exc):
+    assert tl.is_retryable(exc) is True
+
+
+def test_httpx_failures_are_retryable():
+    import httpx
+
+    assert tl.is_retryable(httpx.ConnectError("nope")) is True
+    assert tl.is_retryable(httpx.ReadTimeout("nope")) is True
 
 
 @pytest.mark.parametrize(
     "exc",
     [
-        ValueError("invalid JSON in model output"),
-        Exception("400 API key not valid"),
-        Exception("permission denied"),
+        ValueError("bad value"),
+        KeyError("missing"),
+        RuntimeError("something structural"),
     ],
 )
-def test_permanent_failures_are_not_retryable(exc):
-    assert is_retryable_ai_error(exc) is False
-
-
-def test_quota_error_from_production_is_retryable():
-    """The verbatim shape production returned during the incident."""
-    real = Exception(
-        "429 You exceeded your current quota, please check your plan and billing "
-        "details. quota_metric: generativelanguage.googleapis.com/"
-        "generate_content_free_tier_requests quota_id: "
-        "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
-    )
-    assert is_retryable_ai_error(real) is True
+def test_logic_failures_are_not_retryable(exc):
+    """
+    Deterministic parsing means a message that failed to parse will fail
+    identically forever. Queueing it would occupy the sweeper on a message
+    nothing can fix.
+    """
+    assert tl.is_retryable(exc) is False
 
 
 # --- backoff ------------------------------------------------------------------
@@ -117,15 +104,6 @@ class _Recorder:
         self.retried.append((message_id, attempts, next_attempt_at, last_error))
 
 
-@pytest.fixture
-def recorder(monkeypatch):
-    rec = _Recorder()
-    monkeypatch.setattr(tl, "mark_message_processed", rec.mark_message_processed)
-    monkeypatch.setattr(tl, "schedule_message_retry", rec.schedule_message_retry)
-    monkeypatch.setattr(tl, "listing_exists_for_message", _async_return(False))
-    return rec
-
-
 def _async_return(value):
     async def _inner(*args, **kwargs):
         return value
@@ -133,102 +111,89 @@ def _async_return(value):
     return _inner
 
 
-def _extraction(**kwargs):
-    base = {"validated": None, "raw_output": None, "error": None, "retryable": False}
-    base.update(kwargs)
-
-    async def _inner(_text):
-        return ExtractionResult(**base)
+def _async_raise(exc):
+    async def _inner(*args, **kwargs):
+        raise exc
 
     return _inner
 
 
-def test_quota_failure_requeues_instead_of_completing(recorder, monkeypatch):
-    """THE regression: a 429 must NOT mark the message processed."""
-    monkeypatch.setattr(
-        tl, "extract_listing", _extraction(error="AI request failed: 429 quota", retryable=True)
+@pytest.fixture
+def recorder(monkeypatch):
+    rec = _Recorder()
+    monkeypatch.setattr(tl, "mark_message_processed", rec.mark_message_processed)
+    monkeypatch.setattr(tl, "schedule_message_retry", rec.schedule_message_retry)
+    monkeypatch.setattr(tl, "listing_exists_for_message", _async_return(False))
+    monkeypatch.setattr(tl, "download_media", _async_return([]))
+    monkeypatch.setattr(tl, "create_telegram_listing", _async_return({"id": "draft-1"}))
+    return rec
+
+
+def _run(row, text="Сдается 2-комнатная квартира, 200 000 тг", group=None):
+    return asyncio.run(
+        tl._run_attempt(row, text, group or [], TelegramSender(), "Almaty")  # noqa: SLF001
     )
 
-    asyncio.run(tl._run_attempt({"id": "msg-1", "attempts": 0}, "some listing text", None))
+
+def test_a_supabase_outage_requeues_instead_of_completing(recorder, monkeypatch):
+    """THE regression: a transient write failure must NOT mark the message processed."""
+    monkeypatch.setattr(tl, "create_telegram_listing", _async_raise(SupabaseError("503 upstream")))
+
+    _run({"id": "msg-1", "attempts": 0})
 
     assert recorder.processed == [], "a retryable failure must not complete the message"
     assert len(recorder.retried) == 1
     message_id, attempts, next_at, error = recorder.retried[0]
     assert message_id == "msg-1"
     assert attempts == 1
-    assert "429" in error
+    assert "503" in error
     assert next_at  # an actual timestamp was scheduled
 
 
 def test_attempts_accumulate_across_retries(recorder, monkeypatch):
-    monkeypatch.setattr(tl, "extract_listing", _extraction(error="429", retryable=True))
+    monkeypatch.setattr(tl, "create_telegram_listing", _async_raise(SupabaseError("503")))
 
-    asyncio.run(tl._run_attempt({"id": "msg-1", "attempts": 3}, "text", None))
+    _run({"id": "msg-1", "attempts": 3})
 
     assert recorder.retried[0][1] == 4
 
 
 def test_retries_stop_at_the_attempt_ceiling(recorder, monkeypatch):
     """A permanently failing message must not occupy the queue forever."""
-    monkeypatch.setattr(tl, "extract_listing", _extraction(error="429", retryable=True))
+    monkeypatch.setattr(tl, "create_telegram_listing", _async_raise(SupabaseError("503")))
 
-    asyncio.run(
-        tl._run_attempt(
-            {"id": "msg-1", "attempts": settings.max_extraction_attempts - 1}, "text", None
-        )
-    )
+    _run({"id": "msg-1", "attempts": settings.max_process_attempts - 1})
 
     assert recorder.retried == []
     assert len(recorder.processed) == 1
     assert "gave up" in recorder.processed[0][1]
 
 
-def test_permanent_extraction_failure_completes_the_message(recorder, monkeypatch):
-    monkeypatch.setattr(
-        tl, "extract_listing", _extraction(error="could not parse AI output", retryable=False)
-    )
-
-    asyncio.run(tl._run_attempt({"id": "msg-1", "attempts": 0}, "text", None))
+def test_a_successful_import_completes_the_message(recorder):
+    _run({"id": "msg-1", "attempts": 0})
 
     assert recorder.retried == []
-    assert recorder.processed == [("msg-1", "could not parse AI output")]
-
-
-def test_empty_message_completes_without_calling_the_ai(recorder, monkeypatch):
-    def _boom(_text):
-        raise AssertionError("extraction must not run on empty text")
-
-    monkeypatch.setattr(tl, "extract_listing", _boom)
-
-    asyncio.run(tl._run_attempt({"id": "msg-1", "attempts": 0}, "", None))
-
-    assert recorder.retried == []
-    assert len(recorder.processed) == 1
+    assert recorder.processed == [("msg-1", None)]
 
 
 def test_flood_wait_requeues(recorder, monkeypatch):
     from telethon.errors import FloodWaitError
 
-    async def _flood(_text):
-        raise FloodWaitError(request=None)
+    monkeypatch.setattr(tl, "download_media", _async_raise(FloodWaitError(request=None)))
 
-    monkeypatch.setattr(tl, "extract_listing", _flood)
-
-    asyncio.run(tl._run_attempt({"id": "msg-1", "attempts": 0}, "text", None))
+    # A group with something in it, or download_media is never reached — the
+    # photo step is skipped entirely for a text-only post.
+    _run({"id": "msg-1", "attempts": 0}, group=[object()])
 
     assert recorder.processed == []
     assert len(recorder.retried) == 1
 
 
-def test_unexpected_error_completes_rather_than_looping(recorder, monkeypatch):
+def test_an_unexpected_error_completes_rather_than_looping(recorder, monkeypatch):
     """An unknown bug should not wedge the queue retrying forever."""
+    monkeypatch.setattr(tl, "create_telegram_listing", _async_raise(RuntimeError("something structural")))
 
-    async def _boom(_text):
-        raise RuntimeError("something structural")
-
-    monkeypatch.setattr(tl, "extract_listing", _boom)
-
-    asyncio.run(tl._run_attempt({"id": "msg-1", "attempts": 0}, "text", None))
+    _run({"id": "msg-1", "attempts": 0})
 
     assert recorder.retried == []
     assert len(recorder.processed) == 1
@@ -237,22 +202,36 @@ def test_unexpected_error_completes_rather_than_looping(recorder, monkeypatch):
 
 def test_duplicate_draft_is_not_created_on_retry(recorder, monkeypatch):
     """A re-queued message that already produced a draft must not make a second."""
-    validated = _ValidatedStub()
-    monkeypatch.setattr(tl, "extract_listing", _extraction(validated=validated))
     monkeypatch.setattr(tl, "listing_exists_for_message", _async_return(True))
 
     created = []
 
-    async def _create(*args, **kwargs):
-        created.append(args)
+    async def _create(payload):
+        created.append(payload)
+        return {"id": "draft-1"}
 
-    monkeypatch.setattr(tl, "create_draft_listing", _create)
+    monkeypatch.setattr(tl, "create_telegram_listing", _create)
 
-    asyncio.run(tl._run_attempt({"id": "msg-1", "attempts": 1}, "text", None))
+    _run({"id": "msg-1", "attempts": 1})
 
     assert created == []
     assert len(recorder.processed) == 1
 
 
-class _ValidatedStub:
-    is_rental_listing = True
+def test_the_draft_is_always_written_as_pending_review(recorder, monkeypatch):
+    """
+    Nothing in this worker may publish. The status it writes is fixed, and this
+    test is the tripwire for a future change that tries to make it a parameter.
+    """
+    written: list[dict] = []
+
+    async def _create(payload):
+        written.append(payload)
+        return {"id": "draft-1"}
+
+    monkeypatch.setattr(tl, "create_telegram_listing", _create)
+
+    _run({"id": "msg-1", "attempts": 0})
+
+    assert written[0]["status"] == "pending_review"
+    assert written[0]["telegram_message_id"] == "msg-1"

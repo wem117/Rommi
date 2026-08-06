@@ -74,15 +74,23 @@ export async function getMyListingsServer(
   if (search) builder = builder.ilike("title", `%${search}%`);
   if (query.city) builder = builder.eq("city", query.city);
 
+  // Each arm mirrors one branch of listingStatus() (lib/utils/listing-status.ts)
+  // so the filter and the badge can never disagree about what a row is. Where
+  // that function relies on precedence, the query has to state the same thing as
+  // explicit exclusions — `pending` is not archived and not a draft, because
+  // those two outrank it.
   switch (query.status) {
     case "published":
       builder = builder.eq("removed", false).eq("archived", false).eq("status", "approved");
       break;
+    case "pending":
+      builder = builder.eq("removed", false).eq("archived", false).eq("status", "pending");
+      break;
     case "draft":
-      builder = builder.eq("removed", true).eq("archived", false);
+      builder = builder.eq("removed", true).eq("archived", false).neq("status", "rejected");
       break;
     case "archived":
-      builder = builder.eq("archived", true);
+      builder = builder.eq("archived", true).neq("status", "rejected");
       break;
     case "rejected":
       builder = builder.eq("status", "rejected");

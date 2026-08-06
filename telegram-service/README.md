@@ -1,27 +1,50 @@
 # Roomi Telegram Import Service
 
-Monitors configured Telegram channels/groups, extracts rental/roommate
-listing data from new messages using Gemini, uploads any attached photos into
-the existing Roomi Supabase storage bucket, and writes a draft row to
-`telegram_listings` for review in **Admin Panel → Telegram Imports**. Nothing
-here publishes directly — every import is reviewed, edited if needed, and
-explicitly approved or rejected by an admin.
+Monitors configured Telegram channels/groups, reads rental/roommate listing
+data out of new messages with a **deterministic parser** (regex, keyword tables
+and string handling — no model, no API key, no quota, no per-message cost),
+uploads any attached photos into the existing Roomi Supabase storage bucket, and
+writes a draft row to `telegram_listings` for review in **Admin Panel → Telegram
+Imports**. Nothing here publishes directly — every import is reviewed, edited if
+needed, and explicitly approved or rejected by an admin.
+
+## The pipeline
+
+```
+Telegram message
+    -> album reassembly       six events, one post (app/albums.py)
+    -> spam filter            cheap gate, BEFORE the first database write
+    -> deterministic parser   telegram_parser/
+    -> photo processing       streamed, never buffered whole (app/media.py)
+    -> telegram_listings      status='pending_review'
+    -> admin review           Admin Panel -> Telegram Imports
+    -> manual approval        the EXISTING createListing() pipeline
+```
+
+The spam filter's position is the load-bearing part: a message that is not about
+housing costs one regex sweep and leaves no row, no photo download, no storage
+object and nothing for an admin to dismiss.
 
 ## Architecture
 
 ```
 telegram-service/
 ├── app/
-│   ├── config.py            # env loading/validation
-│   ├── db.py                 # Supabase REST (service-role key)
-│   ├── extraction.py          # Gemini call + Pydantic validation
-│   ├── media.py                # Telegram photo download -> Storage upload
-│   ├── telethon_client.py       # MTProto client construction/session reuse
-│   ├── logging_config.py         # structured (JSON) logging
-│   └── main.py                    # FastAPI app; runs the listener as a background task
+│   ├── config.py             # env loading/validation
+│   ├── db.py                  # Supabase REST (service-role key, ONE pooled client)
+│   ├── albums.py               # reassembles multi-photo posts before parsing
+│   ├── media.py                 # Telegram photo download -> Storage upload, streamed
+│   ├── telethon_client.py        # MTProto client construction/session reuse
+│   ├── logging_config.py          # structured (JSON) logging
+│   └── main.py                     # FastAPI app; runs the listener as a background task
+├── telegram_parser/           # THE PARSER — pure Python, zero dependencies
+│   ├── patterns.py            #   every regex and keyword table
+│   ├── extractors.py           #   one function per field, silent when unsure
+│   ├── spam_filter.py           #   weighted-signal relevance gate
+│   └── parser.py                 #   orchestration -> ParsedListing
 ├── scripts/create_session.py  # ONE-TIME interactive login (run locally)
-├── telegram_listener.py       # listen_messages / extract_listing / download_media / create_draft_listing
-├── tests/                      # pure-logic unit tests (validation, parsing)
+├── telegram_listener.py       # listen_messages / process_group / download_media / create_draft_listing
+├── tests/                      # pure-logic unit tests, driven by REAL production posts
 ├── requirements.txt
 ├── Dockerfile
 ├── .env.example
@@ -42,8 +65,9 @@ python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
-# edit .env: TELEGRAM_API_ID, TELEGRAM_API_HASH, GEMINI_API_KEY,
+# edit .env: TELEGRAM_API_ID, TELEGRAM_API_HASH,
 # NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+# (there is no AI key to configure — extraction is deterministic)
 ```
 
 Requires **Python 3.10+** (uses `X | Y` union type syntax throughout).
@@ -178,5 +202,37 @@ file immediately.
 pytest
 ```
 
-Covers the pure logic only (price/field validation, JSON-fence stripping,
-image magic-byte detection) — no live Telegram/Gemini/Supabase calls.
+No live Telegram or Supabase calls: the parser is pure, so every test runs from
+a string literal.
+
+- `test_parser.py` — every extractor, driven by **verbatim posts** from the four
+  channels this service watches. They are kept literal (emoji, typos, mixed
+  Russian/Kazakh, inconsistent spacing) because each of those is something the
+  parser has to survive.
+- `test_spam_filter.py` — what must be dropped, and the thinnest real post that
+  must not be.
+- `test_pipeline.py` — album reassembly, the gate's position before the first
+  write, sender capture, photo streaming and size limits.
+- `test_retry.py` — the "transient failure requeues / permanent failure
+  completes" rule.
+- `test_db_errors.py`, `test_peer_routing.py` — Supabase error surface and the
+  raw/marked chat-id mismatch.
+
+## Tuning the parser
+
+Behaviour is data, not control flow: adding a ЖК, a spam phrase or another way
+of writing "50 thousand" is an edit to a table in `telegram_parser/patterns.py`
+plus a test that pins it. Two things to know before editing a regex there:
+
+1. **`\b` cannot terminate a token that ends in a non-word character.** `₸\b`
+   never matches "150 000 ₸ +", because both sides of that position are
+   non-word — this silently hid every tenge-symbol price, the most common format
+   in these channels. Units end with `(?!\w)` instead.
+2. **Cyrillic and Latin substrings collide across languages.** `деп\b` matches
+   the last three letters of the Kazakh "іздеп" ("looking for"), and `р[- ]?н`
+   matches the "рн" inside "орналасқан" ("located"). Both shipped, and both are
+   now pinned by a named regression test.
+
+Bump `PARSER_VERSION` when a rule changes what a post extracts to; it is stored
+on every draft, so a field that looks wrong can be traced to the ruleset that
+produced it.

@@ -45,7 +45,13 @@ coverage
 # which reads it from .env instead). Ignoring the directory, not just the
 # session file inside it, means that hardcoded secret can never be committed
 # even if someone later runs a broad `git add`.
-telegram/
+#
+# ANCHORED with a leading slash. Unanchored, `telegram/` matches a directory of
+# that name at ANY depth, which silently swallowed
+# src/app/api/admin/telegram/ — four route files that typechecked, linted and
+# built locally and then 404'd in production, because they had never been
+# committed at all.
+/telegram/
 telegram-service/*.session
 telegram-service/*.session-journal
 telegram-service/.env

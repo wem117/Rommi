@@ -52,7 +52,15 @@
   /* Feedback */
   --highlight: 36 87% 57%; /* amber #f1a531 (badges, "new") */
   --highlight-foreground: 0 0% 100%;
-  --success: 108 100% 35%; /* green (compatibility, confirmations) */
+  /*
+   * Darkened from 35% to 25%. At 35% this failed WCAG AA in BOTH directions on
+   * light surfaces: 2.71:1 as text on a card, and 2.81:1 for the white label on
+   * a success-filled button — the latter a pre-existing failure on every
+   * confirmation control in the app. 25% gives 4.94:1 and 5.12:1 respectively,
+   * with the hue unchanged, so the colour still reads as the same green.
+   * The dark-theme value below is already 6.87:1 and is left alone.
+   */
+  --success: 108 100% 25%; /* green (compatibility, confirmations) */
   --success-foreground: 0 0% 100%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;

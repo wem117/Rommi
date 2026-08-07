@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -127,5 +130,34 @@ describe("normalizeStatsConfig", () => {
   it("defaults an unspecified visibility to shown", () => {
     const normalized = normalizeStatsConfig({ metrics: [{ key: "a", labels: { en: "A" }, source: "manual", value: 1 }] });
     expect(normalized.metrics[0].visible).toBe(true);
+  });
+});
+
+/**
+ * The bug that made this whole system look broken for days.
+ *
+ * `homepage_stats` was missing from the public RLS policy, so the anon client
+ * the homepage renders through could not see the row at all. Every layer above
+ * the database worked — the admin saved correctly, the shape was right, the
+ * resolver was right, revalidation fired — and the page still showed the
+ * shipped defaults, because the data never arrived.
+ *
+ * This pins the two halves of the fix that live in code. The policy itself is
+ * pinned by supabase/migrations/20240101003200 and verified against the running
+ * database.
+ */
+describe("public read path", () => {
+  it("asks for homepage_stats among the public keys", () => {
+    const src = readFileSync(join(process.cwd(), "src/lib/data/public-settings.ts"), "utf8");
+    const selected = src.slice(src.indexOf('.in("key"'), src.indexOf('.in("key"') + 400);
+    expect(selected).toContain("homepage_stats");
+  });
+
+  it("normalizes rather than spreading, so a legacy row cannot yield the defaults", () => {
+    const src = readFileSync(join(process.cwd(), "src/lib/data/public-settings.ts"), "utf8");
+    expect(src).toContain("normalizeStatsConfig(byKey.get(\"homepage_stats\"))");
+    // The spread was the latent half: it silently produced the default metrics
+    // for any row without a `metrics` array.
+    expect(src).not.toContain("...DEFAULT_HOMEPAGE_STATS_CONFIG,");
   });
 });

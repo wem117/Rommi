@@ -2,7 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { DEFAULT_HOMEPAGE_STATS_CONFIG, type HomepageStatsConfig } from "@/lib/utils/homepage-stats";
+import {
+  DEFAULT_HOMEPAGE_STATS_CONFIG,
+  normalizeStatsConfig,
+  type HomepageStatsConfig
+} from "@/lib/utils/homepage-stats";
 
 export interface LocaleHero {
   title: string;
@@ -125,10 +129,14 @@ export async function fetchPublicSettings(client?: SupabaseClient): Promise<Publ
     return {
       homepageHero: (byKey.get("homepage_hero") as HomepageHero) ?? DEFAULT_PUBLIC_SETTINGS.homepageHero,
       homepageSections: (byKey.get("homepage_sections") as HomepageSection[]) ?? DEFAULT_HOMEPAGE_SECTIONS,
-      homepageStats: {
-        ...DEFAULT_HOMEPAGE_STATS_CONFIG,
-        ...((byKey.get("homepage_stats") as Partial<HomepageStatsConfig>) ?? {})
-      },
+      // normalizeStatsConfig, not a spread. The spread merged the stored object
+      // over the defaults, which happens to work for the current shape and
+      // breaks silently for the previous one: a legacy row carries no `metrics`
+      // array, so a reader that asks for `.metrics` gets the DEFAULTS back —
+      // or an empty statistics strip. The normalizer migrates both shapes and is
+      // the same function the admin read path uses, so the two can no longer
+      // disagree about what a stored row means.
+      homepageStats: normalizeStatsConfig(byKey.get("homepage_stats")),
       maintenanceMode: (byKey.get("maintenance_mode") as boolean) ?? false,
       platform: { ...DEFAULT_PLATFORM_SETTINGS, ...((byKey.get("platform") as Partial<PlatformSettings>) ?? {}) },
       featuredListingsLimit: (byKey.get("featured_listings_limit") as number) ?? DEFAULT_PUBLIC_SETTINGS.featuredListingsLimit,

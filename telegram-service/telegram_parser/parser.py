@@ -23,7 +23,7 @@ from telegram_parser import extractors as E
 # Bumped whenever a rule changes what a given post extracts to. Stored on every
 # draft, so a field that looks wrong can be traced to the ruleset that produced
 # it instead of being guessed at.
-PARSER_VERSION = "2.1.0"
+PARSER_VERSION = "2.2.0"
 
 MAX_DESCRIPTION = 4000
 

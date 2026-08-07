@@ -345,21 +345,35 @@ LANDMARK_RE = re.compile(
 )
 
 UNIVERSITY_ALIASES: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"\b(sdu|сду)\b|сулейман\s*демирел|суleyman"), "SDU University (Suleyman Demirel)"),
-    (re.compile(r"\b(kbtu|кбту)\b|казахстанско[- ]британск\w*"), "Kazakh-British Technical University (KBTU)"),
+    (re.compile(r"\b(sdu|сду)\b|сулейман\s*демирел|суleyman"), "SDU University"),
+    (re.compile(r"\b(kbtu|кбту)\b|казахстанско[- ]британск\w*"), "KBTU"),
     (re.compile(r"нархоз\w*|narxoz"), "Narxoz University"),
     (re.compile(r"\b(kimep|кимэп|кимеп)\b"), "KIMEP University"),
     (re.compile(r"\b(казну|kaznu)\b|аль[- ]фараби|әл[- ]фараби"), "Al-Farabi Kazakh National University"),
     (re.compile(r"\b(сатпаев\w*|satbayev|казнту|политех)\b"), "Satbayev University"),
-    (re.compile(r"\b(almau|алмау|аму)\b"), "Almaty Management University (AlmaU)"),
-    (re.compile(r"\b(iitu|мку|муит)\b"), "International IT University (IITU)"),
+    # "АМУ" is Astana Medical University in Astana and Almaty Management
+    # University in Almaty, and the alias table has no city to disambiguate
+    # with. AlmaU is not a row in `universities` at all, so matching it could
+    # only ever file a draft under a university the platform cannot find;
+    # Astana Medical University is. The bare abbreviation is left to the two
+    # unambiguous spellings rather than guessed at.
+    (re.compile(r"\b(almau|алмау)\b|almaty\s+management"), "Almaty Management University (AlmaU)"),
+    (re.compile(r"астана\s*медицина\w*|astana\s+medical|\bамуа?\b(?=.*астан)"), "Astana Medical University"),
+    (re.compile(r"\b(iitu|мку|муит)\b"), "International IT University"),
     (re.compile(r"\b(nu|назарбаев\s*университет\w*|nazarbayev)\b"), "Nazarbayev University"),
     # Branch campus in Astana. Posts write the parent brand far more often than
     # the full name, and "кардифф" is how it is transliterated locally.
     (re.compile(r"\bcardiff\b|кардифф\w*"), "Cardiff University Kazakhstan"),
     (re.compile(r"\b(енu|ену|enu)\b|гумилев\w*|гумилёв\w*"), "L.N. Gumilyov Eurasian National University"),
     (re.compile(r"\b(туран|turan)\b"), "Turan University"),
-    (re.compile(r"\b(казуму|kaznmu)\b|асфендияров\w*|мед\s*универ\w*"), "Kazakh National Medical University (Asfendiyarov)"),
+    (re.compile(r"\b(казуму|kaznmu)\b|асфендияров\w*|мед\s*универ\w*"), "Kazakh National Medical University"),
+    (re.compile(r"абылай\s*хан\w*|аблай\s*хан\w*|\b(казуимоимя|иняз)\b"),
+     "Kazakh Ablai Khan University of International Relations and World Languages"),
+    (re.compile(r"\b(казнпу|каznpu)\b|абая?\s*атындағы|педагогическ\w*\s*университет\w*\s*имени\s*абая"),
+     "Kazakh National Pedagogical University named after Abai"),
+    (re.compile(r"astana\s*it\s*university|\b(aitu|аиту)\b"), "Astana IT University"),
+    (re.compile(r"\b(казнау|kaznaru)\b|аграрн\w*\s*университет\w*"), "Kazakh National Agrarian Research University"),
+    (re.compile(r"\b(казату|kazatu)\b|сейфуллин\w*"), "S. Seifullin Kazakh Agrotechnical University"),
 )
 
 # ----------------------------------------------------------------- amenities

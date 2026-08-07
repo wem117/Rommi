@@ -493,7 +493,7 @@ def test_cities_and_universities():
     # Kaskelen is the town SDU sits in; the app's city list has no entry for it
     # and every renter there treats it as Almaty.
     assert parsed.city == "Almaty"
-    assert parsed.university == "SDU University (Suleyman Demirel)"
+    assert parsed.university == "SDU University"
 
 
 def test_orналасқан_does_not_become_a_district():
@@ -722,7 +722,7 @@ def test_whole_house_end_to_end():
     assert parsed.rooms == 5
     assert parsed.area == 140.0
     assert parsed.contact_phone == "+77475531063"
-    assert parsed.university == "SDU University (Suleyman Demirel)"
+    assert parsed.university == "SDU University"
     assert parsed.utilities_included is False
 
 
@@ -745,7 +745,7 @@ def test_the_live_shared_flat_end_to_end():
     assert parsed.listing_kind == "shared"          # was "unknown": девушек
     assert parsed.zhk == "Алтын Аул"                # was "":       ауыл
     assert parsed.address == "ЖК Алтын Аул"         # was "":       no street
-    assert parsed.university == "SDU University (Suleyman Demirel)"
+    assert parsed.university == "SDU University"
     assert parsed.contact_phone == "+77001129694"
     assert "WiFi" in parsed.amenities
     assert "Washing Machine" in parsed.amenities
@@ -788,3 +788,74 @@ def test_cardiff_alias_does_not_swallow_unrelated_words():
     """
     parsed = parse_message("Сдается квартира на улице Кардиган, Алматы")
     assert parsed.university != "Cardiff University Kazakhstan"
+
+
+def test_every_university_alias_resolves_to_a_real_university():
+    """
+    The alias table's VALUES are not labels — they are written into
+    `listings.university`, which the site filters with an exact string compare.
+
+    This has already cost real inventory: the table used to emit
+    "SDU University" while the universities table held
+    "SDU University", and 21 imported listings ended up filed under a name no
+    page could match. They were invisible from the SDU hub card, and because
+    their `university` was non-empty they missed the city fallback too.
+
+    The app's constants file is the shared source of truth both sides can see,
+    so this reads it directly rather than restating the list here — a copy would
+    just be a third thing to drift.
+    """
+    import re
+    from pathlib import Path
+
+    import pytest
+
+    # Walk up rather than hardcoding a depth: CI runs this from a full checkout,
+    # but the service is also tested from its own image, where the web app's
+    # source is deliberately absent. Skipping there is correct — the guard's job
+    # is to fail the repo-wide build, and CI always has the file.
+    constants = None
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "src" / "lib" / "constants" / "universities.ts"
+        if candidate.is_file():
+            constants = candidate
+            break
+    if constants is None:
+        pytest.skip("web app sources not present (service tested standalone)")
+
+    names = set(re.findall(r'\{\s*name:\s*"([^"]+)",\s*city:', constants.read_text(encoding="utf-8")))
+    # A regex that stops matching would otherwise turn this into a no-op that
+    # passes forever.
+    assert len(names) > 40, f"constants file did not parse ({len(names)} names); guard would pass vacuously"
+
+    from telegram_parser import patterns
+
+    unknown = sorted({value for _, value in patterns.UNIVERSITY_ALIASES if value not in names})
+    assert not unknown, f"aliases resolve to universities the app does not have: {unknown}"
+
+
+def test_amu_is_not_silently_claimed_by_almau():
+    """
+    "АМУ" means Astana Medical University in Astana and Almaty Management
+    University in Almaty. The alias table has no city to disambiguate with, so
+    the bare abbreviation must not resolve to either by accident.
+    """
+    assert parse_message("Сдам квартиру рядом с Almaty Management University").university == \
+        "Almaty Management University (AlmaU)"
+    assert parse_message("Бөлме Астана медицина университеті жанында").university == \
+        "Astana Medical University"
+
+
+def test_the_other_astana_and_almaty_universities_resolve():
+    cases = {
+        "Квартира рядом с Абылай хан университетом, Алматы":
+            "Kazakh Ablai Khan University of International Relations and World Languages",
+        "Комната возле КазНПУ имени Абая, Алматы":
+            "Kazakh National Pedagogical University named after Abai",
+        "Сдается рядом с Astana IT University":  "Astana IT University",
+        "Квартира возле КазНАУ, Алматы":         "Kazakh National Agrarian Research University",
+        "Бөлме Сейфуллин атындағы университет жанында, Астана":
+            "S. Seifullin Kazakh Agrotechnical University",
+    }
+    for text, expected in cases.items():
+        assert parse_message(text).university == expected, text

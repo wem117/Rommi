@@ -14,16 +14,16 @@ export interface UniversityEntry {
 export const KZ_UNIVERSITIES: UniversityEntry[] = [
   // Almaty
   { name: "Al-Farabi Kazakh National University", city: "Almaty" },
-  { name: "Kazakh-British Technical University (KBTU)", city: "Almaty" },
-  { name: "SDU University (Suleyman Demirel)", city: "Almaty" },
+  { name: "KBTU", city: "Almaty" },
+  { name: "SDU University", city: "Almaty" },
   { name: "Satbayev University", city: "Almaty" },
   { name: "KIMEP University", city: "Almaty" },
   { name: "Narxoz University", city: "Almaty" },
   { name: "Almaty Management University (AlmaU)", city: "Almaty" },
-  { name: "International IT University (IITU)", city: "Almaty" },
+  { name: "International IT University", city: "Almaty" },
   { name: "Kazakh Ablai Khan University of International Relations and World Languages", city: "Almaty" },
-  { name: "Abai Kazakh National Pedagogical University", city: "Almaty" },
-  { name: "Kazakh National Medical University (Asfendiyarov)", city: "Almaty" },
+  { name: "Kazakh National Pedagogical University named after Abai", city: "Almaty" },
+  { name: "Kazakh National Medical University", city: "Almaty" },
   { name: "Turan University", city: "Almaty" },
   { name: "Kazakh National Agrarian Research University", city: "Almaty" },
   { name: "University of International Business (UIB)", city: "Almaty" },
@@ -53,7 +53,7 @@ export const KZ_UNIVERSITIES: UniversityEntry[] = [
 
   // Karaganda
   { name: "Karaganda Buketov University", city: "Karaganda" },
-  { name: "Abylkas Saginov Karaganda Technical University", city: "Karaganda" },
+  { name: "Karaganda Technical University", city: "Karaganda" },
   { name: "Karaganda Medical University", city: "Karaganda" },
   { name: "Karaganda University of Kazpotrebsoyuz", city: "Karaganda" },
 
@@ -66,15 +66,15 @@ export const KZ_UNIVERSITIES: UniversityEntry[] = [
   { name: "Taraz Innovative-Humanitarian University", city: "Taraz" },
 
   // Atyrau
-  { name: "Kh. Dosmukhamedov Atyrau University", city: "Atyrau" },
+  { name: "Atyrau University", city: "Atyrau" },
   { name: "Safi Utebayev Atyrau Oil and Gas University", city: "Atyrau" },
 
   // Pavlodar
-  { name: "Toraighyrov University", city: "Pavlodar" },
+  { name: "S. Toraighyrov Pavlodar State University", city: "Pavlodar" },
   { name: "Pavlodar Pedagogical University", city: "Pavlodar" },
 
   // Semey
-  { name: "Shakarim University of Semey", city: "Semey" },
+  { name: "Shakarim University Semey", city: "Semey" },
   { name: "Semey Medical University", city: "Semey" },
 
   // Oskemen (Ust-Kamenogorsk)

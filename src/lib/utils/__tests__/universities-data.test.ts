@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -291,5 +291,114 @@ describe("the admin panel can manage it", () => {
     // The logo has its own uploader, not a bare text input.
     expect(form).toContain("form.logoUrl");
     expect(form).toContain("AdminImageUpload");
+  });
+});
+
+/**
+ * The other sixteen universities that carry the platform's traffic.
+ *
+ * Cardiff proved the mechanism; this proves the data behind it, which is the
+ * part that rots. These assert against the migration file rather than a live
+ * database so they fail in CI on a bad edit, not months later on a page nobody
+ * checked.
+ */
+describe("the seeded university profiles", () => {
+  const sql = readFileSync(
+    join(process.cwd(), "supabase/migrations/20240101003500_university_profiles_and_cardiff_position.sql"),
+    "utf8"
+  );
+
+  // slug -> the row's value tuple, parsed out of the VALUES list.
+  const rows = [...sql.matchAll(/\n  \('([a-z0-9-]+)',\n((?:[^)]|\)(?!\s*,?\n))*)\)/g)].map(([, slug, body]) => ({
+    slug,
+    body
+  }));
+
+  const SLUGS = [
+    "al-farabi-kazakh-national-university",
+    "kbtu",
+    "sdu-university",
+    "satbayev-university",
+    "kimep-university",
+    "narxoz-university",
+    "kazakh-ablai-khan-university-of-international-relations-and-world-languages",
+    "nazarbayev-university",
+    "kazakh-national-pedagogical-university-named-after-abai",
+    "kazakh-national-medical-university",
+    "l-n-gumilyov-eurasian-national-university",
+    "astana-it-university",
+    "turan-university",
+    "international-it-university",
+    "kazakh-national-agrarian-research-university",
+    "s-seifullin-kazakh-agrotechnical-university",
+    "astana-medical-university"
+  ];
+
+  it("covers all seventeen, exactly once each", () => {
+    expect(rows.map((r) => r.slug).sort()).toEqual([...SLUGS].sort());
+  });
+
+  it("gives every one of them a website", () => {
+    for (const row of rows) {
+      expect(row.body, row.slug).toMatch(/'https:\/\/[^']+'/);
+    }
+  });
+
+  it("gives every one of them a type and a language of instruction", () => {
+    for (const row of rows) {
+      expect(row.body, row.slug).toMatch(/'(National|Private|Public|Autonomous)[^']*university'/i);
+      expect(row.body, row.slug).toMatch(/'(Kazakh|Russian|English)[^']*'/);
+    }
+  });
+
+  it("uses abai.university, not the kaznpu.kz domain that now redirects away", () => {
+    const abai = rows.find((r) => r.slug === "kazakh-national-pedagogical-university-named-after-abai");
+    expect(abai?.body).toContain("https://abai.university/");
+    // Only the stored values — the file's header comment names the dead domain
+    // on purpose, to record why the stored one differs from the obvious guess.
+    for (const row of rows) expect(row.body, row.slug).not.toContain("kaznpu.kz");
+  });
+
+  it("never rewrites `name`, the column everything else joins on", () => {
+    // The single most destructive edit available in this file. `listings` and
+    // `profiles` store the English name as free text; changing it here would
+    // orphan every row already pointing at the old string.
+    expect(sql).not.toMatch(/\bname\s*=\s*v\.name\b/);
+    expect(sql).toMatch(/name_ru\s*=\s*v\.name_ru/);
+  });
+
+  it("leaves the admin's curation alone", () => {
+    for (const column of ["active", "featured", "image_url", "listings_count_override"]) {
+      expect(sql).not.toMatch(new RegExp(`\\n\\s+${column}\\s*=`));
+    }
+  });
+
+  it("fills a missing logo without overwriting an uploaded one", () => {
+    expect(sql).toContain("logo_url = coalesce(u.logo_url,");
+  });
+
+  it("puts Cardiff in 8th place, and guards the shift against re-running", () => {
+    // position is 0-based, so 8th place is 7. Without the guard every redeploy
+    // would push ten universities one slot further down the page.
+    expect(sql).toContain("target constant int := 7");
+    expect(sql).toContain("current_pos = target");
+    expect(sql).toMatch(/return;/);
+  });
+});
+
+describe("logo assets referenced by the migrations exist in the repo", () => {
+  it("every /universities/*-logo.png path resolves to a real file", () => {
+    const dir = join(process.cwd(), "supabase/migrations");
+    const sql = ["20240101003400_seed_cardiff_university_kazakhstan.sql", "20240101003500_university_profiles_and_cardiff_position.sql"]
+      .map((f) => readFileSync(join(dir, f), "utf8"))
+      .join("\n");
+    const paths = [...new Set([...sql.matchAll(/'(\/universities\/[^']+)'/g)].map((m) => m[1]))];
+
+    // A logo path that 404s renders an empty white plate on the card, which
+    // looks like a bug rather than an absence.
+    expect(paths.length).toBeGreaterThan(0);
+    for (const p of paths) {
+      expect(existsSync(join(process.cwd(), "public", p)), p).toBe(true);
+    }
   });
 });

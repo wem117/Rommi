@@ -84,7 +84,7 @@ def test_an_apartment_listing_end_to_end():
     assert listing.floor == 6
     assert listing.total_floors == 9
     assert listing.zhk == "Асыл Арман"
-    assert listing.university == "Kazakh-British Technical University (KBTU)"
+    assert listing.university == "KBTU"
     assert listing.contact_phone == "+77011619404"
     assert "Washing Machine" in listing.amenities
 

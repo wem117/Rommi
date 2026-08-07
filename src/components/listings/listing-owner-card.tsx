@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { ContactLinks } from "@/components/shared/contact-links";
-import { VerifiedBadge } from "@/components/shared/verified-badge";
+import { SafetyTips, SecurePlatformNote, VerifiedBadge } from "@/components/shared/trust-signals";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
 import { createConversation } from "@/hooks/use-conversations";
@@ -163,6 +163,24 @@ export function ListingOwnerCard({
           <Pencil className="h-4 w-4" aria-hidden="true" />
           {t("listingDetail.editListing")}
         </Link>
+      ) : null}
+
+      {/*
+        Assurance and safety guidance directly beneath the contact actions, and
+        only for people who are actually about to contact a stranger — the owner
+        of a listing does not need to be warned about themselves.
+
+        Position is the whole point. This advice normally lives on a policy page,
+        where it is read by nobody and helps no one. Here it is in the field of
+        view at the exact moment someone is deciding whether to send a deposit to
+        a person they have never met, which is the only moment it can change what
+        they do.
+      */}
+      {!isOwnListing ? (
+        <>
+          <SecurePlatformNote className="mt-3.5 border-t border-border pt-3.5" />
+          <SafetyTips className="mt-3" />
+        </>
       ) : null}
     </div>
   );

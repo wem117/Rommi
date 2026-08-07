@@ -98,6 +98,54 @@ body {
   @apply bg-background text-foreground font-body antialiased;
 }
 
+/*
+ * Reduced motion.
+ *
+ * The app had none, while shipping card lift transitions, image zooms on hover,
+ * a carousel and skeleton pulses. For a visitor with a vestibular disorder that
+ * is not a preference, it is a symptom trigger, and WCAG 2.3.3 asks for exactly
+ * this. Motion is removed rather than shortened — a 1ms transition still fires
+ * transitionend handlers, so behaviour that depends on them keeps working.
+ *
+ * `scroll-behavior` is included because smooth scrolling is the motion people
+ * with motion sensitivity report most often.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * Controls and chips that sit ON TOP of photography.
+ *
+ * These were written as `bg-white/90 text-foreground`, which is invisible in
+ * dark mode: `--foreground` is near-black on light and near-WHITE on dark, so
+ * the chip rendered white text on a 90%-white plate — about 1.05:1, against a
+ * 4.5:1 requirement. It affected the property-type badge on every listing card
+ * and both gallery arrows, i.e. the controls a dark-mode user needs to browse
+ * at all.
+ *
+ * `--card` tracks the theme and `--card-foreground` tracks it in the opposite
+ * direction, so the pair stays legible over any image in either mode. The blur
+ * and the hairline ring keep it readable over a busy photo, which is what the
+ * white plate was really for.
+ */
+.overlay-chip {
+  background-color: hsl(var(--card) / 0.92);
+  color: hsl(var(--card-foreground));
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow:
+    0 1px 2px rgba(28, 20, 12, 0.12),
+    inset 0 0 0 1px hsl(var(--border) / 0.6);
+}
+
 h1,
 h2,
 h3,
@@ -126,7 +174,12 @@ label {
   @apply text-sm font-medium text-foreground;
 }
 
-/* Accessible keyboard focus for interactive elements */
+/* Accessible keyboard focus for interactive elements.
+ *
+ * `:focus-visible`, not `:focus`, so a mouse click leaves no ring behind — that
+ * distinction is why teams delete focus styles, and deleting them is what makes
+ * a site unusable by keyboard. Modern browsers already follow the element's own
+ * border-radius when drawing an outline, so nothing here needs to restate it. */
 :where(a, button, [role="button"], [tabindex]):focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;

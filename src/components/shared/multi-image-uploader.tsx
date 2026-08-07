@@ -271,7 +271,7 @@ export function MultiImageUploader({
                 type="button"
                 onClick={() => removePending(item)}
                 aria-label={`${labels.remove} ${item.file.name}`}
-                className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-white/95 text-foreground shadow"
+                className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full overlay-chip text-card-foreground"
               >
                 <X className="h-3 w-3" />
               </button>

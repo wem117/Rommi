@@ -15,6 +15,8 @@ export type ModerationStatus = "pending" | "approved" | "rejected";
 export interface Listing {
   id: string;
   ownerId: string;
+  /** Identity-verified status of the host, embedded from profiles. */
+  ownerVerified?: boolean;
   title: string;
   description: string;
   propertyType: PropertyType;

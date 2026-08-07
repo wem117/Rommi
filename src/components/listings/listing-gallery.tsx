@@ -238,7 +238,7 @@ function InlineCarousel({
             onClick={() => scrollToIndex(active - 1)}
             disabled={active === 0}
             aria-label={t("gallery.prevPhoto")}
-            className="absolute left-3 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md backdrop-blur transition hover:scale-105 disabled:opacity-0 sm:flex"
+            className="absolute left-3 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full overlay-chip transition hover:scale-105 disabled:opacity-0 sm:flex"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
@@ -247,7 +247,7 @@ function InlineCarousel({
             onClick={() => scrollToIndex(active + 1)}
             disabled={active === count - 1}
             aria-label={t("gallery.nextPhoto")}
-            className="absolute right-3 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md backdrop-blur transition hover:scale-105 disabled:opacity-0 sm:flex"
+            className="absolute right-3 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full overlay-chip transition hover:scale-105 disabled:opacity-0 sm:flex"
           >
             <ChevronRight className="h-5 w-5" />
           </button>

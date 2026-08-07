@@ -13,6 +13,15 @@ export const localeOptions = [
 
 const translations = {
   en: {
+    trust: {
+      memberSince: "Member since {date}",
+      securePlatform:
+        "Encrypted connection. Contact details are shown only to signed-in users, and every listing is reviewed before it goes live.",
+      safetyTitle: "Stay safe",
+      safetyTip1: "See the room in person, or on a live video call, before you pay anything.",
+      safetyTip2: "Never send a deposit or prepayment before you have signed an agreement.",
+      safetyTip3: "Keep the conversation on Roomi so we can help if something goes wrong."
+    },
     nav: {
       myListings: "My listings",
       rooms: "Rooms",
@@ -658,6 +667,15 @@ const translations = {
     }
   },
   ru: {
+    trust: {
+      memberSince: "На Roomi с {date}",
+      securePlatform:
+        "Защищённое соединение. Контакты видны только авторизованным пользователям, а каждое объявление проходит проверку перед публикацией.",
+      safetyTitle: "Безопасность",
+      safetyTip1: "Посмотрите комнату лично или по видеосвязи, прежде чем что-то платить.",
+      safetyTip2: "Не отправляйте залог или предоплату до подписания договора.",
+      safetyTip3: "Общайтесь в Roomi — так мы сможем помочь, если что-то пойдёт не так."
+    },
     nav: {
       myListings: "Мои объявления",
       rooms: "Комнаты",
@@ -1301,6 +1319,15 @@ const translations = {
     }
   },
   kz: {
+    trust: {
+      memberSince: "Roomi-де {date} бастап",
+      securePlatform:
+        "Қорғалған байланыс. Байланыс деректері тек тіркелген қолданушыларға көрінеді, әр хабарландыру жарияланар алдында тексеріледі.",
+      safetyTitle: "Қауіпсіздік",
+      safetyTip1: "Ақша төлемес бұрын бөлмені өз көзіңізбен немесе бейнеқоңырау арқылы көріңіз.",
+      safetyTip2: "Шарт жасалмай тұрып кепілдік немесе алдын ала төлем жібермеңіз.",
+      safetyTip3: "Хат алмасуды Roomi ішінде жүргізіңіз — қиындық туса, көмектесе аламыз."
+    },
     nav: {
       myListings: "Менің хабарландыруларым",
       rooms: "Бөлмелер",

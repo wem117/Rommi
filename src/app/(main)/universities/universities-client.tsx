@@ -53,7 +53,7 @@ export default function UniversitiesClient() {
                   </div>
                 )}
                 {university.city ? (
-                  <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-foreground shadow-sm backdrop-blur">
+                  <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full overlay-chip px-2.5 py-1 text-xs font-semibold">
                     <MapPin className="h-3 w-3 text-primary" />
                     {university.city}
                   </span>

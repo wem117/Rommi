@@ -142,10 +142,25 @@ export function SearchSkeletonGrid({ count = 6 }: { count?: number }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: count }).map((_, index) => (
+        /*
+          A skeleton is a promise about what is arriving. A single grey block of
+          a height that matched no real card broke that promise twice — the page
+          reflowed when content landed, and the placeholder taught the eye the
+          wrong shape. This mirrors the card: 4:3 image, then price, title and
+          meta lines at their real sizes.
+        */
         <div
           key={index}
-          className="h-[340px] animate-pulse rounded-2xl border border-border bg-card shadow-soft sm:h-[400px]"
-        />
+          className="overflow-hidden rounded-card border border-border/80 bg-card shadow-elev-2"
+          aria-hidden="true"
+        >
+          <div className="aspect-[4/3] animate-pulse bg-surface-muted" />
+          <div className="space-y-2.5 p-4 sm:p-5">
+            <div className="h-5 w-2/5 animate-pulse rounded-md bg-surface-muted" />
+            <div className="h-4 w-4/5 animate-pulse rounded-md bg-surface-muted" />
+            <div className="h-3 w-1/2 animate-pulse rounded-md bg-surface-muted" />
+          </div>
+        </div>
       ))}
     </div>
   );

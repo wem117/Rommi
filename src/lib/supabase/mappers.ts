@@ -85,6 +85,14 @@ export function mapListingRow(row: GenericRecord): Listing {
   return {
     id: String(row.id ?? ""),
     ownerId: String(row.owner_id ?? row.ownerId ?? ""),
+    // Embedded from profiles via the owner_id FK. Optional on purpose: rows
+    // that predate the embed, demo data, and listings whose owner was removed
+    // all arrive without it, and `undefined` renders no badge — which is the
+    // correct answer for "we do not know", not a claim that they are unverified.
+    ownerVerified:
+      typeof (row.profiles as { verified?: unknown } | null)?.verified === "boolean"
+        ? ((row.profiles as { verified: boolean }).verified)
+        : undefined,
     title: String(row.title ?? ""),
     description: String(row.description ?? ""),
     propertyType: (row.property_type ?? row.propertyType ?? "apartment") as Listing["propertyType"],
@@ -173,8 +181,13 @@ export function mapReportRow(row: GenericRecord): Report {
  * Kept beside the mapper deliberately: the two have to agree, and a column
  * added to one and not the other is a field that silently reads `undefined`.
  */
+// `profiles(verified)` is a PostgREST embed, enabled by the listings.owner_id
+// -> profiles.uid foreign key added in 20240101003700. One join on a primary
+// key, so the browse page can show whether a host is identity-verified without
+// a second request per card.
+//
 // One literal string, not a joined array: supabase-js parses the select list
 // AT THE TYPE LEVEL to infer the row shape, so a `string` here collapses the
 // result type to GenericStringError and every mapper call stops compiling.
 export const LISTING_COLUMNS =
-  "id,owner_id,title,description,property_type,listing_type,monthly_rent,deposit_required,deposit_amount,city,district,address,bedrooms,bathrooms,available_from,amenities,preferences,photo_urls,removed,removed_at,created_at,updated_at,university,status,featured,featured_position,archived,category_id,lat,lng" as const;
+  "profiles(verified),id,owner_id,title,description,property_type,listing_type,monthly_rent,deposit_required,deposit_amount,city,district,address,bedrooms,bathrooms,available_from,amenities,preferences,photo_urls,removed,removed_at,created_at,updated_at,university,status,featured,featured_position,archived,category_id,lat,lng" as const;

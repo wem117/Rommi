@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { ContactLinks } from "@/components/shared/contact-links";
-import { VerifiedBadge } from "@/components/shared/verified-badge";
+import { VerifiedBadge } from "@/components/shared/trust-signals";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";

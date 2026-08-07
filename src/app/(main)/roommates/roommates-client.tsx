@@ -6,6 +6,7 @@ import { Suspense, useMemo, useState } from "react";
 
 import { RoommateCard } from "@/components/roommates/roommate-card";
 import { UniversityCombobox } from "@/components/shared/university-combobox";
+import { matchesUniversityFilter } from "@/lib/utils/university-options";
 import {
   FilterField,
   FilterPanel,
@@ -61,15 +62,15 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
     const parsedMaxAge = Number(maxAge) || 30;
     const parsedBudget = maxBudget === "any" ? null : Number(maxBudget);
 
-    const universityQuery = university.trim().toLowerCase();
-
     return roommates
       .filter((roommate) => {
         // Prefers the stored profiles.city, falling back to the
         // university-derived city for rows created before that column existed.
         const cityMatches = matchesCity(roommate, city, ALL_CITIES);
-        const matchesUniversity =
-          !universityQuery || (roommate.university ?? "").toLowerCase().includes(universityQuery);
+        // Shared with the picker so the name a student selected and the name
+        // this filter looks for cannot drift apart — both sides now deal in the
+        // canonical English name even when the interface is in Russian.
+        const matchesUniversity = matchesUniversityFilter(roommate.university, university);
         const matchesGender = gender === "all" || roommate.gender === gender;
         // Age 0 is the documented "not stated" sentinel (admin-quick.schema.ts):
         // posts imported from Telegram/WhatsApp/OLX rarely mention an age, and

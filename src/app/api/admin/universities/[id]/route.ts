@@ -19,7 +19,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (input.name !== undefined) payload.name = input.name;
     if (input.slug !== undefined && input.slug) payload.slug = slugify(input.slug);
+    if (input.nameRu !== undefined) payload.name_ru = input.nameRu;
+    if (input.nameKz !== undefined) payload.name_kz = input.nameKz;
     if (input.city !== undefined) payload.city = input.city;
+    if (input.country !== undefined) payload.country = input.country;
+    if (input.type !== undefined) payload.type = input.type;
+    if (input.website !== undefined) payload.website = input.website;
+    if (input.language !== undefined) payload.language = input.language;
     if (input.description !== undefined) payload.description = input.description;
     if (input.imageUrl !== undefined) payload.image_url = input.imageUrl || null;
     if (input.logoUrl !== undefined) payload.logo_url = input.logoUrl || null;

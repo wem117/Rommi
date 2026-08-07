@@ -33,8 +33,14 @@ export async function POST(request: Request) {
 
     const payload: Record<string, unknown> = {
       name: input.name,
+      name_ru: input.nameRu,
+      name_kz: input.nameKz,
       slug,
       city: input.city,
+      country: input.country,
+      type: input.type,
+      website: input.website,
+      language: input.language,
       description: input.description,
       image_url: input.imageUrl || null,
       logo_url: input.logoUrl || null,

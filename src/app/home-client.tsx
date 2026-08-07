@@ -34,7 +34,7 @@ import { useLocale } from "@/context/locale-context";
 import { CITIES } from "@/lib/constants/cities";
 import { DEFAULT_HOMEPAGE_SECTIONS, type PublicSettings } from "@/lib/data/public-settings";
 import { type Testimonial } from "@/lib/data/testimonials";
-import { type UniversityWithStats } from "@/lib/data/universities";
+import { universityDisplayName, type UniversityWithStats } from "@/lib/data/universities";
 import { formatNumber } from "@/lib/utils/format";
 import {
   resolveHomepageStats,
@@ -223,14 +223,14 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
                   {university.imageUrl ? (
                     <Image
                       src={university.imageUrl}
-                      alt={university.name}
+                      alt={universityDisplayName(university, locale)}
                       fill
                       className="object-cover transition duration-500 group-hover:scale-105"
                       sizes="(min-width: 1280px) 33vw, (min-width: 640px) 33vw, 50vw"
                     />
                   ) : (
                     <div className="grid h-full w-full place-items-center bg-gradient-to-br from-primary/15 to-accent/15 text-3xl font-bold text-primary/40">
-                      {university.name.slice(0, 2).toUpperCase()}
+                      {universityDisplayName(university, locale).slice(0, 2).toUpperCase()}
                     </div>
                   )}
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 sm:p-4">
@@ -240,7 +240,9 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
                   </div>
                 </div>
                 <div className="p-3 sm:p-5">
-                  <h3 className="font-heading text-base font-bold leading-tight sm:text-2xl">{university.name}</h3>
+                  <h3 className="font-heading text-base font-bold leading-tight sm:text-2xl">
+                    {universityDisplayName(university, locale)}
+                  </h3>
                   <p className="mt-1 text-xs text-foreground/55 sm:mt-2 sm:text-sm">
                     {university.listingsCount} {t("home.listingsWord")}
                     <span className="mx-1.5 text-[#d3c6b7] sm:mx-2">|</span>

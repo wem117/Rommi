@@ -6,10 +6,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { useLocale } from "@/context/locale-context";
-import { getActiveUniversities, type PublicUniversity } from "@/lib/data/universities";
+import { getActiveUniversities, universityDisplayName, type PublicUniversity } from "@/lib/data/universities";
 
 export default function UniversitiesClient() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [universities, setUniversities] = useState<PublicUniversity[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +42,7 @@ export default function UniversitiesClient() {
                 {university.imageUrl ? (
                   <Image
                     src={university.imageUrl}
-                    alt={university.name}
+                    alt={universityDisplayName(university, locale)}
                     fill
                     className="object-cover transition duration-500 group-hover:scale-105"
                     sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
@@ -58,10 +58,39 @@ export default function UniversitiesClient() {
                     {university.city}
                   </span>
                 ) : null}
+                {university.logoUrl ? (
+                  /* White plate under the mark, unconditionally — not themed.
+                     University logos are drawn for white paper: the Cardiff
+                     lockup's "Kazakhstan" wordmark is near-black and vanishes
+                     outright against a dark cover photo or in dark mode. A logo
+                     is the one thing on this card that must not be recoloured.
+
+                     Fixed height, free width: these marks are wide lockups far
+                     more often than square badges, and a square frame would
+                     squash the common case to fit the rare one. */
+                  <span className="absolute right-3 top-3 flex h-9 max-w-[55%] items-center justify-center rounded-lg bg-white px-2 py-1.5 shadow-sm ring-1 ring-black/5">
+                    <Image
+                      src={university.logoUrl}
+                      // Decorative: the name is already the card's heading, so
+                      // announcing it again would just make the card read twice.
+                      alt=""
+                      width={160}
+                      height={51}
+                      className="h-full w-auto max-w-full object-contain"
+                    />
+                  </span>
+                ) : null}
               </div>
 
               <div className="flex flex-1 flex-col p-4 sm:p-5">
-                <h2 className="font-heading text-lg font-bold leading-snug sm:text-xl">{university.name}</h2>
+                <h2 className="font-heading text-lg font-bold leading-snug sm:text-xl">
+                  {universityDisplayName(university, locale)}
+                </h2>
+                {university.type || university.language ? (
+                  <p className="mt-1 text-xs text-foreground/50">
+                    {[university.type, university.language].filter(Boolean).join(" · ")}
+                  </p>
+                ) : null}
                 <p className="mt-2 line-clamp-2 flex-1 text-sm text-foreground/60">
                   {university.description || t("universities.cardDescription")}
                 </p>

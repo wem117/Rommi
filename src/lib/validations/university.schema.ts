@@ -17,8 +17,23 @@ function slugify(value: string) {
 // PATCH and silently reset columns the admin never touched.
 const universityFields = {
   name: z.string().trim().min(1).max(160),
+  // Localised DISPLAY names. Empty means "use `name`", which is the normal case
+  // — most Kazakhstani universities use their Latin name verbatim in all three
+  // languages. `name` itself stays canonical because listings and profiles
+  // store it as free text and the Telegram parser matches on it.
+  nameRu: z.string().trim().max(160),
+  nameKz: z.string().trim().max(160),
   slug: z.string().trim().max(160),
   city: z.string().trim().max(80),
+  country: z.string().trim().max(80),
+  /** e.g. "International branch campus" — free text; the sector has many shapes. */
+  type: z.string().trim().max(120),
+  website: z
+    .string()
+    .trim()
+    .max(300)
+    .refine((v) => v === "" || /^https?:\/\/\S+$/.test(v), "Enter a full URL, or leave it empty."),
+  language: z.string().trim().max(80),
   description: z.string().trim().max(600),
   imageUrl: imageReference,
   logoUrl: imageReference,
@@ -34,6 +49,12 @@ const universityFields = {
 
 export const universityCreateSchema = z.object({
   name: universityFields.name,
+  nameRu: universityFields.nameRu.optional().default(""),
+  nameKz: universityFields.nameKz.optional().default(""),
+  country: universityFields.country.optional().default("Kazakhstan"),
+  type: universityFields.type.optional().default(""),
+  website: universityFields.website.optional().default(""),
+  language: universityFields.language.optional().default(""),
   slug: universityFields.slug.optional().default(""),
   city: universityFields.city.optional().default(""),
   description: universityFields.description.optional().default(""),
@@ -52,6 +73,12 @@ export const universityCreateSchema = z.object({
 // the fields the caller explicitly sent.
 export const universityUpdateSchema = z.object({
   name: universityFields.name.optional(),
+  nameRu: universityFields.nameRu.optional(),
+  nameKz: universityFields.nameKz.optional(),
+  country: universityFields.country.optional(),
+  type: universityFields.type.optional(),
+  website: universityFields.website.optional(),
+  language: universityFields.language.optional(),
   slug: universityFields.slug.optional(),
   city: universityFields.city.optional(),
   description: universityFields.description.optional(),

@@ -5,9 +5,17 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useLocale } from "@/context/locale-context";
 import { UNIVERSITIES } from "@/lib/constants/universities";
 import { getActiveUniversities } from "@/lib/data/universities";
+import {
+  buildUniversityOptions,
+  filterUniversityOptions,
+  plainUniversityOption,
+  type UniversityOption
+} from "@/lib/utils/university-options";
 
 const MAX_RESULTS = 8;
-const FALLBACK_NAMES = UNIVERSITIES as readonly string[];
+
+// Shown until the database answers, and for good if Supabase is unconfigured.
+const FALLBACK_OPTIONS: UniversityOption[] = (UNIVERSITIES as readonly string[]).map(plainUniversityOption);
 
 export function UniversityCombobox({
   value,
@@ -20,12 +28,12 @@ export function UniversityCombobox({
   placeholder?: string;
   id?: string;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const resolvedPlaceholder = placeholder ?? t("roommates.universitySearchPlaceholder");
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [names, setNames] = useState<string[]>(() => [...FALLBACK_NAMES]);
+  const [options, setOptions] = useState<UniversityOption[]>(FALLBACK_OPTIONS);
   const containerRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
 
@@ -36,13 +44,13 @@ export function UniversityCombobox({
     let cancelled = false;
     void getActiveUniversities().then((universities) => {
       if (cancelled || universities.length === 0) return;
-      const dbNames = universities.map((u) => u.name);
-      setNames([...dbNames, "Other"]);
+      // "Other" stays a free-text escape hatch for anything not on the list.
+      setOptions([...buildUniversityOptions(universities, locale), plainUniversityOption("Other")]);
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [locale]);
 
   // Keep the visible text in sync when the committed value changes externally.
   useEffect(() => {
@@ -61,20 +69,16 @@ export function UniversityCombobox({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [value]);
 
-  const matches = useMemo(
-    () =>
-      names
-        .filter((university) => university.toLowerCase().includes(query.trim().toLowerCase()))
-        .slice(0, MAX_RESULTS),
-    [names, query]
-  );
+  const matches = useMemo(() => filterUniversityOptions(options, query, MAX_RESULTS), [options, query]);
 
   // Commit a selection. Called from onMouseDown so the choice registers on the
   // first press — before the input can blur or the dropdown can close, which is
   // what previously forced users to click a second time.
-  function commit(university: string) {
-    onChange(university);
-    setQuery(university);
+  function commit(option: UniversityOption) {
+    onChange(option.value);
+    // The canonical name, not the label: it is what was just stored, and
+    // showing the translation would misreport the field's actual contents.
+    setQuery(option.value);
     setOpen(false);
     setActiveIndex(0);
   }
@@ -129,21 +133,26 @@ export function UniversityCombobox({
           role="listbox"
           className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-border bg-card shadow-lg"
         >
-          {matches.map((university, index) => (
-            <li key={university} id={`${listboxId}-${index}`} role="option" aria-selected={index === activeIndex}>
+          {matches.map((option, index) => (
+            <li key={option.value} id={`${listboxId}-${index}`} role="option" aria-selected={index === activeIndex}>
               <button
                 type="button"
                 // Commit on mousedown (before blur/close) so the first click always registers.
                 onMouseDown={(event) => {
                   event.preventDefault();
-                  commit(university);
+                  commit(option);
                 }}
                 onMouseEnter={() => setActiveIndex(index)}
                 className={`block w-full px-4 py-2 text-left text-sm transition ${
                   index === activeIndex ? "bg-primary/10 text-primary" : "text-foreground hover:bg-surface-muted"
                 }`}
               >
-                {university}
+                {option.label}
+                {/* Only when the translation differs, so 55 of 59 rows stay a
+                    single clean line instead of repeating themselves. */}
+                {option.label !== option.value ? (
+                  <span className="block text-xs text-foreground/50">{option.value}</span>
+                ) : null}
               </button>
             </li>
           ))}

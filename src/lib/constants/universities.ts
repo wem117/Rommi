@@ -42,6 +42,7 @@ export const KZ_UNIVERSITIES: UniversityEntry[] = [
   { name: "Kazakh University of Economics, Finance and International Trade", city: "Astana" },
   { name: "Eurasian Humanities Institute", city: "Astana" },
   { name: "Astana International University", city: "Astana" },
+  { name: "Cardiff University Kazakhstan", city: "Astana" },
 
   // Shymkent
   { name: "M. Auezov South Kazakhstan University", city: "Shymkent" },
@@ -114,6 +115,10 @@ export const UNIVERSITY_CITIES = Array.from(new Set(KZ_UNIVERSITIES.map((u) => u
 // Fuzzy substring -> city map, kept for LEGACY free-text university values that
 // may not exactly match an entry in KZ_UNIVERSITIES (older listings/profiles).
 const UNIVERSITY_CITY_ENTRIES: Array<[string, string]> = [
+  // Branch campuses are matched on the parent brand: posts and profiles write
+  // "Cardiff", "Cardiff University" and "Cardiff Kazakhstan" interchangeably,
+  // and all three mean the Astana campus.
+  ["cardiff", "Astana"],
   ["al-farabi", "Almaty"],
   ["kaznu", "Almaty"],
   ["kbtu", "Almaty"],

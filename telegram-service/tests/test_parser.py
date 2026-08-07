@@ -756,3 +756,35 @@ def test_every_real_post_that_should_be_kept_is_kept():
     for post in (ALTYN_AUL, SDU_NEW_FLATS, SHAKHRISTAN, KAZAKH_DORM, KAZAKH_DORM_2, WHOLE_HOUSE):
         assert classify(N(post)).keep is True, post[:40]
     assert classify(N(CRYPTO_SPAM)).keep is False
+
+
+def test_cardiff_kazakhstan_is_recognised_in_both_scripts():
+    """
+    The platform's first branch campus, and the first alias that has to survive
+    being written in Cyrillic.
+
+    Posts about it arrive as "Cardiff", "Кардифф", "Кардиффе", "Кардиффский" —
+    Russian declines the borrowed name — so the alias matches the stem rather
+    than any one spelling. The value it resolves TO is the canonical English
+    name, because that is what `listings.university` stores and what the site's
+    filters compare against; resolving to a Cyrillic form here would file the
+    draft under a university the rest of the platform cannot find.
+    """
+    for text in (
+        "Сдается квартира рядом с Cardiff University Kazakhstan, Астана",
+        "Сдам 2-комнатную в 10 минутах от Кардиффа, Астана",
+        "Ищу соседку, учусь в Кардиффском университете, Астана",
+        "Room near CARDIFF university, Astana",
+    ):
+        parsed = parse_message(text)
+        assert parsed.university == "Cardiff University Kazakhstan", text
+        assert parsed.city == "Astana", text
+
+
+def test_cardiff_alias_does_not_swallow_unrelated_words():
+    """
+    `\\bcardiff\\b` and not a bare substring: the aliases run over every post,
+    and a pattern loose enough to fire on a fragment mislabels the ones it hits.
+    """
+    parsed = parse_message("Сдается квартира на улице Кардиган, Алматы")
+    assert parsed.university != "Cardiff University Kazakhstan"

@@ -6,12 +6,42 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export interface PublicUniversity {
   id: string;
+  /**
+   * The CANONICAL name, always English.
+   *
+   * `listings.university` and `profiles.university` store this string as free
+   * text, the combobox writes it, and the Telegram parser matches against it —
+   * so it is an identifier as much as a label and must not vary by locale.
+   * Display names live in `names` below.
+   */
   name: string;
+  /** Per-locale display names. Empty entries fall back to `name`. */
+  names: { en: string; ru: string; kz: string };
   slug: string;
   city: string;
+  country: string;
+  /** e.g. "International branch campus". Free text — the sector has many shapes. */
+  type: string;
+  website: string;
+  /** Language of instruction. */
+  language: string;
   description: string;
   imageUrl: string;
   logoUrl: string;
+}
+
+/**
+ * The name to show a reader, given their locale.
+ *
+ * Falls back to the canonical English name rather than rendering blank: most
+ * Kazakhstani universities use their Latin name verbatim in all three
+ * languages, so an empty translation is the normal case, not an error.
+ */
+export function universityDisplayName(
+  university: Pick<PublicUniversity, "name" | "names">,
+  locale: "en" | "ru" | "kz"
+): string {
+  return university.names?.[locale]?.trim() || university.name;
 }
 
 export interface UniversityWithStats extends PublicUniversity {
@@ -22,6 +52,12 @@ export interface UniversityWithStats extends PublicUniversity {
 type UniversityRow = {
   id: string;
   name: string;
+  name_ru?: string | null;
+  name_kz?: string | null;
+  country?: string | null;
+  type?: string | null;
+  website?: string | null;
+  language?: string | null;
   slug: string;
   city: string | null;
   description: string | null;
@@ -39,8 +75,13 @@ function mapRow(row: UniversityRow): PublicUniversity {
   return {
     id: row.id,
     name: row.name,
+    names: { en: row.name, ru: row.name_ru ?? "", kz: row.name_kz ?? "" },
     slug: row.slug,
     city: row.city ?? "",
+    country: row.country ?? "Kazakhstan",
+    type: row.type ?? "",
+    website: row.website ?? "",
+    language: row.language ?? "",
     description: row.description ?? "",
     imageUrl: row.image_url ?? "",
     logoUrl: row.logo_url ?? ""
@@ -51,8 +92,13 @@ function demoAsPublicUniversities(): PublicUniversity[] {
   return demoUniversities.map((u) => ({
     id: u.name,
     name: u.name,
+    names: { en: u.name, ru: "", kz: "" },
     slug: u.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
     city: u.city,
+    country: "Kazakhstan",
+    type: "",
+    website: "",
+    language: "",
     description: "",
     imageUrl: u.image,
     logoUrl: ""
@@ -64,8 +110,13 @@ function demoAsUniversitiesWithStats(limit: number): UniversityWithStats[] {
   return demoUniversities.slice(0, limit).map((u) => ({
     id: u.name,
     name: u.name,
+    names: { en: u.name, ru: "", kz: "" },
     slug: u.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
     city: u.city,
+    country: "Kazakhstan",
+    type: "",
+    website: "",
+    language: "",
     description: "",
     imageUrl: u.image,
     logoUrl: "",

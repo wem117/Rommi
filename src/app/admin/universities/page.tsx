@@ -24,8 +24,14 @@ import { Textarea } from "@/components/ui/textarea";
 type University = {
   id: string;
   name: string;
+  name_ru: string | null;
+  name_kz: string | null;
   slug: string;
   city: string;
+  country: string | null;
+  type: string | null;
+  website: string | null;
+  language: string | null;
   description: string;
   image_url: string | null;
   logo_url: string | null;
@@ -40,8 +46,14 @@ type University = {
 
 const EMPTY_FORM = {
   name: "",
+  nameRu: "",
+  nameKz: "",
   slug: "",
   city: "",
+  country: "Kazakhstan",
+  type: "",
+  website: "",
+  language: "",
   description: "",
   imageUrl: "",
   logoUrl: "",
@@ -205,6 +217,12 @@ export default function AdminUniversitiesPage() {
       city: item.city,
       description: item.description,
       imageUrl: item.image_url ?? "",
+      nameRu: item.name_ru ?? "",
+      nameKz: item.name_kz ?? "",
+      country: item.country ?? "Kazakhstan",
+      type: item.type ?? "",
+      website: item.website ?? "",
+      language: item.language ?? "",
       logoUrl: item.logo_url ?? "",
       coverImageUrl: item.cover_image_url ?? "",
       listingsCountOverride: item.listings_count_override?.toString() ?? "",
@@ -259,6 +277,61 @@ export default function AdminUniversitiesPage() {
           <div className="space-y-1.5">
             <Label htmlFor="uni-city">City</Label>
             <Input id="uni-city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+          </div>
+
+          {/* Localised DISPLAY names. `Name` above stays canonical: listings and
+              profiles store it as free text and the Telegram parser matches on
+              it, so translating it in place would orphan every reference. Blank
+              is normal — most universities use their Latin name in all three. */}
+          <div className="space-y-1.5">
+            <Label htmlFor="uni-name-ru">Name (RU)</Label>
+            <Input
+              id="uni-name-ru"
+              value={form.nameRu}
+              placeholder="Leave empty to use the name above"
+              onChange={(e) => setForm({ ...form, nameRu: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="uni-name-kz">Name (KZ)</Label>
+            <Input
+              id="uni-name-kz"
+              value={form.nameKz}
+              placeholder="Leave empty to use the name above"
+              onChange={(e) => setForm({ ...form, nameKz: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="uni-country">Country</Label>
+            <Input id="uni-country" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="uni-type">Type</Label>
+            <Input
+              id="uni-type"
+              value={form.type}
+              placeholder="e.g. International branch campus"
+              onChange={(e) => setForm({ ...form, type: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="uni-website">Website</Label>
+            <Input
+              id="uni-website"
+              type="url"
+              value={form.website}
+              placeholder="https://example.edu.kz/"
+              onChange={(e) => setForm({ ...form, website: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="uni-language">Language of instruction</Label>
+            <Input
+              id="uni-language"
+              value={form.language}
+              placeholder="e.g. English"
+              onChange={(e) => setForm({ ...form, language: e.target.value })}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="uni-slug">Slug (optional, auto-generated from name)</Label>

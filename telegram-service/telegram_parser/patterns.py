@@ -354,6 +354,9 @@ UNIVERSITY_ALIASES: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\b(almau|алмау|аму)\b"), "Almaty Management University (AlmaU)"),
     (re.compile(r"\b(iitu|мку|муит)\b"), "International IT University (IITU)"),
     (re.compile(r"\b(nu|назарбаев\s*университет\w*|nazarbayev)\b"), "Nazarbayev University"),
+    # Branch campus in Astana. Posts write the parent brand far more often than
+    # the full name, and "кардифф" is how it is transliterated locally.
+    (re.compile(r"\bcardiff\b|кардифф\w*"), "Cardiff University Kazakhstan"),
     (re.compile(r"\b(енu|ену|enu)\b|гумилев\w*|гумилёв\w*"), "L.N. Gumilyov Eurasian National University"),
     (re.compile(r"\b(туран|turan)\b"), "Turan University"),
     (re.compile(r"\b(казуму|kaznmu)\b|асфендияров\w*|мед\s*универ\w*"), "Kazakh National Medical University (Asfendiyarov)"),

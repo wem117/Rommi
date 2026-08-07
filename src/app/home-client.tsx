@@ -121,7 +121,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
   );
 
   const steps = getSteps(locale);
-  const platformStats = getPlatformStats(locale, stats);
+  const platformStats = getPlatformStats(stats);
   const faqs = getFaqs(locale);
   const roommateHighlights = getRoommateHighlights(locale);
   const searchFields = [
@@ -826,20 +826,21 @@ function getSteps(locale: "en" | "ru" | "kz") {
  * hero counters — never hardcoded fake metrics. "100% free" is a factual
  * product claim, not a fabricated measurement.
  */
-function getPlatformStats(locale: "en" | "ru" | "kz", stats: ResolvedStat[]) {
-  const freeLabel =
-    locale === "ru" ? "Бесплатно" : locale === "kz" ? "Тегін қолдану" : "Free to Use";
-
-  return [
-    ...stats.map((stat) => ({
-      key: stat.key,
-      value: `${formatNumber(stat.value)}${stat.suffix}`,
-      label: stat.label
-    })),
-    // Not a measurement — a factual product claim, and the only figure on this
-    // page that is not the admin's to change.
-    { key: "free", value: "100%", label: freeLabel }
-  ];
+/**
+ * The lower statistics strip.
+ *
+ * Renders exactly what the admin configured and nothing else. "100% Free" used
+ * to be appended here in three hardcoded languages on the grounds that it was a
+ * product claim rather than a measurement — but that still made it a figure on
+ * the homepage that no operator could reword, translate or remove. It is a
+ * seeded row in the statistics list now, like every other card.
+ */
+function getPlatformStats(stats: ResolvedStat[]) {
+  return stats.map((stat) => ({
+    key: stat.key,
+    value: `${formatNumber(stat.value)}${stat.suffix}`,
+    label: stat.label
+  }));
 }
 
 function getRoommateHighlights(locale: "en" | "ru" | "kz") {

@@ -1,11 +1,19 @@
-# Production-style local stack: Next.js app behind Nginx, with a Postgres
-# database seeded from the SQL migrations in ./db/init.
+# LOCAL DEVELOPMENT STACK. This is NOT how production runs.
 #
 #   docker compose up --build
 #
-# The app talks to Supabase (hosted) for auth/storage via the NEXT_PUBLIC_*
-# variables in your .env. The `db` service provides a local Postgres for running
-# the schema/policies and any raw-SQL work; point DATABASE_URL at it if needed.
+# Production on the VPS is deployed by .github/workflows/deploy.yml, which builds
+# an image and starts it with a plain `docker run` — no compose, no nginx from
+# this file. Postgres there is Supabase's own container (supabase-db), on the
+# `supabase_default` network, and TLS/edge caching is Cloudflare's.
+#
+# Running this file on the production host would start a SECOND postgres beside
+# Supabase's and an nginx competing for :80 with whatever already holds it. It is
+# here for a local production-shaped stack and nothing else.
+#
+# The app talks to Supabase for auth/storage via the NEXT_PUBLIC_* variables in
+# your .env. The `db` service provides a local Postgres for running the
+# schema/policies and any raw-SQL work; point DATABASE_URL at it if needed.
 
 services:
   app:

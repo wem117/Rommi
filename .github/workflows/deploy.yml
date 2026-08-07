@@ -55,6 +55,34 @@ jobs:
       - name: Production build
         run: npm run build
 
+      # This deploy script is a ~200-line bash program embedded in a YAML
+      # string, and nothing type-checks it. The telegram pipeline gained this
+      # gate after a `#` comment inside a backslash-continued `docker run`
+      # destroyed the running container and then failed before starting its
+      # replacement; `bash -n` accepts that happily and shellcheck flags it.
+      # This pipeline restarts the public website, so it needs the check more.
+      - name: Lint workflows and shellcheck the deploy script
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash \
+            | bash -s -- 1.7.7
+          ./actionlint -color
+          python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import pathlib, re, yaml
+          doc = yaml.safe_load(pathlib.Path(".github/workflows/deploy.yml").read_text())
+          out = pathlib.Path("/tmp/web-deploy.sh")
+          for step in doc["jobs"]["deploy"]["steps"]:
+              script = (step.get("with") or {}).get("script")
+              if not script:
+                  continue
+              # Actions expressions are not shell. The pattern is written with
+              # escapes rather than spelled literally because Actions evaluates
+              # that syntax anywhere in a run: block, comments included.
+              out.write_text("#!/bin/bash\n" + re.sub(r"\$\{\{[^}]*\}\}", "GH_EXPR", script))
+          PY
+          bash -n /tmp/web-deploy.sh
+          shellcheck -S warning /tmp/web-deploy.sh
+
   # 2) Build + push the image — ONLY after the quality gate passes.
   build-and-push:
     needs: [test]
@@ -143,6 +171,13 @@ jobs:
             # Written 0600 and passed via --env-file so secrets never appear in
             # `docker inspect` or the process list.
             umask 077
+            # Rescued before the rewrite below destroys it: the shared secret
+            # the Telegram worker presents to /api/internal/... may have been
+            # configured on the host rather than as a repository secret. Losing
+            # it does not break the site — it makes the internal endpoint refuse
+            # every call, which silently disables automatic publishing.
+            PREV_INTERNAL_SECRET="$(grep -m1 '^INTERNAL_API_SECRET=' "$APP_DIR/.env.production" 2>/dev/null | cut -d= -f2- || true)"
+
             cat > "$APP_DIR/.env.production" <<'ENVEOF'
             NODE_ENV=production
             SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -156,6 +191,7 @@ jobs:
             UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }}
             UPSTASH_REDIS_REST_TOKEN=${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
             APP_RELEASE=${{ github.sha }}
+            INTERNAL_API_SECRET=${{ secrets.INTERNAL_API_SECRET }}
             ENVEOF
             chmod 600 "$APP_DIR/.env.production"
             # Drop keys whose secret was not configured, so an empty value never
@@ -165,6 +201,15 @@ jobs:
             # Default the storage bucket when the secret is unset (matches the app default).
             grep -q '^NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=' "$APP_DIR/.env.production" \
               || echo "NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=roommate-assets" >> "$APP_DIR/.env.production"
+
+            # Put back the host-configured internal secret if no repository secret
+            # supplied one. Without it the internal publish endpoint refuses every
+            # request — correct (it fails closed) but silent, and it would look
+            # like the Telegram importer had simply stopped publishing.
+            if ! grep -q '^INTERNAL_API_SECRET=' "$APP_DIR/.env.production" && [ -n "$PREV_INTERNAL_SECRET" ]; then
+              echo "INTERNAL_API_SECRET=$PREV_INTERNAL_SECRET" >> "$APP_DIR/.env.production"
+              echo "::notice::INTERNAL_API_SECRET restored from the host (no GitHub secret set)."
+            fi
 
             # --- Internal Supabase route --------------------------------------
             # Server-side calls default to NEXT_PUBLIC_SUPABASE_URL, which
@@ -276,7 +321,7 @@ jobs:
                 docker rename roomi-web-prev roomi-web >/dev/null 2>&1 || true
                 docker start roomi-web || true
 
-                for i in $(seq 1 20); do
+                for _ in $(seq 1 20); do
                   if curl -fsS --max-time 5 http://127.0.0.1:3000/api/health >/dev/null 2>&1; then
                     echo "::error::Rollback succeeded — site restored on the previous release. The new build was NOT deployed."
                     docker logout ghcr.io || true

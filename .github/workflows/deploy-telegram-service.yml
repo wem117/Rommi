@@ -228,6 +228,18 @@ jobs:
             cd "$APP_DIR"
 
             umask 077
+
+            # Carry forward anything the workflow does not own.
+            #
+            # This file is rewritten from scratch on every deploy, so a value set
+            # by hand on the host is destroyed unless it is either in the heredoc
+            # below or rescued here. That is how automatic publishing would have
+            # died: INTERNAL_API_SECRET was configured on the box, the next
+            # unrelated deploy dropped it, and the worker would have gone quietly
+            # back to sending everything to review.
+            PREV_SECRET="$(grep -m1 '^INTERNAL_API_SECRET=' "$APP_DIR/.env.production" 2>/dev/null | cut -d= -f2- || true)"
+            PREV_APP_URL="$(grep -m1 '^ROOMI_APP_INTERNAL_URL=' "$APP_DIR/.env.production" 2>/dev/null | cut -d= -f2- || true)"
+
             cat > "$APP_DIR/.env.production" <<'ENVEOF'
             TELEGRAM_API_ID=${{ secrets.TELEGRAM_API_ID }}
             TELEGRAM_API_HASH=${{ secrets.TELEGRAM_API_HASH }}
@@ -235,9 +247,27 @@ jobs:
             SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
             NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_STORAGE_BUCKET }}
             SUPABASE_INTERNAL_URL=${{ secrets.SUPABASE_INTERNAL_URL }}
+            INTERNAL_API_SECRET=${{ secrets.INTERNAL_API_SECRET }}
             ENVEOF
             chmod 600 "$APP_DIR/.env.production"
             sed -i -E '/^[A-Z_]+=$/d' "$APP_DIR/.env.production"
+
+            # --- automatic publishing --------------------------------------
+            # The worker calls the app to publish a cleared draft, so it needs
+            # the app's internal address and the shared secret. Without BOTH it
+            # fails closed: every draft goes to review, which is safe but silent.
+            if ! grep -q '^INTERNAL_API_SECRET=' "$APP_DIR/.env.production" && [ -n "$PREV_SECRET" ]; then
+              echo "INTERNAL_API_SECRET=$PREV_SECRET" >> "$APP_DIR/.env.production"
+              echo "::notice::INTERNAL_API_SECRET restored from the host (no GitHub secret set)."
+            fi
+            if [ -n "$PREV_APP_URL" ]; then
+              echo "ROOMI_APP_INTERNAL_URL=$PREV_APP_URL" >> "$APP_DIR/.env.production"
+            elif docker inspect roomi-web >/dev/null 2>&1; then
+              echo "ROOMI_APP_INTERNAL_URL=http://roomi-web:3000" >> "$APP_DIR/.env.production"
+            fi
+            if ! grep -q '^INTERNAL_API_SECRET=' "$APP_DIR/.env.production"; then
+              echo "::warning::No INTERNAL_API_SECRET — automatic publishing is disabled and every import will wait for review. Set the INTERNAL_API_SECRET repository secret (the same value on the web deploy) to enable it."
+            fi
             grep -q '^NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=' "$APP_DIR/.env.production" \
               || echo "NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=roommate-assets" >> "$APP_DIR/.env.production"
 

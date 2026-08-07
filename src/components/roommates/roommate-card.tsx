@@ -48,9 +48,9 @@ export function RoommateCard({
           router.push(href);
         }
       }}
-      className="min-w-0 cursor-pointer overflow-hidden rounded-3xl border border-[#eadfce] bg-white p-4 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:rounded-[2rem] sm:p-6">
+      className="min-w-0 cursor-pointer overflow-hidden rounded-3xl border border-border bg-card p-4 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:rounded-[2rem] sm:p-6">
       <div className="flex items-start gap-3 sm:gap-4">
-        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-[#efe7dc] sm:h-20 sm:w-20">
+        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-surface-muted sm:h-20 sm:w-20">
           {profile.photoURL ? (
             <Image src={profile.photoURL} alt={profile.fullName} fill className="object-cover" sizes="80px" />
           ) : (
@@ -62,7 +62,7 @@ export function RoommateCard({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate text-xl font-semibold leading-none text-[#16110f] sm:text-[1.85rem]">
+            <h3 className="truncate text-xl font-semibold leading-none text-foreground sm:text-[1.85rem]">
               {profile.fullName}
             </h3>
             {/* fill green + white check strokes; same-color fill/stroke rendered as a solid blob */}
@@ -71,10 +71,10 @@ export function RoommateCard({
           {/* Imported profiles often state only a name and a budget, so any of
               these can be missing. joinMeta drops what is absent instead of
               rendering "0 · " or a dangling separator. */}
-          <p className="mt-1 break-words text-sm text-[#9a6e56] sm:mt-2 sm:text-[15px]">
+          <p className="mt-1 break-words text-sm text-foreground/60 sm:mt-2 sm:text-[15px]">
             {joinMeta([ageSegment(profile.age), profile.occupation])}
           </p>
-          <p className="line-clamp-2 break-words text-sm text-[#9a6e56] sm:text-[15px]">
+          <p className="line-clamp-2 break-words text-sm text-foreground/60 sm:text-[15px]">
             {joinMeta([profile.university, city])}
           </p>
         </div>
@@ -88,15 +88,15 @@ export function RoommateCard({
         </div>
       ) : null}
 
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 rounded-[1.4rem] bg-[#f4ede3] px-4 py-2.5 text-sm text-[#9a6e56] sm:mt-5 sm:gap-3 sm:px-5 sm:py-4 sm:text-[15px]">
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 rounded-[1.4rem] bg-surface-muted px-4 py-2.5 text-sm text-foreground/60 sm:mt-5 sm:gap-3 sm:px-5 sm:py-4 sm:text-[15px]">
         {profile.maxBudget > 0 ? (
           <span className="inline-flex items-center gap-2">
-            <Coins className="h-4 w-4 text-[#a87458]" />
+            <Coins className="h-4 w-4 text-foreground/60" />
             {formatCurrency(profile.maxBudget)}
           </span>
         ) : null}
         <span className="inline-flex items-center gap-2">
-          <CalendarDays className="h-4 w-4 text-[#a87458]" />
+          <CalendarDays className="h-4 w-4 text-foreground/60" />
           {profile.preferredMoveInDate
             ? formatDateShort(profile.preferredMoveInDate, locale)
             : t("roommateDetail.flexible")}
@@ -107,14 +107,14 @@ export function RoommateCard({
         {lifestyleTags.map((tag) => (
           <span
             key={tag}
-            className="rounded-full bg-[#f2e7db] px-3 py-1 text-xs font-medium text-[#7b583f] sm:px-3.5 sm:py-1.5 sm:text-sm"
+            className="rounded-full bg-surface-muted px-3 py-1 text-xs font-medium text-foreground/60 sm:px-3.5 sm:py-1.5 sm:text-sm"
           >
             {tag}
           </span>
         ))}
       </div>
 
-      <p className="mt-3 line-clamp-2 break-words text-sm leading-6 text-[#8a644f] sm:mt-5 sm:line-clamp-3 sm:text-[15px] sm:leading-8">
+      <p className="mt-3 line-clamp-2 break-words text-sm leading-6 text-foreground/60 sm:mt-5 sm:line-clamp-3 sm:text-[15px] sm:leading-8">
         {profile.bio ||
           t("roommates.cardFallbackBio")}
       </p>

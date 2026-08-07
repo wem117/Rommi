@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowRight, List, Map as MapIcon } from "lucide-react";
+import { List, Map as MapIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { ListingFiltersBar } from "@/components/listings/listing-filters";
+import { SearchPageShell } from "@/components/shared/search-page-shell";
 import { ListingGrid } from "@/components/listings/listing-grid";
 import { Pagination } from "@/components/listings/pagination";
 import { LazyMap, type MapMarker } from "@/components/map/lazy-map";
@@ -112,32 +113,16 @@ export default function RoomsClient({
   const lastOnPage = Math.min(page * pageSize, total);
 
   return (
-    <main className="min-h-[70vh] bg-[#faf6ef]">
-      <section className="border-b border-[#ece1d3] bg-[#fffdf9]">
-        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold sm:text-5xl">{t("rooms.title")}</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground/60 sm:mt-3 sm:leading-7 sm:text-base">
-                {t("rooms.description")}
-              </p>
-            </div>
-
-            <Link
-              href="/list-a-room/step-1"
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary/90 sm:px-6 sm:py-3"
-            >
-              {t("rooms.listRoom")}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-
-          <div className="mt-5 sm:mt-8">
-            {/* `total`, never `listings.length` — the whole point of the fix. */}
-            <ListingFiltersBar filters={filters} onChange={setFilters} count={total} />
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 sm:mt-4">
+    <SearchPageShell
+      title={t("rooms.title")}
+      description={t("rooms.description")}
+      action={{ href: "/list-a-room/step-1", label: t("rooms.listRoom") }}
+      filters={
+        /* `total`, never `listings.length` — the whole point of the fix. */
+        <ListingFiltersBar filters={filters} onChange={setFilters} count={total} />
+      }
+      meta={
+        <>
             {totalPages > 1 ? (
               <p className="text-xs text-foreground/55 sm:text-sm">
                 {t("rooms.showingRange")
@@ -149,7 +134,7 @@ export default function RoomsClient({
               <span />
             )}
 
-            <div className="inline-flex rounded-full border border-[#e6daca] bg-white p-1 text-sm font-semibold">
+            <div className="inline-flex rounded-full border border-border bg-card p-1 text-sm font-semibold">
               <button
                 type="button"
                 onClick={() => setView("list")}
@@ -173,25 +158,23 @@ export default function RoomsClient({
                 {t("rooms.mapView")}
               </button>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-10 lg:px-8">
+        </>
+      }
+    >
         {view === "map" ? (
           mapMarkers.length > 0 ? (
-            <div className="h-[70vh] overflow-hidden rounded-[1.75rem] border border-[#ece1d3] shadow-soft">
+            <div className="h-[70vh] overflow-hidden rounded-2xl border border-border shadow-soft">
               <LazyMap markers={mapMarkers} openLabel={t("rooms.openListing")} />
             </div>
           ) : (
-            <div className="rounded-[1.75rem] bg-white p-8 text-center shadow-soft">
+            <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-soft">
               <p className="text-sm text-foreground/60">{t("rooms.mapEmpty")}</p>
             </div>
           )
         ) : null}
 
         {view === "list" && listings.length === 0 ? (
-          <div className="rounded-[1.75rem] bg-white p-8 text-center shadow-soft">
+          <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-soft">
             {/* An out-of-range page is a different situation from "nothing
                 matches", and telling a visitor their filters found nothing when
                 the filters found plenty would send them off to change them. */}
@@ -220,7 +203,6 @@ export default function RoomsClient({
             <Pagination page={page} totalPages={totalPages} buildHref={hrefFor} />
           </>
         ) : null}
-      </section>
-    </main>
+    </SearchPageShell>
   );
 }

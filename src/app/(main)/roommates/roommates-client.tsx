@@ -6,6 +6,13 @@ import { Suspense, useMemo, useState } from "react";
 
 import { RoommateCard } from "@/components/roommates/roommate-card";
 import { UniversityCombobox } from "@/components/shared/university-combobox";
+import {
+  FilterField,
+  FilterPanel,
+  SearchPageShell,
+  SearchSkeletonGrid,
+  SearchStateCard
+} from "@/components/shared/search-page-shell";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
 import { matchesAgeRange } from "@/lib/utils/profile-display";
@@ -93,18 +100,13 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
   }, [city, university, gender, maxAge, maxBudget, minAge, profile, roommates]);
 
   return (
-    <main className="min-h-[70vh] bg-[#fbf8f3]">
-      <section className="border-y border-[#eadfce] bg-[#f5efe5]">
-        <div className="mx-auto max-w-[1180px] px-4 py-6 sm:px-6 sm:py-12 lg:px-8">
-          <h1 className="text-3xl font-bold tracking-tight text-[#16110f] sm:text-5xl">
-            {t("roommates.title")}
-          </h1>
-          <p className="mt-2 max-w-3xl text-base text-[#9a6e56] sm:mt-4 sm:text-lg">
-            {t("roommates.description")}
-          </p>
-
-          <div className="mt-5 grid grid-cols-2 items-end gap-3 sm:mt-10 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <Field label={t("roommates.city")} className="col-span-2 md:col-span-1">
+    <SearchPageShell
+      title={t("roommates.title")}
+      description={t("roommates.description")}
+      filters={
+        <FilterPanel>
+          <div className="grid grid-cols-2 items-end gap-3 sm:gap-4 xl:grid-cols-3">
+            <FilterField label={t("roommates.city")} className="col-span-2 md:col-span-1">
               <select value={city} onChange={(event) => setCity(event.target.value)}>
                 {cityOptions.map((option) => (
                   <option key={option} value={option}>
@@ -112,17 +114,17 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
                   </option>
                 ))}
               </select>
-            </Field>
+            </FilterField>
 
-            <Field label={t("roommates.university")} className="col-span-2 md:col-span-1">
+            <FilterField label={t("roommates.university")} className="col-span-2 md:col-span-1">
               <UniversityCombobox
                 value={university}
                 onChange={setUniversity}
                 placeholder={t("roommates.universitySearchPlaceholder")}
               />
-            </Field>
+            </FilterField>
 
-            <Field label={t("roommates.gender")} className="col-span-2 md:col-span-1">
+            <FilterField label={t("roommates.gender")} className="col-span-2 md:col-span-1">
               <select value={gender} onChange={(event) => setGender(event.target.value as Gender | "all")}>
                 {genderOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -130,27 +132,27 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
                   </option>
                 ))}
               </select>
-            </Field>
+            </FilterField>
 
-            <Field label={t("roommates.minAge")} className="col-span-1">
+            <FilterField label={t("roommates.minAge")} className="col-span-1">
               <input
                 type="number"
                 min="18"
                 value={minAge}
                 onChange={(event) => setMinAge(event.target.value)}
               />
-            </Field>
+            </FilterField>
 
-            <Field label={t("roommates.maxAge")} className="col-span-1">
+            <FilterField label={t("roommates.maxAge")} className="col-span-1">
               <input
                 type="number"
                 min="18"
                 value={maxAge}
                 onChange={(event) => setMaxAge(event.target.value)}
               />
-            </Field>
+            </FilterField>
 
-            <Field label={t("roommates.maxBudget")} className="col-span-2 md:col-span-1">
+            <FilterField label={t("roommates.maxBudget")} className="col-span-2 md:col-span-1">
               <select value={maxBudget} onChange={(event) => setMaxBudget(event.target.value as BudgetFilter)}>
                 {budgetOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -158,45 +160,40 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
                   </option>
                 ))}
               </select>
-            </Field>
+            </FilterField>
           </div>
-
-          <p className="mt-4 text-sm font-medium text-[#9a6e56] sm:mt-6">
-            <span className="font-semibold text-[#1b1715]">{filteredRoommates.length}</span> {t("roommates.found")}
-          </p>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-[1180px] px-4 py-5 sm:px-6 sm:py-12 lg:px-8">
-        {loading ? (
-          <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-[340px] animate-pulse rounded-3xl border border-[#ece1d3] bg-white shadow-soft sm:h-[430px] sm:rounded-[2rem]"
-              />
-            ))}
-          </div>
-        ) : null}
+        </FilterPanel>
+      }
+      meta={
+        <p className="text-xs text-foreground/55 sm:text-sm">
+          <span className="font-semibold text-foreground">{filteredRoommates.length}</span>{" "}
+          {t("roommates.found")}
+        </p>
+      }
+    >
+        {loading ? <SearchSkeletonGrid /> : null}
 
         {!loading && error ? (
-          <div className="rounded-[2rem] border border-[#ece1d3] bg-white p-6 shadow-soft">
-            <h2 className="text-xl font-bold text-[#16110f]">{t("roommates.unavailableTitle")}</h2>
-            <p className="mt-2 text-sm text-foreground/65">{error}</p>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 hover:shadow-md active:scale-95"
-            >
-              <RefreshCcw className="h-4 w-4" />
-              {t("roommates.retry")}
-            </button>
-          </div>
+          <SearchStateCard
+            title={t("roommates.unavailableTitle")}
+            action={
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
+              >
+                <RefreshCcw className="h-4 w-4" aria-hidden="true" />
+                {t("roommates.retry")}
+              </button>
+            }
+          >
+            {error}
+          </SearchStateCard>
         ) : null}
 
         {!loading && !error && filteredRoommates.length === 0 ? (
-          <div className="rounded-3xl border border-[#ece1d3] bg-white p-6 text-center shadow-soft sm:rounded-[2rem] sm:p-10">
-            <h2 className="text-xl font-bold text-[#16110f] sm:text-2xl">{t("roommates.emptyTitle")}</h2>
+          <div className="rounded-3xl border border-border bg-card p-6 text-center shadow-soft sm:rounded-[2rem] sm:p-10">
+            <h2 className="text-xl font-bold text-foreground sm:text-2xl">{t("roommates.emptyTitle")}</h2>
             <p className="mt-3 text-sm text-foreground/60">
               {t("roommates.emptyText")}
             </p>
@@ -210,8 +207,7 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
             ))}
           </div>
         ) : null}
-      </section>
-    </main>
+    </SearchPageShell>
   );
 }
 
@@ -223,21 +219,3 @@ export default function RoommatesClient({ initial }: { initial: UserProfile[] })
   );
 }
 
-function Field({
-  label,
-  children,
-  className = ""
-}: {
-  label: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <label className={`min-w-0 ${className}`}>
-      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-[#a87458] sm:mb-3 sm:text-sm">
-        {label}
-      </span>
-      {children}
-    </label>
-  );
-}

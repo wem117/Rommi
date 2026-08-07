@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { getUniversityCity, UNIVERSITIES } from "@/lib/constants/universities";
 import { universityDisplayName, type PublicUniversity } from "@/lib/data/universities";
 import { basicInfoSchema } from "@/lib/validations/profile.schema";
+import { universityCreateSchema, universityUpdateSchema } from "@/lib/validations/university.schema";
 import {
   buildUniversityOptions,
   filterUniversityOptions,
@@ -227,5 +228,68 @@ describe("the seed migration", () => {
   it("points at repo assets, not storage objects a fresh project would not have", () => {
     expect(sql).toContain("/universities/cardiff-university-kazakhstan.jpg");
     expect(sql).toContain("/universities/cardiff-university-kazakhstan-logo.png");
+  });
+});
+
+describe("the admin panel can manage it", () => {
+  const routeDir = join(process.cwd(), "src/app/api/admin/universities");
+  const create = readFileSync(join(routeDir, "route.ts"), "utf8");
+  const update = readFileSync(join(routeDir, "[id]/route.ts"), "utf8");
+
+  const NEW_COLUMNS = ["name_ru", "name_kz", "country", "type", "website", "language"] as const;
+
+  it("accepts every new field on create", () => {
+    const parsed = universityCreateSchema.safeParse({
+      name: CANONICAL,
+      nameRu: "Кардиффский университет Казахстан",
+      nameKz: CANONICAL,
+      city: "Astana",
+      country: "Kazakhstan",
+      type: "International branch campus",
+      website: "https://cardiff.edu.kz/",
+      language: "English"
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.nameRu).toBe("Кардиффский университет Казахстан");
+      expect(parsed.data.website).toBe("https://cardiff.edu.kz/");
+    }
+  });
+
+  it("defaults country rather than leaving it blank", () => {
+    const parsed = universityCreateSchema.parse({ name: "X" });
+    expect(parsed.country).toBe("Kazakhstan");
+  });
+
+  it("rejects a website that is not a URL, and allows clearing it", () => {
+    expect(universityCreateSchema.safeParse({ name: "X", website: "cardiff.edu.kz" }).success).toBe(false);
+    expect(universityCreateSchema.safeParse({ name: "X", website: "" }).success).toBe(true);
+  });
+
+  it("edits one field at a time without defaulting the rest back", () => {
+    // Zod 4's .partial() does NOT neutralise .default(), so an update schema
+    // built that way silently rewrites every field the admin left alone. This
+    // pins that only what was sent comes back.
+    const parsed = universityUpdateSchema.parse({ language: "English" });
+    expect(parsed).toEqual({ language: "English" });
+    expect(parsed.country).toBeUndefined();
+  });
+
+  it("writes each new column on create — a field the route forgets is a field the form cannot save", () => {
+    for (const column of NEW_COLUMNS) expect(create).toContain(column);
+  });
+
+  it("writes each new column on update", () => {
+    for (const column of NEW_COLUMNS) expect(update).toContain(column);
+  });
+
+  it("exposes each new field in the admin form", () => {
+    const form = readFileSync(join(process.cwd(), "src/app/admin/universities/page.tsx"), "utf8");
+    for (const field of ["nameRu", "nameKz", "country", "type", "website", "language"]) {
+      expect(form).toContain(`form.${field}`);
+    }
+    // The logo has its own uploader, not a bare text input.
+    expect(form).toContain("form.logoUrl");
+    expect(form).toContain("AdminImageUpload");
   });
 });

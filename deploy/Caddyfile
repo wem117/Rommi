@@ -1,0 +1,68 @@
+# Roomi edge configuration (Caddy v2).
+#
+# Versioned here because the live copy at /etc/caddy/Caddyfile is root-owned and
+# was drifting from anything reviewable. Apply with:
+#
+#   sudo cp deploy/Caddyfile /etc/caddy/Caddyfile
+#   sudo caddy validate --config /etc/caddy/Caddyfile   # never skip this
+#   sudo systemctl reload caddy
+#
+# Three fixes against the version this replaces:
+#
+#  1. roomi.kz no longer re-sends four security headers that the Next app
+#     already sets in next.config.ts. They were being emitted twice, and the two
+#     HSTS values disagreed (Caddy 31536000, Next 63072000). Duplicated headers
+#     are resolved inconsistently across clients, and having two owners for one
+#     policy means neither is authoritative. next.config.ts is the owner: it is
+#     versioned with the app and travels to every environment.
+#
+#  2. api.roomi.kz had NO security headers at all. It serves Supabase (auth,
+#     PostgREST, storage) on the public internet, so it gets the transport and
+#     sniffing protections. No CSP: it is an API, not a document origin.
+#
+#  3. studio.roomi.kz used `basicauth /`, which in Caddy v2 is an EXACT path
+#     match — it protected the literal "/" and nothing else. Every real Studio
+#     route (/project/default, /api/platform/*) would have been unauthenticated.
+#     It is inert today only because the hostname has no DNS record and so never
+#     completed an ACME challenge; publishing that record would have exposed a
+#     full database admin UI. Now matched site-wide with `/*`.
+
+# Default-deny for any hostname that is not explicitly configured below, so a
+# stray DNS record pointed at this box cannot reach an app.
+:80, :443 {
+	abort
+}
+
+roomi.kz, www.roomi.kz {
+	# Security headers deliberately omitted — see note 1. next.config.ts owns
+	# them, including a longer HSTS max-age than this file used to set.
+	reverse_proxy 127.0.0.1:3000
+}
+
+api.roomi.kz {
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		# The API is never a document to be framed.
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Storage serves user-uploaded files; stop them being interpreted as
+		# same-origin documents by anything that follows a link to them.
+		X-Permitted-Cross-Domain-Policies "none"
+	}
+	reverse_proxy 127.0.0.1:8000
+}
+
+studio.roomi.kz {
+	# `/*` not `/` — see note 3. Caddy v2 path matchers are exact unless they
+	# end in a wildcard, so the previous form left every real route open.
+	basicauth /* {
+		admin REPLACE_WITH_BCRYPT_HASH
+	}
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+	}
+	reverse_proxy localhost:8000
+}

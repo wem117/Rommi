@@ -161,3 +161,20 @@ export function mapReportRow(row: GenericRecord): Report {
     updatedAt: asDate(row.updated_at ?? row.updatedAt)
   };
 }
+
+/**
+ * The listing columns `mapListingRow` actually reads.
+ *
+ * Every listing read path used `select("*")`, which pulled all 32 columns on a
+ * table whose card needs about twenty — including `latitude` and `longitude`,
+ * a dead pair superseded by `lat`/`lng` that is NULL on 100% of rows and was
+ * being shipped to the browser on every browse page, every page of results.
+ *
+ * Kept beside the mapper deliberately: the two have to agree, and a column
+ * added to one and not the other is a field that silently reads `undefined`.
+ */
+// One literal string, not a joined array: supabase-js parses the select list
+// AT THE TYPE LEVEL to infer the row shape, so a `string` here collapses the
+// result type to GenericStringError and every mapper call stops compiling.
+export const LISTING_COLUMNS =
+  "id,owner_id,title,description,property_type,listing_type,monthly_rent,deposit_required,deposit_amount,city,district,address,bedrooms,bathrooms,available_from,amenities,preferences,photo_urls,removed,removed_at,created_at,updated_at,university,status,featured,featured_position,archived,category_id,lat,lng" as const;

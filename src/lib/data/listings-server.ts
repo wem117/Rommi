@@ -11,7 +11,7 @@ import {
   type ListingQueryFilters
 } from "@/lib/data/listing-query";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { mapListingRow } from "@/lib/supabase/mappers";
+import { LISTING_COLUMNS, mapListingRow } from "@/lib/supabase/mappers";
 import { createSupabasePublicServerClient } from "@/lib/supabase/public-server-client";
 import type { Listing } from "@/types/listing";
 
@@ -30,7 +30,7 @@ export async function getListingByIdServer(listingId: string): Promise<Listing |
   const supabase = createSupabasePublicServerClient();
   if (!supabase) return null;
 
-  const { data, error } = await supabase.from("listings").select("*").eq("id", listingId).maybeSingle();
+  const { data, error } = await supabase.from("listings").select(LISTING_COLUMNS).eq("id", listingId).maybeSingle();
   if (error || !data) return null;
   return mapListingRow(data);
 }
@@ -70,7 +70,7 @@ export async function getListingsPageServer(
 
   const run = (includeRemovedFilter: boolean) =>
     applyListingFilters(
-      supabase.from("listings").select("*", { count: "exact" }),
+      supabase.from("listings").select(LISTING_COLUMNS, { count: "exact" }),
       filters,
       includeRemovedFilter
     ).range(from, to);

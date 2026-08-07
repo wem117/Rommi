@@ -1,6 +1,6 @@
 import "server-only";
 
-import { mapListingRow } from "@/lib/supabase/mappers";
+import { LISTING_COLUMNS, mapListingRow } from "@/lib/supabase/mappers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { listingStatus, type MyListingStatus } from "@/lib/utils/listing-status";
 import type { Listing } from "@/types/listing";
@@ -64,7 +64,7 @@ export async function getMyListingsServer(
 
   let builder = supabase
     .from("listings")
-    .select("*", { count: "exact" })
+    .select(LISTING_COLUMNS, { count: "exact" })
     // Redundant next to the RLS policy, and kept deliberately: it keeps the
     // intent readable at the call site and costs nothing, since the planner
     // folds it into the same index condition.

@@ -299,7 +299,7 @@ jobs:
             echo "Waiting for the app to answer /api/health..."
             HEALTH_BODY=""
             HEALTH_CODE=""
-            for i in $(seq 1 30); do
+            for _ in $(seq 1 30); do
               HEALTH_CODE="$(curl -sS -o /tmp/roomi-health.json -w '%{http_code}' --max-time 5 \
                 http://127.0.0.1:3000/api/health 2>/dev/null || true)"
               HEALTH_BODY="$(cat /tmp/roomi-health.json 2>/dev/null || true)"
@@ -345,10 +345,41 @@ jobs:
             esac
 
             # Healthy: retire the previous container. Its IMAGE is deliberately
-            # kept (prune only removes untagged layers) so a manual rollback to
-            # the prior SHA tag is still possible after this point.
+            # kept so a manual rollback to the prior SHA tag is still possible
+            # after this point.
             docker rm -f roomi-web-prev >/dev/null 2>&1 || true
+
+            # --- Disk retention -----------------------------------------------
+            # `docker image prune -f` alone was a NO-OP for this pipeline: it
+            # only removes dangling (untagged) images, and every deploy tags its
+            # image `sha-<commit>`. So each release left a ~335MB image behind
+            # forever, and the build cache was never touched at all. On a 30GB
+            # VPS that also hosts Postgres, this reached 85% disk before anyone
+            # noticed — 16GB of Docker, against 67MB of actual database.
+            #
+            # Keep the newest KEEP_IMAGES tags so rollback still works, delete
+            # the rest. `|| true` throughout: a tag that is still referenced by
+            # a running container simply refuses to delete, which is the
+            # behaviour we want, not an error.
+            KEEP_IMAGES=3
+            # Strip the :sha-<commit> tag off $IMAGE to get the repository.
+            # `%` (shortest suffix) not `%%`, so a registry host carrying a port
+            # would still resolve correctly.
+            IMAGE_REPO="${IMAGE%:*}"
+            docker images --filter "reference=$IMAGE_REPO" \
+                          --format '{{.CreatedAt}}\t{{.Repository}}:{{.Tag}}' \
+              | sort -r | tail -n +$((KEEP_IMAGES + 1)) | cut -f2 \
+              | while read -r old; do
+                  echo "Retiring old image: $old"
+                  docker rmi "$old" >/dev/null 2>&1 || true
+                done
+
             docker image prune -f
+            # The build cache is the larger half of the problem and has no
+            # rollback value; anything still needed is rebuilt from layers.
+            docker builder prune -af --filter 'until=168h' >/dev/null 2>&1 || true
+
+            df -h / | tail -1 | sed 's/^/Disk after retention: /'
             docker logout ghcr.io || true
 
             echo "Deployed $IMAGE successfully."

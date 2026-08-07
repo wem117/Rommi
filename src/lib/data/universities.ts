@@ -4,6 +4,18 @@ import { demoUniversities } from "@/lib/data/demo";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
+/**
+ * Explicit column list. `select("*")` also shipped `created_at` and
+ * `updated_at` to every visitor who opened a university picker.
+ *
+ * The count overrides are here because the featured hub cards read them; the
+ * compiler caught their absence the moment the wildcard went away, which is the
+ * argument for explicit columns in one line — under `select("*")` a missing
+ * column is `undefined` at runtime, here it does not build.
+ */
+const UNIVERSITY_COLUMNS =
+  "id,name,name_ru,name_kz,slug,city,country,type,website,language,description,image_url,logo_url,cover_image_url,position,active,featured,featured_position,listings_count_override,students_count_override" as const;
+
 export interface PublicUniversity {
   id: string;
   /**
@@ -125,15 +137,60 @@ function demoAsUniversitiesWithStats(limit: number): UniversityWithStats[] {
   }));
 }
 
+/**
+ * Process-lifetime cache for the active university list.
+ *
+ * This is static configuration — an admin-curated list of thirty rows that
+ * changes a few times a year — and it was being refetched on every mount of
+ * every component that shows a university picker. The picker appears in the
+ * /rooms filter bar, the /roommates filter bar, profile edit, onboarding, the
+ * listing form and three admin screens, so simply moving between browse pages
+ * re-requested the whole table, and two pickers on one screen requested it
+ * twice in parallel.
+ *
+ * `inflight` is what makes the second case free: concurrent callers await one
+ * request rather than racing. The TTL keeps an admin edit visible within a few
+ * minutes without a reload, which is the right trade for data of this shape.
+ */
+const UNIVERSITIES_TTL_MS = 5 * 60_000;
+let universitiesCache: { at: number; data: PublicUniversity[] } | null = null;
+let universitiesInflight: Promise<PublicUniversity[]> | null = null;
+
+/** Drops the cache so an admin write is reflected without a page reload. */
+export function invalidateUniversitiesCache(): void {
+  universitiesCache = null;
+  universitiesInflight = null;
+}
+
 /** All active universities, ordered for the /universities directory page. */
 export async function getActiveUniversities(): Promise<PublicUniversity[]> {
   if (!isSupabaseConfigured) return demoAsPublicUniversities();
 
+  if (universitiesCache && Date.now() - universitiesCache.at < UNIVERSITIES_TTL_MS) {
+    return universitiesCache.data;
+  }
+  if (universitiesInflight) return universitiesInflight;
+
+  universitiesInflight = fetchActiveUniversities()
+    .then((data) => {
+      // Only a successful, non-empty read is worth caching: caching [] would
+      // pin every picker to its built-in fallback list until the TTL expired.
+      if (data.length > 0) universitiesCache = { at: Date.now(), data };
+      return data;
+    })
+    .finally(() => {
+      universitiesInflight = null;
+    });
+
+  return universitiesInflight;
+}
+
+async function fetchActiveUniversities(): Promise<PublicUniversity[]> {
   try {
     const supabase = getSupabaseBrowserClient();
     const { data, error } = await supabase
       .from("universities")
-      .select("*")
+      .select(UNIVERSITY_COLUMNS)
       .eq("active", true)
       .order("position", { ascending: true });
 
@@ -160,7 +217,7 @@ export async function getFeaturedUniversities(
     const supabase = client ?? getSupabaseBrowserClient();
     const initial = await supabase
       .from("universities")
-      .select("*")
+      .select(UNIVERSITY_COLUMNS)
       .eq("active", true)
       .eq("featured", true)
       .order("featured_position", { ascending: true })
@@ -172,7 +229,7 @@ export async function getFeaturedUniversities(
     if (!data || data.length === 0) {
       const fallback = await supabase
         .from("universities")
-        .select("*")
+        .select(UNIVERSITY_COLUMNS)
         .eq("active", true)
         .order("position", { ascending: true })
         .limit(limit);

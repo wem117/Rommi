@@ -41,6 +41,19 @@ const SUPABASE_WS_ORIGIN = SUPABASE_ORIGIN.replace(/^http/, "ws");
  * through middleware); this is already a large improvement over having no CSP.
  * 'unsafe-eval' is intentionally omitted in production.
  *
+ * CLOUDFLARE sits in front of Caddy, and when Web Analytics / Browser Insights
+ * is enabled it injects `static.cloudflareinsights.com/beacon.min.js` into the
+ * HTML and has it POST back to `cloudflareinsights.com/cdn-cgi/rum`. Neither
+ * host was allow-listed, so the beacon was blocked at the edge of our own
+ * policy — the same failure mode the GA note above describes, one layer up.
+ * Cloudflare's managed challenge and Rocket Loader assets come from
+ * `*.cloudflare.com`, which is why that wildcard is here too.
+ *
+ * `script-src-elem` is stated explicitly rather than left to fall back to
+ * `script-src`. The fallback is real, but a future edit that narrows one and
+ * forgets the other is not obvious in review, and this is the directive that
+ * actually governs <script src> elements.
+ *
  * Google Analytics / Tag Manager domains are WILDCARDED (`*.google-analytics.com`,
  * `*.googletagmanager.com`, `*.analytics.google.com`), matching Google's own
  * documented CSP recommendation for gtag.js. This previously allow-listed only
@@ -51,17 +64,37 @@ const SUPABASE_WS_ORIGIN = SUPABASE_ORIGIN.replace(/^http/, "ws");
  * every collect request was silently blocked by connect-src — the exact failure
  * mode behind "Google tag not detected": the tag never actually reaches Google.
  */
+/**
+ * Shared by `script-src` and `script-src-elem` so the two cannot drift.
+ */
+const SCRIPT_SOURCES = [
+  "'self'",
+  "'unsafe-inline'",
+  "https://static.cloudflareinsights.com",
+  "https://*.cloudflare.com",
+  "https://*.googletagmanager.com",
+  "https://*.google-analytics.com",
+  "https://maps.googleapis.com"
+].join(" ");
+
 const csp = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  "script-src 'self' 'unsafe-inline' https://*.googletagmanager.com https://*.google-analytics.com https://maps.googleapis.com",
+  `script-src ${SCRIPT_SOURCES}`,
+  `script-src-elem ${SCRIPT_SOURCES}`,
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: ${SUPABASE_ORIGIN} https://images.unsplash.com https://lh3.googleusercontent.com https://*.tile.openstreetmap.org https://maps.googleapis.com https://maps.gstatic.com https://*.gstatic.com https://*.googleapis.com https://*.google-analytics.com https://*.googletagmanager.com`,
+  // `https:` rather than a host allow-list. Deliberate, and the one directive
+  // here that is looser than it could be: listings carry operator-supplied photo
+  // URLs and avatars come from whichever identity provider the user signed in
+  // with, so an enumerated list guarantees future silent breakage. Images cannot
+  // execute, so the residual risk is exfiltration-by-URL from an XSS — which
+  // requires an XSS first, and script-src is where that is actually defended.
+  "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  `connect-src 'self' ${SUPABASE_ORIGIN} ${SUPABASE_WS_ORIGIN} https://nominatim.openstreetmap.org https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://maps.googleapis.com https://*.tile.openstreetmap.org`,
+  `connect-src 'self' ${SUPABASE_ORIGIN} ${SUPABASE_WS_ORIGIN} https://*.roomi.kz wss://*.roomi.kz https://cloudflareinsights.com https://*.cloudflareinsights.com https://*.supabase.co wss://*.supabase.co https://nominatim.openstreetmap.org https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://maps.googleapis.com https://*.tile.openstreetmap.org`,
   "frame-src 'self' https://*.google.com",
   "worker-src 'self' blob:",
   "manifest-src 'self'",

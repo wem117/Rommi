@@ -13,7 +13,7 @@ import {
 } from "@/lib/data/listing-query";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { mapListingRow } from "@/lib/supabase/mappers";
+import { LISTING_COLUMNS, mapListingRow } from "@/lib/supabase/mappers";
 import { isMissingSupabaseTable } from "@/lib/utils/errors";
 import type { Listing } from "@/types/listing";
 
@@ -119,7 +119,7 @@ export async function getListings(
 
   const run = (includeRemovedFilter: boolean) =>
     applyListingFilters(
-      supabase.from("listings").select("*", { count: "exact" }),
+      supabase.from("listings").select(LISTING_COLUMNS, { count: "exact" }),
       filters,
       includeRemovedFilter
     ).range(from, to);
@@ -166,7 +166,7 @@ export async function getFeaturedListings(limit = 6, client?: SupabaseClient): P
     const supabase = client ?? getSupabaseBrowserClient();
     const { data, error } = await supabase
       .from("listings")
-      .select("*")
+      .select(LISTING_COLUMNS)
       .eq("featured", true)
       .eq("removed", false)
       .order("featured_position", { ascending: true })
@@ -186,7 +186,7 @@ export async function getListingById(listingId: string) {
   }
 
   const supabase = getSupabaseBrowserClient();
-  const { data, error } = await supabase.from("listings").select("*").eq("id", listingId).maybeSingle();
+  const { data, error } = await supabase.from("listings").select(LISTING_COLUMNS).eq("id", listingId).maybeSingle();
 
   if (error && isMissingSupabaseTable(error, "listings")) {
     console.warn("listings table is missing — run the database migrations.");

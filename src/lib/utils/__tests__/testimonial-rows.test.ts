@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildRows, repeatToFill } from "@/lib/utils/testimonial-rows";
+import { buildRows, MIN_FOR_MARQUEE, repeatToFill } from "@/lib/utils/testimonial-rows";
 
 /**
  * The reported symptom was "one person appears on every card".
@@ -96,5 +96,16 @@ describe("buildRows", () => {
     const { top } = buildRows(people("A", "B"));
     const keys = top.map((p, slot) => `${p.id}-${slot}`);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe("MIN_FOR_MARQUEE", () => {
+  it("keeps the marquee off until there is genuinely a stream", () => {
+    // The regression this prevents: with one record, filling a row for a gapless
+    // loop produces ~24 copies of the same person across both rows — which is
+    // precisely the "same face on every card" complaint, caused by the fix for
+    // the gap rather than by the data.
+    expect(MIN_FOR_MARQUEE).toBe(3);
+    expect(repeatToFill(people("Solo")).length).toBeGreaterThanOrEqual(6);
   });
 });

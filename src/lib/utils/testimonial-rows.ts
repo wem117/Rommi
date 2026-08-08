@@ -43,6 +43,21 @@ export function repeatToFill<T>(items: readonly T[]): T[] {
  * Returns the two rows as they will be rendered. Every entry is a real record;
  * nothing here invents, clones or cross-assigns a testimonial's fields.
  */
+/**
+ * Below this, a marquee is the wrong shape for the content.
+ *
+ * A gapless loop needs a viewport's worth of cards, so with one testimonial the
+ * sequence has to repeat about six times per copy — twenty-four identical faces
+ * on a conveyor belt. That is not "one testimonial shown in a marquee", it is a
+ * wall of the same person, and it reads as broken data rather than as social
+ * proof. Two is barely better.
+ *
+ * With fewer than three real testimonials the section renders them once, centred
+ * and still, which is honest about how many there are. The marquee starts when
+ * there is genuinely a stream to show.
+ */
+export const MIN_FOR_MARQUEE = 3;
+
 export function buildRows<T>(items: readonly T[]): { top: T[]; bottom: T[] } {
   const canSplit = items.length >= 4;
   const half = Math.ceil(items.length / 2);

@@ -6,7 +6,7 @@ import { useMemo } from "react";
 
 import { useLocale } from "@/context/locale-context";
 import type { Testimonial } from "@/lib/data/testimonials";
-import { buildRows } from "@/lib/utils/testimonial-rows";
+import { buildRows, MIN_FOR_MARQUEE } from "@/lib/utils/testimonial-rows";
 
 /**
  * Two rows of testimonials flowing in opposite directions, forever.
@@ -174,13 +174,23 @@ export function TestimonialsFlow({ testimonials }: { testimonials: Testimonial[]
         </p>
       </div>
 
-      {/* Full-bleed: the rows must extend past the container so cards enter and
-          leave the viewport rather than stopping at a margin. The section clips
-          overflow, so this can never produce horizontal page scroll. */}
-      <div className="mt-8 space-y-4 sm:mt-12 sm:space-y-5">
-        <FlowRow items={topRow} direction="left" durationSeconds={duration} />
-        <FlowRow items={bottomRow} direction="right" durationSeconds={duration + 6} />
-      </div>
+      {testimonials.length < MIN_FOR_MARQUEE ? (
+        /* One or two real testimonials: show them once, centred and still.
+           See MIN_FOR_MARQUEE — a loop this short is a wall of the same face. */
+        <div className="mx-auto mt-8 flex max-w-6xl flex-wrap justify-center gap-4 px-4 sm:mt-12 sm:gap-5 sm:px-6 lg:px-8">
+          {testimonials.map((testimonial) => (
+            <TestimonialCard key={testimonial.id} testimonial={testimonial} />
+          ))}
+        </div>
+      ) : (
+        /* Full-bleed: the rows must extend past the container so cards enter and
+           leave the viewport rather than stopping at a margin. The section clips
+           overflow, so this can never produce horizontal page scroll. */
+        <div className="mt-8 space-y-4 sm:mt-12 sm:space-y-5">
+          <FlowRow items={topRow} direction="left" durationSeconds={duration} />
+          <FlowRow items={bottomRow} direction="right" durationSeconds={duration + 6} />
+        </div>
+      )}
     </section>
   );
 }

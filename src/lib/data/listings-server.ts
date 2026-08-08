@@ -97,3 +97,60 @@ export async function getListingsPageServer(
     totalPages: totalPagesFor(total, pageSize)
   };
 }
+
+export interface ListingFilterInventory {
+  /** Cities with at least one live listing, most-listings-first. */
+  cities: string[];
+  /** Universities with at least one live listing. */
+  universities: string[];
+}
+
+/**
+ * Which cities and universities are worth offering in the /rooms filter bar.
+ *
+ * The dropdowns used a static list of every Kazakhstani city and every seeded
+ * university — 17 cities and 30 universities — when the live inventory covers
+ * 2 cities and 8 universities. Picking any of the other 22 universities was
+ * guaranteed to return an empty page; there was no way to tell which ones
+ * would from the dropdown itself.
+ *
+ * Two plain columns, not a `count(*) group by`: the JS client has no native
+ * DISTINCT, and with the browse table in the hundreds of rows rather than
+ * millions, fetching `city,university` for every live listing and deduping in
+ * memory is simpler than reaching for an RPC and just as cheap.
+ */
+export async function getListingFilterInventoryServer(): Promise<ListingFilterInventory> {
+  if (!isSupabaseConfigured) {
+    const visible = demoListings.filter((listing) => !listing.removed);
+    return {
+      cities: dedupeCounted(visible.map((l) => l.city)),
+      universities: dedupeCounted(visible.map((l) => l.university).filter((u): u is string => Boolean(u)))
+    };
+  }
+
+  const supabase = createSupabasePublicServerClient();
+  if (!supabase) return { cities: [], universities: [] };
+
+  const { data, error } = await supabase
+    .from("listings")
+    .select("city,university")
+    .eq("status", "approved")
+    .or("removed.is.null,removed.eq.false");
+
+  if (error || !data) return { cities: [], universities: [] };
+
+  return {
+    cities: dedupeCounted(data.map((row) => row.city as string).filter(Boolean)),
+    universities: dedupeCounted(
+      data.map((row) => row.university as string | null).filter((u): u is string => Boolean(u))
+    )
+  };
+}
+
+/** Distinct values, ordered by how many rows carried them — the most useful
+ *  cities and universities sort to the top of the dropdown instead of A-Z. */
+export function dedupeCounted(values: string[]): string[] {
+  const counts = new Map<string, number>();
+  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([value]) => value);
+}

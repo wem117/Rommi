@@ -299,13 +299,23 @@ def test_a_complete_apartment_listing_can_publish_automatically():
     assert decision.publish is True, decision.blockers
 
 
-def test_a_post_with_no_price_still_publishes_when_everything_else_holds():
+def test_a_post_with_no_price_is_held_for_review_not_auto_published():
     """
-    Price is optional by design — plenty of real posts say "цена в ЛС". It costs
-    confidence rather than disqualifying the post outright.
+    Reverses what this test used to assert. A price left as "цена в ЛС" ("price
+    on request") is a genuine, common way real posts are written, and the
+    parser correctly leaves `price` unset rather than guessing — but an
+    unstated price must not clear the automatic-publish gate unread. The web
+    listing form refuses to submit a listing with an empty price at all; the
+    unattended import path must not be able to publish what a person filling
+    in the same fields could not. A human admin reviewing the pending queue can
+    still approve this exact post — the parser's read of it does not change,
+    only whether it goes live without anyone looking.
     """
     no_price = APARTMENT.replace("Цена: 250 000 тг + коммунальные услуги.", "Цена в личные сообщения.")
     listing = parse(no_price, default_city="Almaty")
     assert listing.price is None
     lenient = PublishPolicy(enabled=True, min_confidence=listing.confidence)
-    assert decide(listing, policy=lenient, spam_score=8).publish is True
+    # A full album, so "no price" is the only thing under test here.
+    decision = decide(listing, policy=lenient, spam_score=8, media=MediaOutcome(3, 3))
+    assert decision.publish is False
+    assert "no price" in decision.blockers

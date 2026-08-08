@@ -32,10 +32,12 @@ import { formatCurrency } from "@/lib/utils/format";
  */
 export default function RoomsClient({
   initial,
-  filters: serverFilters
+  filters: serverFilters,
+  inventory
 }: {
   initial: ListingPage;
   filters: ListingQueryFilters;
+  inventory: { cities: string[]; universities: string[] };
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -47,10 +49,20 @@ export default function RoomsClient({
   // props whenever a navigation lands.
   const [filters, setFilters] = useState<ListingQueryFilters>(serverFilters);
 
-  // Search is debounced so a navigation isn't fired per keystroke; everything
-  // else (selects, sliders) applies as soon as it changes.
+  // Debounced before they reach the URL: search and the two rent fields are the
+  // only filters typed character-by-character, and each keystroke otherwise
+  // fired a navigation. That did more than feel laggy — the effect below resets
+  // local `filters` from `serverFilters` whenever the URL's query changes, so a
+  // slow round trip could land AFTER a later keystroke and overwrite it,
+  // dropping the character the user had just typed. Selects and the map/list
+  // toggle change in one discrete step and stay immediate.
   const debouncedSearch = useDebounce(filters.search ?? "", 350);
-  const pendingFilters = useMemo(() => ({ ...filters, search: debouncedSearch }), [filters, debouncedSearch]);
+  const debouncedMinRent = useDebounce(filters.minRent, 350);
+  const debouncedMaxRent = useDebounce(filters.maxRent, 350);
+  const pendingFilters = useMemo(
+    () => ({ ...filters, search: debouncedSearch, minRent: debouncedMinRent, maxRent: debouncedMaxRent }),
+    [filters, debouncedSearch, debouncedMinRent, debouncedMaxRent]
+  );
 
   // Both sides are compared as their canonical query strings, which normalises
   // away empty values and key order, so this is an equality test on the FILTERS
@@ -119,7 +131,7 @@ export default function RoomsClient({
       action={{ href: "/list-a-room/step-1", label: t("rooms.listRoom") }}
       filters={
         /* `total`, never `listings.length` — the whole point of the fix. */
-        <ListingFiltersBar filters={filters} onChange={setFilters} count={total} />
+        <ListingFiltersBar filters={filters} onChange={setFilters} count={total} inventory={inventory} />
       }
       meta={
         <>

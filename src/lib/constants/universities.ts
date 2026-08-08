@@ -43,6 +43,12 @@ export const KZ_UNIVERSITIES: UniversityEntry[] = [
   { name: "Eurasian Humanities Institute", city: "Astana" },
   { name: "Astana International University", city: "Astana" },
   { name: "Cardiff University Kazakhstan", city: "Astana" },
+  // A separate, separately-accredited institution from "Turan University"
+  // (Almaty) above, despite the shared brand name. Adding this row is the
+  // fix for a real mis-tagged listing: the Telegram parser had only one
+  // "Turan" alias, so a genuine Turan-Astana mention — and, worse, an
+  // unrelated Astana street address — both resolved to the Almaty campus.
+  { name: "Turan-Astana University", city: "Astana" },
 
   // Shymkent
   { name: "M. Auezov South Kazakhstan University", city: "Shymkent" },

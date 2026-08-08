@@ -89,6 +89,11 @@ class PublishPolicy:
 
     enabled: bool = False
     min_confidence: int = DEFAULT_MIN_CONFIDENCE
+    # No longer read by decide() — zero photos is now an unconditional blocker
+    # (see the comment above the "no images" check), which is everything this
+    # flag ever did. Kept as a field because it is a real column in
+    # site_settings and a real checkbox in Admin -> Telegram; removing either
+    # is a separate change from this one.
     require_photos: bool = False
     extra: dict = field(default_factory=dict)
 
@@ -148,8 +153,33 @@ def decide(
     # 6. Images: all of them, or none attached at all.
     if not media.complete:
         blockers.append(f"only {media.uploaded} of {media.attached} images uploaded")
-    if policy.require_photos and media.uploaded == 0:
+
+    # 7. A photo, and a price. Unconditional — NOT behind policy.require_photos
+    #    — for the same reason #5 is unconditional: this is a completeness
+    #    floor, not an operator preference. The web listing form enforces the
+    #    identical two rules on a human filling in the same fields (a listing
+    #    cannot be submitted with zero photos or an empty price), so the
+    #    unattended import path must not be able to publish what a person could
+    #    not.
+    #
+    #    `policy.require_photos` is now a NO-OP inside this function: reading
+    #    the old logic closely, it only ever fired on exactly the case this
+    #    check covers (attached == 0 implies uploaded == 0, and any other
+    #    partial-upload shape already failed `media.complete` above regardless
+    #    of the flag). The dataclass field is left in place rather than
+    #    removed — it is a real column in site_settings and a real toggle in
+    #    Admin -> Telegram, and deleting an admin-facing setting is a bigger,
+    #    separate change from this one — but it no longer does anything, since
+    #    what it gated is now always on.
+    #
+    #    A human admin reviewing the pending queue can still approve a genuine
+    #    no-price post — Telegram posts legitimately omit one sometimes, and
+    #    "Price not specified" is truthful for those. What this closes off is
+    #    auto-publishing one WITHOUT anyone reading it.
+    if media.attached == 0:
         blockers.append("no images")
+    if not listing.price or listing.price <= 0:
+        blockers.append("no price")
 
     return PublishDecision(
         publish=not blockers,

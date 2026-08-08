@@ -365,7 +365,30 @@ UNIVERSITY_ALIASES: tuple[tuple[re.Pattern[str], str], ...] = (
     # the full name, and "кардифф" is how it is transliterated locally.
     (re.compile(r"\bcardiff\b|кардифф\w*"), "Cardiff University Kazakhstan"),
     (re.compile(r"\b(енu|ену|enu)\b|гумилев\w*|гумилёв\w*"), "L.N. Gumilyov Eurasian National University"),
-    (re.compile(r"\b(туран|turan)\b"), "Turan University"),
+    # "Turan" collides with two DIFFERENT things, and both produced a wrong
+    # answer before this pair of rules existed:
+    #
+    #  1. Two real, separately-accredited universities share the brand name —
+    #     Turan University in Almaty and Turan-Astana University in Astana.
+    #     Checked first, and mutually exclusive with the rule below by ORDER
+    #     (the loop takes the first match and stops): "Туран-Астана" matches
+    #     this pattern and is never reached by the bare one.
+    #
+    #  2. Proспект Туран is a well-known Astana AVENUE, commonly written
+    #     without the "проспект"/"ул." qualifier that STREET_RE requires to
+    #     recognise it as an address ("Туран 45/1, рядом Анвар..."). The bare
+    #     rule below used to match that "Туран" as a university mention, which
+    #     is how a real production listing ended up tagged Turan University
+    #     (Almaty) on an Astana apartment that never mentioned any university
+    #     at all — the text was a house number, not a campus. The negative
+    #     lookahead excludes "Turan"/"Туран" directly (space, not comma)
+    #     followed by a short 1-3 digit house number, optionally with a "/1"
+    #     unit suffix — the address shape — while still matching it before a
+    #     price or any other later number: "Туран, 50 000 тг" and "Turan
+    #     University, 3rd floor" both keep resolving to the university, only
+    #     "Туран 45/1" (no comma, a short number right after) is excluded.
+    (re.compile(r"туран[-\s]?астана|turan[-\s]?astana"), "Turan-Astana University"),
+    (re.compile(r"\b(туран|turan)\b(?!\s+\d{1,3}(?:/\d+)?\b)"), "Turan University"),
     (re.compile(r"\b(казуму|kaznmu)\b|асфендияров\w*|мед\s*универ\w*"), "Kazakh National Medical University"),
     (re.compile(r"абылай\s*хан\w*|аблай\s*хан\w*|\b(казуимоимя|иняз)\b"),
      "Kazakh Ablai Khan University of International Relations and World Languages"),

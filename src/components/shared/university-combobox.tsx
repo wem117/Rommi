@@ -21,36 +21,59 @@ export function UniversityCombobox({
   value,
   onChange,
   placeholder,
-  id
+  id,
+  allowedValues
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   id?: string;
+  /**
+   * Restricts the SUGGESTION list to these canonical names — every other
+   * university is still a valid `value` (the field never rejects one it wasn't
+   * offered), it just will not appear while typing.
+   *
+   * This is how the /rooms and /roommates filter bars hide universities with
+   * zero current listings or profiles, without touching the 25+ other places
+   * this combobox is used (onboarding, profile edit, the listing form, both
+   * admin tools) — those callers need the FULL list, since picking your own
+   * university has to work even when you are about to be its first listing.
+   *
+   * "Other" is dropped in this mode: it exists as a free-text escape hatch for
+   * data entry, and a filter option that matches nothing stored anywhere is
+   * not an escape hatch, it is a dead end.
+   */
+  allowedValues?: readonly string[];
 }) {
   const { t, locale } = useLocale();
   const resolvedPlaceholder = placeholder ?? t("roommates.universitySearchPlaceholder");
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [options, setOptions] = useState<UniversityOption[]>(FALLBACK_OPTIONS);
+  // Scoped callers start empty rather than from the full fallback list — the
+  // point of allowedValues is that most of that list must never appear here,
+  // so showing it even for one frame between mount and the effect below is the
+  // exact flash of wrong content this prop exists to prevent.
+  const [options, setOptions] = useState<UniversityOption[]>(allowedValues ? [] : FALLBACK_OPTIONS);
   const containerRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
+  const allowSet = useMemo(() => (allowedValues ? new Set(allowedValues) : null), [allowedValues]);
 
   // Load the admin-managed university list from the database (falls back to the
   // built-in constant when Supabase is unconfigured or empty). "Other" is kept
-  // as a free-text escape hatch.
+  // as a free-text escape hatch, EXCEPT when scoped — see allowedValues above.
   useEffect(() => {
     let cancelled = false;
     void getActiveUniversities().then((universities) => {
       if (cancelled || universities.length === 0) return;
-      // "Other" stays a free-text escape hatch for anything not on the list.
-      setOptions([...buildUniversityOptions(universities, locale), plainUniversityOption("Other")]);
+      const scoped = allowSet ? universities.filter((u) => allowSet.has(u.name)) : universities;
+      const built = buildUniversityOptions(scoped, locale);
+      setOptions(allowSet ? built : [...built, plainUniversityOption("Other")]);
     });
     return () => {
       cancelled = true;
     };
-  }, [locale]);
+  }, [locale, allowSet]);
 
   // Keep the visible text in sync when the committed value changes externally.
   useEffect(() => {

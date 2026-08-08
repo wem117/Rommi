@@ -859,3 +859,46 @@ def test_the_other_astana_and_almaty_universities_resolve():
     }
     for text, expected in cases.items():
         assert parse_message(text).university == expected, text
+
+
+def test_turan_almaty_and_turan_astana_are_distinct_universities():
+    """
+    Two real, separately-accredited institutions share the "Turan" brand: Turan
+    University in Almaty and Turan-Astana University in Astana. Before this pair
+    of aliases existed there was only one row in the database (Almaty), so a
+    genuine Astana-campus mention resolved to the wrong city's university.
+    """
+    assert parse_message("Комната рядом с Turan University, Алматы").university == "Turan University"
+    assert parse_message("Ищу соседку, учусь в Туран-Астана, Астана").university == "Turan-Astana University"
+    assert parse_message("Room near Turan-Astana University, Nur-Sultan").university == "Turan-Astana University"
+    assert parse_message("общежитие туранастана").university == "Turan-Astana University"
+
+
+def test_turan_avenue_is_not_mistaken_for_the_university():
+    """
+    The regression this whole pair of rules exists to fix. A real production
+    listing was tagged "Turan University" (Almaty) on an Astana apartment that
+    never mentioned any university — the source text named a house on Turan
+    Avenue, a well-known Astana street commonly written without the
+    "проспект"/"ул." qualifier that would otherwise mark it as an address:
+
+        "Квартира находится по адресу Туран 45/1, рядом Анвар, ..."
+
+    A university is never referenced as "Turan 45"; a short number directly
+    after the bare word is the address shape, not a campus mention.
+    """
+    assert parse_message(
+        "Квартира находится по адресу Туран 45/1, рядом Анвар, Ана мен Бала и Кардиология."
+    ).university == ""
+    assert parse_message("сдам квартиру на туран 12").university == ""
+
+
+def test_the_house_number_guard_does_not_swallow_a_real_mention():
+    """
+    The negative lookahead added to fix the street-address false positive must
+    not also blind the parser to a genuine mention followed by an unrelated
+    number later in the sentence — a price, a floor, anything not glued
+    directly onto the word with no separating comma.
+    """
+    assert parse_message("Сдается комната, Turan University, 3 этаж, цена 80000").university == "Turan University"
+    assert parse_message("Ищу соседа возле Туран, 50000 тг").university == "Turan University"

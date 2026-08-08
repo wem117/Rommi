@@ -237,14 +237,22 @@ export default function AdminTelegramPage() {
               </p>
             </div>
 
-            <label className="flex h-fit items-center justify-between gap-4 rounded-xl border border-border p-3">
-              <span className="text-sm font-medium">Require at least one photo</span>
-              <Switch
-                checked={policy.requirePhotos}
-                onCheckedChange={(requirePhotos) => void savePolicy({ ...policy, requirePhotos })}
-                disabled={busy === "policy"}
-              />
-            </label>
+            <div className="flex h-fit flex-col gap-1.5 rounded-xl border border-border p-3">
+              <label className="flex items-center justify-between gap-4">
+                <span className="text-sm font-medium text-foreground/50">Require at least one photo</span>
+                <Switch checked disabled />
+              </label>
+              {/* A post with zero photos or no price cannot be auto-published
+                  regardless of this toggle — see publish_gate.py. It matches
+                  the site's own listing form, which refuses to submit either.
+                  Left visible rather than removed so a setting saved from an
+                  earlier version of this page is not silently orphaned; it now
+                  always reads as on. */}
+              <p className="text-[11px] text-foreground/50">
+                Always on. A post with no photo or no price now goes to the moderation queue no matter what this is
+                set to — treated the same as a missing contact method.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

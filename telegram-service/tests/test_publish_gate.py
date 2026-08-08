@@ -41,7 +41,9 @@ OPEN = PublishPolicy(enabled=True)
 
 def test_a_complete_listing_publishes():
     listing = parse(COMPLETE_LISTING, default_city="Almaty")
-    decision = decide(listing, policy=OPEN, spam_score=8)
+    # A real album, not the zero-photos default MediaOutcome() — "complete"
+    # now includes having a photo, matching the web form's own requirement.
+    decision = decide(listing, policy=OPEN, spam_score=8, media=MediaOutcome(attached=3, uploaded=3))
     assert decision.publish is True, decision.blockers
     assert decision.status == "published"
 
@@ -112,15 +114,60 @@ def test_a_fully_uploaded_album_publishes():
     assert decision.publish is True, decision.blockers
 
 
-def test_a_post_with_no_images_at_all_is_not_treated_as_a_failed_upload():
+def test_a_post_with_no_images_at_all_is_held():
+    """
+    Reverses what this test used to assert. Zero photos used to be treated as
+    "not a failed upload" and allowed to auto-publish — the web listing form
+    refuses to submit a listing with no photo at all, and the unattended import
+    path must not be able to publish what a person filling in the same fields
+    could not. `media.complete` alone cannot express this: attached=0,
+    uploaded=0 satisfies `uploaded >= attached` trivially, which is why "no
+    images" is now its own, separate, unconditional check.
+    """
     listing = parse(COMPLETE_LISTING, default_city="Almaty")
-    assert decide(listing, policy=OPEN, spam_score=8, media=MediaOutcome(0, 0)).publish is True
+    decision = decide(listing, policy=OPEN, spam_score=8, media=MediaOutcome(0, 0))
+    assert decision.publish is False
+    assert "no images" in decision.blockers
 
 
-def test_photos_can_be_made_mandatory():
+def test_require_photos_is_now_a_no_op_because_the_rule_above_is_unconditional():
+    """
+    `PublishPolicy.require_photos` used to be the ONLY thing standing between a
+    zero-photo post and auto-publish, and it defaulted to False. It is kept as a
+    field — it is a real column in site_settings and a real toggle in Admin ->
+    Telegram — but decide() no longer reads it: the outcome is identical whether
+    it is True or False, because "no images" now fires either way.
+    """
     listing = parse(COMPLETE_LISTING, default_city="Almaty")
-    policy = PublishPolicy(enabled=True, require_photos=True)
-    assert decide(listing, policy=policy, spam_score=8, media=MediaOutcome(0, 0)).publish is False
+    off = decide(listing, policy=PublishPolicy(enabled=True, require_photos=False), spam_score=8, media=MediaOutcome(0, 0))
+    on = decide(listing, policy=PublishPolicy(enabled=True, require_photos=True), spam_score=8, media=MediaOutcome(0, 0))
+    assert off.publish is False
+    assert on.publish is False
+    assert off.blockers == on.blockers
+
+
+def test_a_post_with_no_price_is_held():
+    """
+    The other completeness rule that mirrors the web form: a listing with no
+    stated price cannot auto-publish, even with a full album and everything
+    else the gate checks for. A human admin can still approve a genuine
+    no-price post from the pending queue — this only closes the UNATTENDED
+    path.
+    """
+    priceless = COMPLETE_LISTING.replace("💰 Цена: 250 000 тг в месяц + коммунальные услуги.\n", "")
+    listing = parse(priceless, default_city="Almaty")
+    assert listing.price is None, "fixture must genuinely have no price for this test to mean anything"
+    decision = decide(listing, policy=OPEN, spam_score=8, media=MediaOutcome(attached=6, uploaded=6))
+    assert decision.publish is False
+    assert "no price" in decision.blockers
+
+
+def test_a_zero_price_is_treated_the_same_as_no_price():
+    listing = parse(COMPLETE_LISTING, default_city="Almaty")
+    listing.price = 0  # ParsedListing is a plain (non-frozen) dataclass
+    decision = decide(listing, policy=OPEN, spam_score=8, media=MediaOutcome(attached=6, uploaded=6))
+    assert decision.publish is False
+    assert "no price" in decision.blockers
 
 
 def test_a_thin_description_is_held():
@@ -139,8 +186,9 @@ def test_a_weak_housing_signal_is_held_even_though_it_passed_the_spam_gate():
 
 def test_the_confidence_threshold_is_enforced_and_tunable():
     listing = parse(COMPLETE_LISTING, default_city="Almaty")
-    assert decide(listing, policy=PublishPolicy(enabled=True, min_confidence=200), spam_score=8).publish is False
-    assert decide(listing, policy=PublishPolicy(enabled=True, min_confidence=50), spam_score=8).publish is True
+    media = MediaOutcome(attached=3, uploaded=3)
+    assert decide(listing, policy=PublishPolicy(enabled=True, min_confidence=200), spam_score=8, media=media).publish is False
+    assert decide(listing, policy=PublishPolicy(enabled=True, min_confidence=50), spam_score=8, media=media).publish is True
 
 
 def test_every_blocker_is_reported_not_just_the_first():

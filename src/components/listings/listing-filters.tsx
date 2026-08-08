@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { useLocale } from "@/context/locale-context";
 import { UniversityCombobox } from "@/components/shared/university-combobox";
-import { CITIES } from "@/lib/constants/cities";
+
 import { FALLBACK_PROPERTY_CATEGORIES, getActivePropertyCategories, type PropertyCategory } from "@/lib/data/categories";
 import type { ListingFilters } from "@/hooks/use-listings";
 
@@ -19,11 +19,19 @@ const PROPERTY_TYPE_LABEL_KEYS: Record<string, string> = {
 export function ListingFiltersBar({
   filters,
   onChange,
-  count
+  count,
+  inventory
 }: {
   filters: ListingFilters;
   onChange: (filters: ListingFilters) => void;
   count: number;
+  /**
+   * Cities and universities that actually have a live listing right now,
+   * computed server-side in one query alongside the page itself. Both
+   * dropdowns render from this instead of the full static constant lists —
+   * see getListingFilterInventoryServer for why.
+   */
+  inventory: { cities: string[]; universities: string[] };
 }) {
   const { t } = useLocale();
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -92,7 +100,7 @@ export function ListingFiltersBar({
         <div className="mt-3 grid grid-cols-2 gap-2.5 border-t border-[#eadfce] pt-3 sm:mt-4 sm:gap-3 sm:pt-4 md:grid-cols-4">
           <select value={filters.city ?? ""} onChange={(event) => onChange({ ...filters, city: event.target.value, university: "" })}>
             <option value="">{t("listingFilters.allCities")}</option>
-            {CITIES.map((city) => (
+            {inventory.cities.map((city) => (
               <option key={city} value={city}>
                 {city}
               </option>
@@ -103,6 +111,7 @@ export function ListingFiltersBar({
               value={filters.university ?? ""}
               onChange={(value) => onChange({ ...filters, university: value, city: value ? "" : filters.city })}
               placeholder={t("listingFilters.universityPlaceholder")}
+              allowedValues={inventory.universities}
             />
           </div>
           <select

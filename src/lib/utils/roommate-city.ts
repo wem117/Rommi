@@ -30,3 +30,32 @@ export function matchesCity(
   if (selectedCity === allCitiesValue) return true;
   return roommateCity(profile) === selectedCity;
 }
+
+/** Distinct values, most-common first — dropdown order that puts the cities
+ *  and universities with people in them at the top of the list. */
+function byFrequency(values: string[]): string[] {
+  const counts = new Map<string, number>();
+  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([value]) => value);
+}
+
+/**
+ * Which cities and universities are worth offering in the /roommates filter
+ * dropdowns, derived from the profiles actually on the page rather than a
+ * static list of every Kazakhstani city and every seeded university.
+ *
+ * `roommates` should be the full live set, not one page of it — the caller
+ * seeds from SSR data and the roommates hook refetches up to 150 profiles, well
+ * above the site's current total, so this is a census rather than a sample.
+ * Cities go through `roommateCity`, the SAME derivation `matchesCity` filters
+ * with (stored city, falling back to the university's city for legacy rows),
+ * so the dropdown can never offer a value nothing on the page will match.
+ */
+export function deriveRoommateFilterInventory(
+  roommates: readonly Pick<UserProfile, "city" | "university">[]
+): { cities: string[]; universities: string[] } {
+  return {
+    cities: byFrequency(roommates.map((r) => roommateCity(r)).filter(Boolean)),
+    universities: byFrequency(roommates.map((r) => r.university).filter((u): u is string => Boolean(u)))
+  };
+}

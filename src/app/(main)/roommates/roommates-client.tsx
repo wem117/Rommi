@@ -17,8 +17,7 @@ import {
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
 import { matchesAgeRange } from "@/lib/utils/profile-display";
-import { matchesCity } from "@/lib/utils/roommate-city";
-import { CITIES } from "@/lib/constants/cities";
+import { deriveRoommateFilterInventory, matchesCity } from "@/lib/utils/roommate-city";
 import { calculateCompatibilityScore } from "@/lib/utils/compatibility";
 import { useRoommates } from "@/hooks/use-roommates";
 import type { Gender, UserProfile } from "@/types/user";
@@ -28,7 +27,6 @@ type BudgetFilter = "any" | "25000" | "40000" | "50000" | "75000" | "100000" | "
 const BUDGET_PRESETS = [25000, 40000, 50000, 75000, 100000, 150000, 200000, 300000] as const;
 
 const ALL_CITIES = "All Cities";
-const cityOptions = [ALL_CITIES, ...CITIES];
 
 function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
   const searchParams = useSearchParams();
@@ -56,6 +54,12 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
       value: String(amount) as BudgetFilter
     }))
   ];
+
+  // Cities and universities worth offering in the dropdowns, derived from the
+  // roommates actually loaded rather than a static list of every Kazakhstani
+  // city and every seeded university — see deriveRoommateFilterInventory.
+  const inventory = useMemo(() => deriveRoommateFilterInventory(roommates), [roommates]);
+  const cityOptions = useMemo(() => [ALL_CITIES, ...inventory.cities], [inventory]);
 
   const filteredRoommates = useMemo(() => {
     const parsedMinAge = Number(minAge) || 18;
@@ -122,6 +126,7 @@ function RoommatesPageContent({ initial }: { initial: UserProfile[] }) {
                 value={university}
                 onChange={setUniversity}
                 placeholder={t("roommates.universitySearchPlaceholder")}
+                allowedValues={inventory.universities}
               />
             </FilterField>
 

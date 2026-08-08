@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { matchesCity, roommateCity } from "../roommate-city";
+import { deriveRoommateFilterInventory, matchesCity, roommateCity } from "../roommate-city";
 
 const ALL = "All Cities";
 const p = (city: string, university = "") => ({ city, university });
@@ -48,5 +48,40 @@ describe("matchesCity", () => {
   it("passes everything when no city is selected", () => {
     expect(matchesCity(p("Astana"), ALL, ALL)).toBe(true);
     expect(matchesCity(p(""), ALL, ALL)).toBe(true);
+  });
+});
+
+
+describe("deriveRoommateFilterInventory", () => {
+  it("only offers cities and universities a real profile actually has", () => {
+    const roommates = [p("Almaty", "KBTU"), p("Almaty", "SDU University"), p("Astana", "Nazarbayev University")];
+    const { cities, universities } = deriveRoommateFilterInventory(roommates);
+    expect(new Set(cities)).toEqual(new Set(["Almaty", "Astana"]));
+    expect(new Set(universities)).toEqual(new Set(["KBTU", "SDU University", "Nazarbayev University"]));
+  });
+
+  it("orders by how many profiles carry each value", () => {
+    const roommates = [p("Almaty", "KBTU"), p("Almaty", "KBTU"), p("Astana", "KBTU")];
+    const { cities } = deriveRoommateFilterInventory(roommates);
+    expect(cities[0]).toBe("Almaty");
+  });
+
+  it("derives a city for legacy rows via the same fallback matchesCity uses", () => {
+    // A profile with no stored city must not be invisible to its own filter —
+    // roommateCity() is the single definition both sides share.
+    const roommates = [p("", "KBTU")];
+    const { cities } = deriveRoommateFilterInventory(roommates);
+    expect(cities).toEqual([roommateCity(p("", "KBTU"))]);
+  });
+
+  it("drops profiles with no university from the university list, not the whole profile", () => {
+    const roommates = [p("Almaty", ""), p("Almaty", "KBTU")];
+    const { cities, universities } = deriveRoommateFilterInventory(roommates);
+    expect(cities).toEqual(["Almaty"]);
+    expect(universities).toEqual(["KBTU"]);
+  });
+
+  it("returns empty inventories for an empty roster rather than throwing", () => {
+    expect(deriveRoommateFilterInventory([])).toEqual({ cities: [], universities: [] });
   });
 });

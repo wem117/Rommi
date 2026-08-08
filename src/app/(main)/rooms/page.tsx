@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { LISTINGS_PAGE_SIZE, buildListingQueryString, parseListingFilters, parsePageParam } from "@/lib/data/listing-query";
-import { getListingsPageServer } from "@/lib/data/listings-server";
+import { getListingFilterInventoryServer, getListingsPageServer } from "@/lib/data/listings-server";
 import { siteConfig } from "@/lib/site-config";
 
 import RoomsClient from "./rooms-client";
@@ -69,7 +69,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
   const filters = parseListingFilters(params);
   const page = parsePageParam(params.get("page"));
 
-  const result = await getListingsPageServer(filters, page, LISTINGS_PAGE_SIZE);
+  // Independent of `filters`: the dropdowns must offer every city/university
+  // that has SOME live listing, not just ones matching whatever is currently
+  // selected — narrowing the options as the user filters would make it
+  // impossible to change city and university in the same visit.
+  const [result, inventory] = await Promise.all([
+    getListingsPageServer(filters, page, LISTINGS_PAGE_SIZE),
+    getListingFilterInventoryServer()
+  ]);
 
-  return <RoomsClient initial={result} filters={filters} />;
+  return <RoomsClient initial={result} filters={filters} inventory={inventory} />;
 }

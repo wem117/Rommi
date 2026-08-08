@@ -4,15 +4,12 @@ import {
   ArrowRight,
   CalendarDays,
   CheckCircle2,
-  ChevronRight,
   Home,
   LogOut,
   MapPin,
   Menu,
-  MessageCircle,
   Search,
   UserCircle,
-  Users,
   X
 } from "lucide-react";
 import Image from "next/image";
@@ -21,7 +18,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { CountUp } from "@/components/count-up";
-import { Reveal } from "@/components/reveal";
 import { Footer } from "@/components/layout/footer";
 import { LanguageMenu } from "@/components/layout/language-menu";
 import { useAuth } from "@/context/auth-context";
@@ -33,7 +29,6 @@ import { CITIES } from "@/lib/constants/cities";
 import { DEFAULT_HOMEPAGE_SECTIONS, type PublicSettings } from "@/lib/data/public-settings";
 import { type Testimonial } from "@/lib/data/testimonials";
 import { TestimonialsFlow } from "@/components/home/testimonials-flow";
-import { TrustSection } from "@/components/home/trust-section";
 import { universityDisplayName, type UniversityWithStats } from "@/lib/data/universities";
 import { formatNumber } from "@/lib/utils/format";
 import {
@@ -120,9 +115,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
     locale
   );
 
-  const steps = getSteps(locale);
   const platformStats = getPlatformStats(stats);
-  const faqs = getFaqs(locale);
   const roommateHighlights = getRoommateHighlights(locale);
   const searchFields = [
     {
@@ -167,9 +160,14 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
     }
   ];
 
-  // The 5 admin-reorderable/toggleable sections (Admin > Homepage). Hero and
-  // the "How it works" / final CTA bands stay structurally fixed since they
-  // carry primary navigation and the closing conversion CTA.
+  // The admin-reorderable/toggleable sections (Admin > Homepage). The hero, the
+  // statistics band and the final CTA stay structurally fixed: they carry the
+  // primary search, the platform figures and the closing conversion action.
+  //
+  // `faq` was removed from the homepage layout; its copy is preserved in
+  // lib/content/homepage-sections.ts. A saved settings row may still list the
+  // key — `sectionRenderers[key] ?? null` renders nothing for it, so an old
+  // configuration degrades quietly rather than throwing.
   const sectionRenderers: Record<string, ReactNode> = {
     // Sections with no real content render nothing (null is skipped below).
     featured_listings: featuredListings.length === 0 ? null : (
@@ -299,36 +297,6 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
     // testimonial wall: "many people use this" is a quantity you have to see.
     // The section key is unchanged, so admin ordering and visibility still work.
     testimonials: <TestimonialsFlow key="testimonials" testimonials={testimonials} />,
-    faq: (
-      <section key="faq" className="bg-surface-muted/40 px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
-        <div className="mx-auto max-w-4xl">
-          <SectionHeader
-            badge={t("home.faqBadge")}
-            title={t("home.faqTitle")}
-            description={t("home.faqDescription")}
-            centered
-          />
-
-          <div className="mt-10 space-y-3">
-            {faqs.map((faq, index) => (
-              <details
-                key={faq.question}
-                open={index === 0}
-                className="group overflow-hidden rounded-card border border-border bg-card shadow-elev-2"
-              >
-                <summary className="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 text-left font-semibold marker:content-none">
-                  <span>{faq.question}</span>
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface-muted text-foreground/60 transition group-open:rotate-180">
-                    <ChevronRight className="h-4 w-4 rotate-90" />
-                  </span>
-                </summary>
-                <div className="px-6 pb-6 text-sm leading-7 text-foreground/60">{faq.answer}</div>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
-    )
   };
 
   return (
@@ -547,40 +515,19 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
         </div>
       </section>
 
+
+      {/*
+        Platform statistics, now their own band.
+
+        They used to live inside the "How it works" section, sharing its
+        <section> wrapper — so removing that section took the numbers with it.
+        They are admin-managed (Admin -> Settings) and were explicitly meant to
+        stay, so they get their own band with the same padding rhythm as the
+        sections around them rather than being grafted onto a neighbour.
+      */}
       <section className="bg-background px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-6xl">
-          <SectionHeader
-            badge={t("home.howItWorksBadge")}
-            title={
-              <>
-                {t("home.howItWorksTitle")} <span className="text-primary">{t("home.howItWorksAccent")}</span>
-              </>
-            }
-            description={t("home.howItWorksDescription")}
-            centered
-          />
-
-          <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {steps.map((step, index) => (
-              <Reveal key={step.title} className="group relative" delayMs={index * 100}>
-                <article className="rounded-card border border-border bg-card p-6 shadow-elev-2 transition-[transform,box-shadow] duration-ui ease-ui hover:-translate-y-0.5 hover:shadow-elev-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-5xl font-bold text-primary/15">{step.number}</span>
-                    <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary transition group-hover:bg-primary/15">
-                      <step.icon className="h-5 w-5" />
-                    </span>
-                  </div>
-                  <h3 className="mt-6 font-heading text-xl font-bold">{step.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-foreground/60">{step.text}</p>
-                </article>
-                {index < steps.length - 1 ? (
-                  <ChevronRight className="absolute right-[-18px] top-1/2 hidden h-5 w-5 -translate-y-1/2 text-foreground/25 lg:block" />
-                ) : null}
-              </Reveal>
-            ))}
-          </div>
-
-          <div className="mt-14 grid grid-cols-2 gap-6 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
             {platformStats.map((stat) => (
               <div key={stat.key} className="text-center">
                 <p className="text-3xl font-bold text-primary sm:text-4xl">{stat.value}</p>
@@ -593,12 +540,6 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
 
       {sectionOrder.map((key) => sectionRenderers[key] ?? null)}
 
-      {/* Structurally fixed, like the hero and the closing CTA, rather than an
-          admin-toggleable section. Where it sits is the point: the marketplace
-          pattern puts trust immediately before the final call to action,
-          because that is the moment a visitor decides whether to act. It is
-          also not a section anyone should be able to switch off. */}
-      <TrustSection />
 
       <section className="relative overflow-hidden px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="absolute inset-0">
@@ -712,92 +653,6 @@ function SectionHeader({
   );
 }
 
-function getSteps(locale: "en" | "ru" | "kz") {
-  if (locale === "ru") {
-    return [
-      {
-        icon: Users,
-        number: "01",
-        title: "Создайте профиль",
-        text: "Укажите бюджет, университет, образ жизни и дату заезда, чтобы получать более точные совпадения."
-      },
-      {
-        icon: Search,
-        number: "02",
-        title: "Ищите и фильтруйте",
-        text: "Подбирайте комнаты и соседей по городу, кампусу, бюджету и совместимости."
-      },
-      {
-        icon: MessageCircle,
-        number: "03",
-        title: "Общайтесь заранее",
-        text: "Напишите потенциальным соседям, сравните ожидания и обсудите важные детали до встречи."
-      },
-      {
-        icon: Home,
-        number: "04",
-        title: "Заселяйтесь уверенно",
-        text: "Выбирайте лучший вариант и планируйте переезд вместе без лишнего стресса."
-      }
-    ];
-  }
-
-  if (locale === "kz") {
-    return [
-      {
-        icon: Users,
-        number: "01",
-        title: "Профиль жасаңыз",
-        text: "Дәлірек сәйкестік алу үшін бюджетіңізді, университетіңізді, өмір салтыңызды және көшу күніңізді енгізіңіз."
-      },
-      {
-        icon: Search,
-        number: "02",
-        title: "Іздеп, сүзгіден өткізіңіз",
-        text: "Қала, кампус, бюджет және үйлесім бойынша бөлмелер мен roommate табыңыз."
-      },
-      {
-        icon: MessageCircle,
-        number: "03",
-        title: "Алдын ала сөйлесіңіз",
-        text: "Кездеспей тұрып, ықтимал көршілерге жазып, күтілімдер мен маңызды детальдарды талқылаңыз."
-      },
-      {
-        icon: Home,
-        number: "04",
-        title: "Сенімді қоныстаныңыз",
-        text: "Ең қолайлы нұсқаны таңдап, көшуді бірге жоспарлаңыз."
-      }
-    ];
-  }
-
-  return [
-    {
-      icon: Users,
-      number: "01",
-      title: "Create Profile",
-      text: "Sign up and share your budget, university, lifestyle, and move-in preferences."
-    },
-    {
-      icon: Search,
-      number: "02",
-      title: "Browse & Filter",
-      text: "Search rooms and roommates by city, university, budget, and compatibility."
-    },
-    {
-      icon: MessageCircle,
-      number: "03",
-      title: "Connect & Chat",
-      text: "Message potential roommates early, compare expectations, and ask the right questions."
-    },
-    {
-      icon: Home,
-      number: "04",
-      title: "Move In Together",
-      text: "Choose the right fit with more confidence and plan the next chapter together."
-    }
-  ];
-}
 
 /**
  * Platform stat tiles. Numeric values come from the admin-configured stats
@@ -849,92 +704,3 @@ function getRoommateHighlights(locale: "en" | "ru" | "kz") {
   ];
 }
 
-function getFaqs(locale: "en" | "ru" | "kz") {
-  if (locale === "ru") {
-    return [
-      {
-        question: "Как работает подбор соседа?",
-        answer:
-          "Система сравнивает бюджет, дату заезда, чистоту, режим сна, гостей и другие привычки, чтобы сильные совпадения поднимались выше."
-      },
-      {
-        question: "Насколько безопасен Roomi?",
-        answer:
-          "Платформа строится вокруг проверенных профилей, деталей жилья и прозрачной активности, чтобы студентам было спокойнее принимать решения."
-      },
-      {
-        question: "Сколько это стоит?",
-        answer:
-          "Поиск объявлений, соседей и старт общения остаются доступными, пока продукт растет и дополняется новыми инструментами."
-      },
-      {
-        question: "Можно ли разместить свою комнату или квартиру?",
-        answer:
-          "Да. Вы можете опубликовать объявление, добавить фотографии, указать пожелания к соседу и общаться напрямую с заинтересованными людьми."
-      },
-      {
-        question: "Какие города покрывает сервис?",
-        answer:
-          "Сейчас акцент на крупнейших студенческих центрах, таких как Алматы и Астана, с возможностью дальнейшего расширения."
-      }
-    ];
-  }
-
-  if (locale === "kz") {
-    return [
-      {
-        question: "Roommate matching қалай жұмыс істейді?",
-        answer:
-          "Жүйе бюджет, көшу уақыты, тазалық, ұйқы тәртібі, қонақтар және басқа әдеттерді салыстырып, мықты сәйкестіктерді жоғары қояды."
-      },
-      {
-        question: "Roomi қолдану қауіпсіз бе?",
-        answer:
-          "Платформа тексерілген профильдерге, тұрғын үй ақпаратына және ашық белсенділікке сүйеніп, студенттерге сенімдірек шешім қабылдауға көмектеседі."
-      },
-      {
-        question: "Қанша тұрады?",
-        answer:
-          "Хабарландыруларды көру, roommate іздеу және сөйлесуді бастау әзірге қолжетімді және қарапайым болып қалады."
-      },
-      {
-        question: "Өз бөлмемді немесе пәтерімді жариялай аламын ба?",
-        answer:
-          "Иә. Хабарландыру жариялап, фотосурет қосып, roommate талғамын көрсетіп, қызыққан адамдармен тікелей байланыса аласыз."
-      },
-      {
-        question: "Қай қалалар қамтылған?",
-        answer:
-          "Қызмет қазір Алматы мен Астана сияқты негізгі студенттік хабтарға бағытталған және кейін кеңейе алады."
-      }
-    ];
-  }
-
-  return [
-    {
-      question: "How does the roommate matching work?",
-      answer:
-        "Our match score compares budget, move-in timing, cleanliness, sleep schedule, guests, and other lifestyle preferences so you can shortlist better fits faster."
-    },
-    {
-      question: "Is it safe to use Roomi?",
-      answer:
-        "The platform is designed around verified profiles, room details, and reportable activity so students can make more confident decisions before meeting."
-    },
-    {
-      question: "How much does it cost?",
-      answer:
-        "Browsing listings, discovering roommates, and starting conversations can remain accessible while the product grows with premium tools later if needed."
-    },
-    {
-      question: "Can I list my room or apartment?",
-      answer:
-        "Yes. You can publish a listing, add photos, set roommate preferences, and connect directly with interested students or young professionals."
-    },
-    {
-      question: "What cities in Kazakhstan do you cover?",
-      answer:
-        "The experience is designed around major student hubs like Almaty and Astana, with room to expand as the listing network grows."
-    }
-  ];
-}

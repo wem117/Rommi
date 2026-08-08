@@ -54,8 +54,7 @@ export const DEFAULT_HOMEPAGE_SECTIONS: HomepageSection[] = [
   { key: "universities", visible: true },
   { key: "featured_listings", visible: true },
   { key: "featured_roommates", visible: true },
-  { key: "testimonials", visible: true },
-  { key: "faq", visible: true }
+  { key: "testimonials", visible: true }
 ];
 
 export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {

@@ -20,8 +20,7 @@ const SECTION_LABELS: Record<string, string> = {
   universities: "University hubs",
   featured_listings: "Featured listings",
   featured_roommates: "Featured roommates",
-  testimonials: "Testimonials",
-  faq: "FAQ"
+  testimonials: "Testimonials"
 };
 
 const EMPTY_LOCALE: LocaleHero = { title: "", subtitle: "" };

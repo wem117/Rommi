@@ -112,7 +112,37 @@ const translations = {
       testimonialTitle: "What Our Users Say",
       faqBadge: "FAQ",
       faqTitle: "Frequently Asked Questions",
-      faqDescription: "Everything you need to know about finding roommates in Kazakhstan.",
+      faqDescription: "How Roomi works, what we check, and what stays your call — so you can use the platform with confidence.",
+      faq_about_q: "What is Roomi?",
+      faq_about_a:
+        "Roomi is a housing platform for students and young professionals in Kazakhstan. You can browse rooms and apartments, publish a listing of your own, and find people to share with — filtered by city, university and budget.",
+      faq_how_q: "How does Roomi work?",
+      faq_how_a:
+        "Create a profile with your budget, university, move-in date and lifestyle preferences. Browse listings and roommate profiles, narrow them down with filters, then contact the person directly. Roomi helps you find and compare options — the rental agreement itself is between you and the owner.",
+      faq_verified_q: "Are Roomi listings verified?",
+      faq_verified_a:
+        "Every listing is reviewed by our team before it goes public: a submission starts as pending and only appears once it has been approved. Members can also confirm their identity with a document, and those profiles carry a verified badge. To be precise about what that means — the badge says a document was checked, not that anyone has inspected the property in person.",
+      faq_free_q: "Is Roomi free to use?",
+      faq_free_a:
+        "Yes. Browsing listings, publishing a listing and contacting people are all free. Roomi does not handle rent or deposits — any money is arranged directly between you and the owner.",
+      faq_roommate_q: "How can I find a roommate?",
+      faq_roommate_a:
+        "Open Roommates and filter by city, university, budget, age and gender. Profiles are ranked by a compatibility score that weighs lifestyle habits — smoking, pets, cleanliness, sleep schedule and guests — alongside how far your budgets, universities and move-in dates overlap.",
+      faq_list_q: "How do I list a room or find someone to share with?",
+      faq_list_a:
+        "Use “List a room” to publish a place you are offering, with photos, price, location and the kind of roommate you are looking for. If you are searching rather than offering, complete your profile and mark that you are looking — that is what puts you in the Roommates directory.",
+      faq_contact_q: "How do I contact a roommate or listing owner?",
+      faq_contact_a:
+        "Sign in, then use the contact button on the listing or profile. Phone numbers and messenger handles are never shown to signed-out visitors, so an account is required to see them — and the same protection applies to your own details.",
+      faq_safety_q: "How does Roomi help keep users safe?",
+      faq_safety_a:
+        "Three things: listings are reviewed before they are published, identity verification is available to members, and contact details stay hidden from anonymous visitors. The rest is down to ordinary caution — view the room in person, meet the owner, and do not transfer a deposit for a place you have not seen.",
+      faq_report_q: "What should I do if I find a suspicious listing?",
+      faq_report_a:
+        "Use the report option on the listing and describe what looks wrong. Reports go to our moderators, who can take the listing down. If something feels off, do not send money first and ask questions later.",
+      faq_cities_q: "Which cities in Kazakhstan are available on Roomi?",
+      faq_cities_a:
+        "You can search across 17 cities, including Almaty, Astana, Shymkent, Karaganda and Aktobe. Listings cluster around the main university cities, so how much is available varies from one city to the next.",
       ctaTitle: "Ready to Find Your Perfect Roommate?",
       ctaDescription: "Join thousands of students and young professionals already using Roomi.",
       startSearching: "Start Searching",
@@ -776,7 +806,37 @@ const translations = {
       testimonialTitle: "Отзывы пользователей",
       faqBadge: "FAQ",
       faqTitle: "Частые вопросы",
-      faqDescription: "Все, что нужно знать о поиске соседей в Казахстане.",
+      faqDescription: "Как работает Roomi, что мы проверяем и что остается на ваше усмотрение — чтобы вы пользовались платформой уверенно.",
+      faq_about_q: "Что такое Roomi?",
+      faq_about_a:
+        "Roomi — платформа поиска жилья для студентов и молодых специалистов в Казахстане. Здесь можно смотреть комнаты и квартиры, публиковать собственное объявление и находить людей для совместной аренды — с фильтрами по городу, университету и бюджету.",
+      faq_how_q: "Как работает Roomi?",
+      faq_how_a:
+        "Создайте профиль: бюджет, университет, дата заезда и привычки. Просматривайте объявления и профили соседей, сужайте выбор фильтрами и связывайтесь напрямую. Roomi помогает найти и сравнить варианты — договор об аренде вы заключаете с собственником сами.",
+      faq_verified_q: "Проверяются ли объявления на Roomi?",
+      faq_verified_a:
+        "Каждое объявление проверяет наша команда до публикации: сначала оно получает статус «на рассмотрении» и появляется на сайте только после одобрения. Участники также могут подтвердить личность документом — такие профили получают значок «проверен». Уточним, что это значит: значок подтверждает проверку документа, а не осмотр жилья.",
+      faq_free_q: "Roomi бесплатный?",
+      faq_free_a:
+        "Да. Просмотр объявлений, публикация объявления и связь с людьми — бесплатны. Roomi не проводит платежи за аренду и не принимает депозиты: деньги вы передаете собственнику напрямую.",
+      faq_roommate_q: "Как найти соседа?",
+      faq_roommate_a:
+        "Откройте раздел «Соседи» и отфильтруйте по городу, университету, бюджету, возрасту и полу. Профили ранжируются по оценке совместимости: она учитывает привычки — курение, животных, чистоту, режим сна и гостей — а также совпадение бюджета, университета и даты заезда.",
+      faq_list_q: "Как разместить комнату или найти человека для совместной аренды?",
+      faq_list_a:
+        "Нажмите «Разместить комнату», чтобы опубликовать жилье: фотографии, цена, район и пожелания к соседу. Если вы, наоборот, ищете жилье — заполните профиль и отметьте, что вы в поиске: тогда вы появитесь в разделе «Соседи».",
+      faq_contact_q: "Как связаться с соседом или владельцем жилья?",
+      faq_contact_a:
+        "Войдите в аккаунт и нажмите кнопку связи в объявлении или профиле. Номера телефонов и контакты в мессенджерах никогда не показываются гостям без входа, поэтому для их просмотра нужен аккаунт — и ваши контакты защищены точно так же.",
+      faq_safety_q: "Как Roomi помогает обеспечить безопасность?",
+      faq_safety_a:
+        "Три вещи: объявления проверяются до публикации, участникам доступно подтверждение личности, а контакты скрыты от анонимных посетителей. Остальное — обычная осторожность: посмотрите комнату лично, познакомьтесь с собственником и не переводите депозит за жилье, которого вы не видели.",
+      faq_report_q: "Что делать, если объявление кажется подозрительным?",
+      faq_report_a:
+        "Нажмите «Пожаловаться» в объявлении и опишите, что вас насторожило. Жалобы поступают модераторам, которые могут снять объявление. Если что-то смущает — не отправляйте деньги.",
+      faq_cities_q: "Какие города Казахстана доступны на Roomi?",
+      faq_cities_a:
+        "Поиск охватывает 17 городов, включая Алматы, Астану, Шымкент, Караганду и Актобе. Больше всего объявлений вокруг основных студенческих городов, поэтому количество вариантов отличается от города к городу.",
       ctaTitle: "Готовы найти идеального соседа?",
       ctaDescription: "Присоединяйтесь к тысячам студентов и молодых специалистов на Roomi.",
       startSearching: "Начать поиск",
@@ -1438,7 +1498,37 @@ const translations = {
       testimonialTitle: "Пайдаланушы пікірі",
       faqBadge: "FAQ",
       faqTitle: "Жиі қойылатын сұрақтар",
-      faqDescription: "Қазақстанда roommate іздеу туралы білуіңіз керек нәрсенің бәрі.",
+      faqDescription: "Roomi қалай жұмыс істейді, біз нені тексереміз және не сіздің шешіміңізде қалады — платформаны сеніммен пайдалану үшін.",
+      faq_about_q: "Roomi деген не?",
+      faq_about_a:
+        "Roomi — Қазақстандағы студенттер мен жас мамандарға арналған тұрғын үй платформасы. Мұнда бөлмелер мен пәтерлерді қарауға, өз хабарландыруыңызды жариялауға және бірге тұратын адам табуға болады — қала, университет және бюджет бойынша сүзгілермен.",
+      faq_how_q: "Roomi қалай жұмыс істейді?",
+      faq_how_a:
+        "Профиль жасаңыз: бюджет, университет, көшу күні және өмір салты. Хабарландырулар мен көрші профильдерін қарап, сүзгілермен таңдауды тарылтыңыз да, тікелей хабарласыңыз. Roomi нұсқаларды табуға және салыстыруға көмектеседі — жалдау келісімін сіз үй иесімен өзіңіз жасайсыз.",
+      faq_verified_q: "Roomi хабарландырулары тексеріле ме?",
+      faq_verified_a:
+        "Әрбір хабарландыруды жариялау алдында біздің команда тексереді: ол алдымен «қаралуда» күйін алады және мақұлданғаннан кейін ғана сайтта көрінеді. Сондай-ақ мүшелер жеке басын құжатпен растай алады — мұндай профильдерде «тексерілген» белгісі болады. Нақтылай кетейік: бұл белгі құжаттың тексерілгенін білдіреді, тұрғын үйдің қаралғанын емес.",
+      faq_free_q: "Roomi тегін бе?",
+      faq_free_a:
+        "Иә. Хабарландыруларды қарау, хабарландыру жариялау және адамдармен байланысу — тегін. Roomi жалдау ақысын да, кепілақыны да қабылдамайды: ақшаны үй иесіне тікелей бересіз.",
+      faq_roommate_q: "Қалай көрші табуға болады?",
+      faq_roommate_a:
+        "«Көршілер» бөлімін ашып, қала, университет, бюджет, жас және жыныс бойынша сүзгіден өткізіңіз. Профильдер үйлесімділік бағасы бойынша сұрыпталады: ол әдеттерді — темекі, үй жануарлары, тазалық, ұйқы тәртібі және қонақтар — сондай-ақ бюджет, университет пен көшу күнінің сәйкестігін ескереді.",
+      faq_list_q: "Бөлме жариялау немесе бірге тұратын адам табу қалай?",
+      faq_list_a:
+        "Ұсынатын тұрғын үйіңізді жариялау үшін «Бөлме жариялау» түймесін басыңыз: фотосуреттер, баға, аудан және көршіге қойылатын талаптар. Егер керісінше іздеп жүрсеңіз — профильді толтырып, іздеп жүргеніңізді белгілеңіз: сонда сіз «Көршілер» бөлімінде көрінесіз.",
+      faq_contact_q: "Көршімен немесе үй иесімен қалай байланысамын?",
+      faq_contact_a:
+        "Аккаунтқа кіріп, хабарландырудағы немесе профильдегі байланыс түймесін басыңыз. Телефон нөмірлері мен мессенджер контактілері кірмеген қонақтарға ешқашан көрсетілмейді, сондықтан оларды көру үшін аккаунт қажет — сіздің контактілеріңіз де дәл солай қорғалады.",
+      faq_safety_q: "Roomi қауіпсіздікті қалай қамтамасыз етеді?",
+      faq_safety_a:
+        "Үш нәрсе: хабарландырулар жарияланғанға дейін тексеріледі, мүшелерге жеке басты растау қолжетімді, ал контактілер анонимді қонақтардан жасырылады. Қалғаны — қарапайым сақтық: бөлмені өзіңіз барып көріңіз, үй иесімен танысыңыз және көрмеген тұрғын үй үшін кепілақы аудармаңыз.",
+      faq_report_q: "Күдікті хабарландыру тапсам не істеймін?",
+      faq_report_a:
+        "Хабарландырудағы «Шағымдану» опциясын пайдаланып, не күдік тудырғанын жазыңыз. Шағымдар модераторларға түседі, олар хабарландыруды алып тастай алады. Бірдеңе күмән тудырса — ақша жібермеңіз.",
+      faq_cities_q: "Roomi-де Қазақстанның қай қалалары бар?",
+      faq_cities_a:
+        "Іздеу 17 қаланы қамтиды, оның ішінде Алматы, Астана, Шымкент, Қарағанды және Ақтөбе. Хабарландырулар негізгі студенттік қалалардың айналасында шоғырланған, сондықтан нұсқалар саны қалаға қарай өзгереді.",
       ctaTitle: "Өзіңіздің тамаша көршіңізді табуға дайынсыз ба?",
       ctaDescription: "Roomi қолданатын мыңдаған студенттер мен жас мамандарға қосылыңыз.",
       startSearching: "Іздеуді бастау",

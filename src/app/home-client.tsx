@@ -27,6 +27,8 @@ import { useLocale } from "@/context/locale-context";
 import { CITIES } from "@/lib/constants/cities";
 import { DEFAULT_HOMEPAGE_SECTIONS, type PublicSettings } from "@/lib/data/public-settings";
 import { type Testimonial } from "@/lib/data/testimonials";
+import { FaqSection } from "@/components/home/faq-section";
+import { SectionHeader } from "@/components/home/section-header";
 import { TestimonialsFlow } from "@/components/home/testimonials-flow";
 import { universityDisplayName, type UniversityWithStats } from "@/lib/data/universities";
 import { formatNumber } from "@/lib/utils/format";
@@ -160,13 +162,13 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
   ];
 
   // The admin-reorderable/toggleable sections (Admin > Homepage). The hero, the
-  // statistics band and the final CTA stay structurally fixed: they carry the
-  // primary search, the platform figures and the closing conversion action.
+  // statistics band, the FAQ and the final CTA stay structurally fixed: they
+  // carry the primary search, the platform figures, the answers a first-time
+  // visitor needs, and the closing conversion action.
   //
-  // `faq` was removed from the homepage layout; its copy is preserved in
-  // lib/content/homepage-sections.ts. A saved settings row may still list the
-  // key — `sectionRenderers[key] ?? null` renders nothing for it, so an old
-  // configuration degrades quietly rather than throwing.
+  // `sectionRenderers[key] ?? null` renders nothing for a key that no longer
+  // exists, so a settings row saved against an older layout degrades quietly
+  // rather than throwing.
   const sectionRenderers: Record<string, ReactNode> = {
     // Sections with no real content render nothing (null is skipped below).
     featured_listings: featuredListings.length === 0 ? null : (
@@ -334,7 +336,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
           className="absolute inset-0 bg-[radial-gradient(ellipse_125%_78%_at_50%_46%,rgba(17,16,12,0.50)_0%,rgba(17,16,12,0.44)_52%,rgba(17,16,12,0)_88%)]"
         />
 
-        <div className="relative z-10 mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+        <div className="relative z-10 mx-auto max-w-7xl px-4 pb-6 pt-6 sm:px-6 sm:pb-10 lg:px-8">
           <nav className="fixed inset-x-0 top-0 z-30 px-3 sm:px-6 lg:px-8">
             <div className="mx-auto mt-4 max-w-7xl rounded-card border border-white/15 bg-[rgba(16,14,12,0.5)] shadow-elev-5 backdrop-blur-md">
               <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-6 sm:py-3">
@@ -447,12 +449,19 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
             </div>
           </nav>
 
-          {/* Min-heights reduced by what the statistics row occupied (~96px
-              mobile, ~120px from `sm` up). The hero centres its content, so
-              leaving them at 520/760/820 would not have moved the copy — it
-              would have padded the same box with more empty photograph above
-              and below it. These keep the previous content-to-space ratio. */}
-          <div className="flex min-h-[440px] items-center justify-center py-16 sm:min-h-[640px] sm:py-28 lg:min-h-[700px]">
+          {/*
+            Padding is asymmetric on purpose. The navigation is `fixed`, so the
+            top padding is clearance for it (outer pt-6 + pt-24/28 here) and
+            cannot shrink much. The bottom had no such job: it was carrying the
+            same py-16/py-28 as the top ON TOP OF the wrapper's own pb-16, so
+            the hero ended 128px (mobile) / 176px (desktop) below the search
+            box. That doubled padding was the empty band left behind when the
+            statistics row came out, not the min-height.
+
+            min-h is now only a floor for short viewports — on mobile the
+            content (~536px) exceeds it, so the section is content-sized.
+          */}
+          <div className="flex min-h-[400px] items-center justify-center pb-6 pt-24 sm:min-h-[500px] sm:pb-10 sm:pt-28 lg:min-h-[540px]">
             <div className="w-full max-w-4xl text-center">
               {/*
                 The text-shadow is the third layer of defence: it holds the
@@ -530,6 +539,11 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
 
       {sectionOrder.map((key) => sectionRenderers[key] ?? null)}
 
+      {/* Structurally mounted, like the statistics band and the closing CTA:
+          it answers the questions a first-time visitor has immediately before
+          they are asked to act, so it sits directly ahead of the CTA. */}
+      <FaqSection />
+
 
       <section className="relative overflow-hidden px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="absolute inset-0">
@@ -603,45 +617,6 @@ function MobileNavLink({
   );
 }
 
-function SectionHeader({
-  badge,
-  title,
-  description,
-  centered = false,
-  light = false
-}: {
-  badge?: string;
-  title: React.ReactNode;
-  description?: string;
-  centered?: boolean;
-  light?: boolean;
-}) {
-  return (
-    <div className={centered ? "text-center" : ""}>
-      {badge ? (
-        <span
-          className={`inline-flex rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] ${
-            light ? "bg-white/10 text-white/80" : "bg-accent/10 text-accent"
-          }`}
-        >
-          {badge}
-        </span>
-      ) : null}
-      <h2 className={`mt-3 text-2xl font-bold sm:mt-4 sm:text-4xl ${light ? "text-white" : "text-foreground"}`}>
-        {title}
-      </h2>
-      {description ? (
-        <p
-          className={`mt-2 max-w-2xl text-sm leading-6 sm:mt-3 sm:leading-7 sm:text-base ${centered ? "mx-auto" : ""} ${
-            light ? "text-white/75" : "text-foreground/60"
-          }`}
-        >
-          {description}
-        </p>
-      ) : null}
-    </div>
-  );
-}
 
 
 /**

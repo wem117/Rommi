@@ -35,6 +35,8 @@ export async function POST(request: Request) {
         image_url: input.imageUrl || null,
         badge: input.badge,
         rating: input.rating,
+        university: input.university,
+        city: input.city,
         position: input.position,
         active: input.active
       })

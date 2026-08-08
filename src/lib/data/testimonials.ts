@@ -12,6 +12,8 @@ export interface Testimonial {
   badge: string;
   /** 1-5, set by the admin publishing the quote. See migration 20240101003800. */
   rating: number;
+  university: string;
+  city: string;
 }
 
 /**
@@ -22,6 +24,8 @@ export const DEMO_TESTIMONIALS: Testimonial[] = [
   {
     id: "demo-1",
     rating: 5,
+    university: "",
+    city: "",
     name: "Madina",
     role: "Student at KazNU",
     badge: "Verified Tenant",
@@ -33,6 +37,8 @@ export const DEMO_TESTIMONIALS: Testimonial[] = [
   {
     id: "demo-2",
     rating: 5,
+    university: "",
+    city: "",
     name: "Alikhan",
     role: "Student at Nazarbayev University",
     badge: "Verified Tenant",
@@ -44,6 +50,8 @@ export const DEMO_TESTIMONIALS: Testimonial[] = [
   {
     id: "demo-3",
     rating: 5,
+    university: "",
+    city: "",
     name: "Aigerim",
     role: "Young professional in Almaty",
     badge: "Verified Host",
@@ -62,6 +70,8 @@ type TestimonialRow = {
   image_url: string | null;
   badge: string | null;
   rating: number | null;
+  university: string | null;
+  city: string | null;
 };
 
 export function mapTestimonialRow(row: TestimonialRow): Testimonial {
@@ -75,7 +85,9 @@ export function mapTestimonialRow(row: TestimonialRow): Testimonial {
     // Rows written before the column existed read as null, not 0 — falling back
     // to 5 keeps them rendering as they always did rather than showing an empty
     // star row that would look like a one-star review.
-    rating: row.rating ?? 5
+    rating: row.rating ?? 5,
+    university: row.university ?? "",
+    city: row.city ?? ""
   };
 }
 

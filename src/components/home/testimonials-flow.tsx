@@ -78,9 +78,14 @@ function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
         </div>
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-foreground">{testimonial.name}</div>
-          {testimonial.role ? (
-            <div className="truncate text-xs text-foreground/55">{testimonial.role}</div>
-          ) : null}
+          {/* Structured university + city, falling back to the legacy free-text
+              `role` for rows written before those columns existed. Joined here
+              rather than stored pre-joined so the separator stays a design
+              decision instead of something an admin has to type correctly. */}
+          {(() => {
+            const meta = [testimonial.university, testimonial.city].filter(Boolean).join(" · ") || testimonial.role;
+            return meta ? <div className="truncate text-xs text-foreground/55">{meta}</div> : null;
+          })()}
         </div>
       </figcaption>
     </figure>

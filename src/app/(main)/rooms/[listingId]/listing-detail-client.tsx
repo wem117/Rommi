@@ -15,6 +15,7 @@ import { ListingDescription } from "@/components/listings/listing-description";
 import { ListingGallery } from "@/components/listings/listing-gallery";
 import { ListingGrid } from "@/components/listings/listing-grid";
 import { ListingOwnerCard } from "@/components/listings/listing-owner-card";
+import { ListingStickyCta } from "@/components/listings/listing-sticky-cta";
 import { LazyMap } from "@/components/map/lazy-map";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
@@ -120,7 +121,8 @@ export default function ListingDetailClient({
   );
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-12 pt-4 sm:px-6 sm:pt-6 lg:px-8">
+    <>
+    <main className="mx-auto max-w-6xl px-4 pb-28 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pb-12">
       <ListingGallery photos={listing.photoUrls} title={listing.title} />
 
       {/*
@@ -356,6 +358,9 @@ export default function ListingDetailClient({
         </div>
       </div>
     </main>
+
+      <ListingStickyCta listing={listing} owner={owner} />
+    </>
   );
 }
 

@@ -3,16 +3,13 @@
 import { Heart, Mail, Pencil, UserCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 import { ContactLinks } from "@/components/shared/contact-links";
 import { SafetyTips, SecurePlatformNote, VerifiedBadge } from "@/components/shared/trust-signals";
 import { useAuth } from "@/context/auth-context";
 import { useLocale } from "@/context/locale-context";
-import { createConversation } from "@/hooks/use-conversations";
 import { useFavorites } from "@/hooks/use-favorites";
-import { recordContactedListing } from "@/lib/data/profiles";
+import { useMessageOwner } from "@/hooks/use-message-owner";
 import type { Listing } from "@/types/listing";
 import type { UserProfile } from "@/types/user";
 
@@ -48,35 +45,13 @@ export function ListingOwnerCard({
   /** `sidebar` sticks on desktop; `inline` is the mobile flow position. */
   variant?: "sidebar" | "inline";
 }) {
-  const router = useRouter();
   const { user } = useAuth();
   const { t, locale } = useLocale();
   const { isFavorite, toggleFavorite } = useFavorites();
-  const [messageLoading, setMessageLoading] = useState(false);
+  const { messageOwner, loading: messageLoading } = useMessageOwner(listing, owner);
 
   const saved = isFavorite(listing.id);
   const isOwnListing = user?.uid === listing.ownerId;
-
-  async function handleMessage() {
-    if (!owner) return;
-    if (!user) {
-      router.push(`/sign-in?redirect=/rooms/${listing.id}`);
-      return;
-    }
-
-    setMessageLoading(true);
-    try {
-      void recordContactedListing(user.uid, listing.id);
-      const conversationId = await createConversation({
-        participantIds: [user.uid, owner.uid],
-        listingId: listing.id,
-        listingTitle: listing.title
-      });
-      router.push(`/inbox/${conversationId}`);
-    } finally {
-      setMessageLoading(false);
-    }
-  }
 
   const memberSince = owner?.createdAt
     ? new Intl.DateTimeFormat(locale === "kz" ? "kk" : locale, { year: "numeric" }).format(owner.createdAt)
@@ -120,7 +95,7 @@ export function ListingOwnerCard({
       {/* Primary action. min-h-11 keeps the tap target >= 44px on mobile. */}
       <button
         type="button"
-        onClick={() => void handleMessage()}
+        onClick={() => void messageOwner()}
         disabled={messageLoading || !owner}
         className="mt-3.5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 active:scale-[0.99] disabled:opacity-60"
       >

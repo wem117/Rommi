@@ -54,6 +54,12 @@ api.roomi.kz {
 }
 
 studio.roomi.kz {
+	# The password hash is NOT stored in this repository. Generate one with
+	#     caddy hash-password --plaintext '<password>'
+	# and paste it in when applying this file to the host. A bcrypt hash is
+	# still a credential: publishing it to a git remote hands an attacker an
+	# offline cracking target, and git history keeps it even after a later
+	# edit removes it.
 	# `/*` not `/` — see note 3. Caddy v2 path matchers are exact unless they
 	# end in a wildcard, so the previous form left every real route open.
 	basicauth /* {

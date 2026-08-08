@@ -6,6 +6,7 @@ import { useMemo } from "react";
 
 import { useLocale } from "@/context/locale-context";
 import type { Testimonial } from "@/lib/data/testimonials";
+import { buildRows } from "@/lib/utils/testimonial-rows";
 
 /**
  * Two rows of testimonials flowing in opposite directions, forever.
@@ -108,9 +109,14 @@ function FlowRow({
         data-direction={direction}
         style={{ ["--flow-duration" as string]: `${durationSeconds}s` }}
       >
-        {/* The real set — the one screen readers read. */}
-        {items.map((testimonial) => (
-          <TestimonialCard key={testimonial.id} testimonial={testimonial} />
+        {/* The real set — the one screen readers read.
+            The key is the DATABASE id plus its slot: the id alone is not unique
+            once `repeatToFill` has repeated the sequence to fill the row, and
+            duplicate keys make React reuse the wrong card when the list changes.
+            The id stays the stable part, so a reorder still moves a card rather
+            than remounting the row. */}
+        {items.map((testimonial, slot) => (
+          <TestimonialCard key={`${testimonial.id}-${slot}`} testimonial={testimonial} />
         ))}
 
         {/*
@@ -120,8 +126,8 @@ function FlowRow({
           cannot be reached by keyboard either.
         */}
         <div className="roomi-flow-duplicate flex" aria-hidden="true">
-          {items.map((testimonial) => (
-            <TestimonialCard key={`dup-${testimonial.id}`} testimonial={testimonial} />
+          {items.map((testimonial, slot) => (
+            <TestimonialCard key={`dup-${testimonial.id}-${slot}`} testimonial={testimonial} />
           ))}
         </div>
       </div>
@@ -132,20 +138,19 @@ function FlowRow({
 export function TestimonialsFlow({ testimonials }: { testimonials: Testimonial[] }) {
   const { t } = useLocale();
 
-  // Split into two rows so they can travel in opposite directions. With a small
-  // number of testimonials both rows get the full set (offset by rotation) —
-  // otherwise a row of two cards would show a visible gap between copies.
   const { topRow, bottomRow, duration } = useMemo(() => {
-    const enough = testimonials.length >= 6;
-    const top = enough ? testimonials.filter((_, i) => i % 2 === 0) : testimonials;
-    const rest = enough ? testimonials.filter((_, i) => i % 2 === 1) : testimonials;
-    // Rotate the second row so the two rows are not vertically aligned copies
-    // of each other, which would read as a grid sliding rather than two streams.
-    const bottom = rest.length > 1 ? [...rest.slice(1), rest[0]] : rest;
+    // Split into two rows once there is enough material for them to differ.
+    // Below four, both rows carry the whole set: two rows of one card each
+    // would be mostly empty track, and a half-empty marquee looks broken in a
+    // way that showing the same person twice does not.
+    const { top: topFilled, bottom: bottomFilled } = buildRows(testimonials);
     return {
-      topRow: top,
-      bottomRow: bottom,
-      duration: Math.max(28, top.length * SECONDS_PER_CARD)
+      topRow: topFilled,
+      bottomRow: bottomFilled,
+      // Scales with the FILLED length, not the raw record count: the track got
+      // longer when it was repeated, and a fixed duration would make a row of
+      // twelve cards fly past at twice the speed of a row of six.
+      duration: Math.max(28, topFilled.length * SECONDS_PER_CARD)
     };
   }, [testimonials]);
 

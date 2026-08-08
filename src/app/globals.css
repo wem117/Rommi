@@ -46,7 +46,15 @@
    * --primary.
    */
   --primary-on-dark: 166 70% 62%; /* teal #5ae2c2 */
-  --accent: 34 66% 39%; /* gold-brown #a37021 */
+  /*
+   * Darkened from 39% to 32%. As a text colour on its own 10% tint — the badge
+   * treatment used on every homepage section header — 39% gave 3.52:1 against
+   * a 4.5:1 requirement. (The raw hex pair this replaced was worse still, at
+   * 3.07:1, so this was a pre-existing failure rather than a new one.) 32%
+   * gives 4.75:1, and also lifts white-on-accent from 4.40:1 to 6.04:1 for the
+   * filled treatment. Hue and saturation unchanged, so it is the same gold.
+   */
+  --accent: 34 66% 32%; /* gold-brown */
   --accent-foreground: 0 0% 100%;
 
   /* Feedback */

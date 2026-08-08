@@ -33,6 +33,7 @@ import { CITIES } from "@/lib/constants/cities";
 import { DEFAULT_HOMEPAGE_SECTIONS, type PublicSettings } from "@/lib/data/public-settings";
 import { type Testimonial } from "@/lib/data/testimonials";
 import { TestimonialsFlow } from "@/components/home/testimonials-flow";
+import { TrustSection } from "@/components/home/trust-section";
 import { universityDisplayName, type UniversityWithStats } from "@/lib/data/universities";
 import { formatNumber } from "@/lib/utils/format";
 import {
@@ -172,7 +173,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
   const sectionRenderers: Record<string, ReactNode> = {
     // Sections with no real content render nothing (null is skipped below).
     featured_listings: featuredListings.length === 0 ? null : (
-      <section key="featured_listings" className="bg-[#fbf7f0] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
+      <section key="featured_listings" className="bg-surface-muted/40 px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
             <SectionHeader
@@ -202,7 +203,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
       </section>
     ),
     universities: featuredUniversities.length === 0 ? null : (
-      <section key="universities" className="bg-[#fffdf9] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
+      <section key="universities" className="bg-background px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <SectionHeader title={t("home.universityTitle")} description={t("home.universityDescription")} />
@@ -216,7 +217,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
               <Link
                 key={university.id}
                 href={`/rooms?university=${encodeURIComponent(university.name)}`}
-                className="group overflow-hidden rounded-2xl border border-[#efe5d9] bg-white shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl sm:rounded-[1.75rem]"
+                className="group overflow-hidden rounded-2xl border border-border bg-card shadow-elev-2 transition-[transform,box-shadow] duration-ui ease-ui hover:-translate-y-0.5 hover:shadow-elev-3 sm:rounded-card"
               >
                 <div className="relative aspect-[1.6/1] overflow-hidden bg-surface-muted">
                   {university.imageUrl ? (
@@ -244,7 +245,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
                   </h3>
                   <p className="mt-1 text-xs text-foreground/55 sm:mt-2 sm:text-sm">
                     {university.listingsCount} {t("home.listingsWord")}
-                    <span className="mx-1.5 text-[#d3c6b7] sm:mx-2">|</span>
+                    <span className="mx-1.5 text-foreground/25 sm:mx-2">|</span>
                     {university.roommatesCount} {t("home.studentsWord")}
                   </p>
                 </div>
@@ -268,7 +269,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
             <div className="mt-8 space-y-4">
               {roommateHighlights.map((item) => (
                 <div key={item} className="flex items-center gap-3 text-sm text-white/90">
-                  <CheckCircle2 className="h-4 w-4 text-[#f8d79a]" />
+                  <CheckCircle2 className="h-4 w-4 text-highlight" />
                   {item}
                 </div>
               ))}
@@ -276,7 +277,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
 
             <Link
               href="/roommates"
-              className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-primary transition hover:bg-[#f6f1e7]"
+              className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-primary transition hover:bg-surface-muted"
             >
               {t("home.browseAllRoommates")}
               <ArrowRight className="h-4 w-4" />
@@ -299,7 +300,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
     // The section key is unchanged, so admin ordering and visibility still work.
     testimonials: <TestimonialsFlow key="testimonials" testimonials={testimonials} />,
     faq: (
-      <section key="faq" className="bg-[#fbf7f0] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
+      <section key="faq" className="bg-surface-muted/40 px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-4xl">
           <SectionHeader
             badge={t("home.faqBadge")}
@@ -313,11 +314,11 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
               <details
                 key={faq.question}
                 open={index === 0}
-                className="group overflow-hidden rounded-[1.5rem] border border-[#ede2d4] bg-white shadow-soft"
+                className="group overflow-hidden rounded-card border border-border bg-card shadow-elev-2"
               >
                 <summary className="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 text-left font-semibold marker:content-none">
                   <span>{faq.question}</span>
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#f4ecdf] text-foreground/60 transition group-open:rotate-180">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface-muted text-foreground/60 transition group-open:rotate-180">
                     <ChevronRight className="h-4 w-4 rotate-90" />
                   </span>
                 </summary>
@@ -331,7 +332,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
   };
 
   return (
-    <main id="main-content" className="min-h-screen bg-[#faf6ef] text-foreground">
+    <main id="main-content" className="min-h-screen bg-background text-foreground">
       <section className="relative overflow-hidden">
         <Image
           src={heroImage}
@@ -368,10 +369,10 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
 
         <div className="relative z-10 mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
           <nav className="fixed inset-x-0 top-0 z-30 px-3 sm:px-6 lg:px-8">
-            <div className="mx-auto mt-4 max-w-7xl rounded-[1.75rem] border border-white/15 bg-[rgba(16,14,12,0.5)] shadow-xl backdrop-blur-md">
+            <div className="mx-auto mt-4 max-w-7xl rounded-card border border-white/15 bg-[rgba(16,14,12,0.5)] shadow-elev-5 backdrop-blur-md">
               <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-6 sm:py-3">
                 <Link href="/" className="flex items-center gap-2.5 text-white sm:gap-3">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-primary text-white shadow-lg sm:h-10 sm:w-10">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-primary text-white shadow-elev-3 sm:h-10 sm:w-10">
                     <Home className="h-5 w-5" />
                   </span>
                   <span className="font-heading text-lg font-bold sm:text-xl">
@@ -393,7 +394,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
                     <>
                       <Link
                         href="/profile"
-                        className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"
+                        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"
                       >
                         <UserCircle className="h-4 w-4" />
                         {t("nav.myAccount")}
@@ -401,7 +402,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
                       <button
                         type="button"
                         onClick={() => void signOut()}
-                        className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
+                        className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-elev-3 transition hover:bg-primary/90"
                       >
                         <LogOut className="h-4 w-4" />
                         {t("nav.signOut")}
@@ -410,7 +411,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
                   ) : (
                     <Link
                       href="/sign-in"
-                      className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
+                      className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-elev-3 transition hover:bg-primary/90"
                     >
                       {t("nav.signIn")}
                     </Link>
@@ -449,7 +450,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
                         <Link
                           href="/profile"
                           onClick={() => setMobileMenuOpen(false)}
-                          className="mt-1 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-white/20"
+                          className="mt-1 inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-white/20"
                         >
                           {t("nav.myAccount")}
                         </Link>
@@ -459,7 +460,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
                             setMobileMenuOpen(false);
                             void signOut();
                           }}
-                          className="mt-1 rounded-full bg-primary px-5 py-2.5 text-center text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
+                          className="mt-1 inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 py-2.5 text-center text-sm font-semibold text-white shadow-elev-3 transition hover:bg-primary/90"
                         >
                           {t("nav.signOut")}
                         </button>
@@ -468,7 +469,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
                       <Link
                         href="/sign-in"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="mt-1 rounded-full bg-primary px-5 py-2.5 text-center text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90"
+                        className="mt-1 inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 py-2.5 text-center text-sm font-semibold text-white shadow-elev-3 transition hover:bg-primary/90"
                       >
                         {t("nav.signIn")}
                       </Link>
@@ -500,12 +501,18 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
                 {heroDescription}
               </p>
 
-              <div className="mt-6 rounded-[2rem] border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur-xl sm:mt-10 sm:p-3">
+              <div className="mt-6 rounded-card border border-white/15 bg-white/10 p-2 shadow-elev-5 backdrop-blur-xl sm:mt-10 sm:p-3">
                 <div className="grid gap-2 md:grid-cols-[1.2fr_1fr_0.8fr_auto]">
                   {searchFields.map((field) => (
                     <div key={field.label} className="relative">
                       <field.icon className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-foreground/45" />
-                      <div className="[&_input]:w-full [&_input]:bg-white [&_input]:pl-11 [&_select]:w-full [&_select]:appearance-none [&_select]:bg-white [&_select]:pl-11">
+                      {/* `bg-card`, not `bg-white`. These overrode the global
+                          `input, select { bg-card }` rule with a hardcoded
+                          white, so in dark mode the hero's search fields were a
+                          white box containing near-white text — you could not
+                          read what you were typing into the single most
+                          important control on the site. */}
+                      <div className="[&_input]:w-full [&_input]:bg-card [&_input]:pl-11 [&_select]:w-full [&_select]:appearance-none [&_select]:bg-card [&_select]:pl-11">
                         {field.element}
                       </div>
                     </div>
@@ -514,7 +521,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
                   <button
                     type="button"
                     onClick={handleSearch}
-                    className="inline-flex items-center justify-center gap-2 rounded-[1.25rem] bg-primary px-6 py-4 text-sm font-semibold text-white transition hover:bg-primary/90"
+                    className="inline-flex items-center justify-center gap-2 rounded-card bg-primary px-6 py-4 text-sm font-semibold text-white transition hover:bg-primary/90"
                   >
                     <Search className="h-4 w-4" />
                     {t("home.searchButton")}
@@ -540,7 +547,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
         </div>
       </section>
 
-      <section className="bg-[#fffdf9] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
+      <section className="bg-background px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <SectionHeader
             badge={t("home.howItWorksBadge")}
@@ -556,7 +563,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
           <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
             {steps.map((step, index) => (
               <Reveal key={step.title} className="group relative" delayMs={index * 100}>
-                <article className="rounded-[1.75rem] border border-[#eee2d2] bg-white p-6 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+                <article className="rounded-card border border-border bg-card p-6 shadow-elev-2 transition-[transform,box-shadow] duration-ui ease-ui hover:-translate-y-0.5 hover:shadow-elev-3">
                   <div className="flex items-center justify-between">
                     <span className="text-5xl font-bold text-primary/15">{step.number}</span>
                     <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary transition group-hover:bg-primary/15">
@@ -567,7 +574,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
                   <p className="mt-3 text-sm leading-7 text-foreground/60">{step.text}</p>
                 </article>
                 {index < steps.length - 1 ? (
-                  <ChevronRight className="absolute right-[-18px] top-1/2 hidden h-5 w-5 -translate-y-1/2 text-[#d8cdbd] lg:block" />
+                  <ChevronRight className="absolute right-[-18px] top-1/2 hidden h-5 w-5 -translate-y-1/2 text-foreground/25 lg:block" />
                 ) : null}
               </Reveal>
             ))}
@@ -586,6 +593,13 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
 
       {sectionOrder.map((key) => sectionRenderers[key] ?? null)}
 
+      {/* Structurally fixed, like the hero and the closing CTA, rather than an
+          admin-toggleable section. Where it sits is the point: the marketplace
+          pattern puts trust immediately before the final call to action,
+          because that is the moment a visitor decides whether to act. It is
+          also not a section anyone should be able to switch off. */}
+      <TrustSection />
+
       <section className="relative overflow-hidden px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="absolute inset-0">
           <Image
@@ -598,7 +612,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
           <div className="absolute inset-0 bg-[rgba(18,14,11,0.72)]" />
         </div>
 
-        <div className="relative z-10 mx-auto max-w-6xl overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 px-6 py-14 text-center shadow-2xl backdrop-blur-sm sm:px-10">
+        <div className="relative z-10 mx-auto max-w-6xl overflow-hidden rounded-card border border-white/10 bg-white/5 px-6 py-14 text-center shadow-elev-5 backdrop-blur-sm sm:px-10">
           <h2 className="text-3xl font-bold text-white sm:text-4xl lg:text-5xl">{t("home.ctaTitle")}</h2>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-white/80 sm:text-lg">
             {t("home.ctaDescription")}
@@ -607,7 +621,7 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
               href="/rooms"
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-primary/90 hover:shadow-xl active:scale-95"
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-white shadow-elev-3 transition hover:bg-primary/90 hover:shadow-elev-3 active:scale-95"
             >
               {t("home.startSearching")}
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -631,7 +645,7 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
   return (
     <Link
       href={href}
-      className="rounded-full px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+      className="inline-flex min-h-11 items-center rounded-full px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
     >
       {children}
     </Link>
@@ -676,7 +690,7 @@ function SectionHeader({
       {badge ? (
         <span
           className={`inline-flex rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] ${
-            light ? "bg-white/10 text-white/80" : "bg-[#fde8c9] text-[#b97716]"
+            light ? "bg-white/10 text-white/80" : "bg-accent/10 text-accent"
           }`}
         >
           {badge}

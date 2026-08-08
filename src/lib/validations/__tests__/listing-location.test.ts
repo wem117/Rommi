@@ -28,7 +28,7 @@ const base = {
   genderPreference: "any" as const,
   smoking: "no" as const,
   pets: "no_pets" as const,
-  photoUrls: []
+  photoUrls: ["https://example.com/room.jpg"]
 };
 
 describe("listing location", () => {

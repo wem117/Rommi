@@ -70,6 +70,22 @@ export function listingToInput(listing: Listing): ListingInput {
   };
 }
 
+/**
+ * Marks a field the form will refuse to submit without.
+ *
+ * The asterisk is aria-hidden and paired with visually-hidden text: a lone "*"
+ * is announced as "star" or skipped entirely, which tells a screen-reader user
+ * nothing about why their submission was rejected.
+ */
+function Required() {
+  return (
+    <>
+      <span aria-hidden="true" className="ml-0.5 text-destructive">*</span>
+      <span className="sr-only"> (required)</span>
+    </>
+  );
+}
+
 export function ListingForm({
   initialListing,
   submitLabel,
@@ -172,13 +188,13 @@ export function ListingForm({
         </div>
 
         <div>
-          <label htmlFor="monthlyRent">{t("listingForm.monthlyRent")}</label>
+          <label htmlFor="monthlyRent">{t("listingForm.monthlyRent")}<Required /></label>
           <input
             id="monthlyRent"
             type="text"
             inputMode="numeric"
             pattern="\d*"
-            min={0}
+            min={1}
             step={1000}
             {...register("monthlyRent", {
               setValueAs: (value) => Number(String(value ?? "").replace(/[^\d]/g, "") || 0)
@@ -248,7 +264,7 @@ export function ListingForm({
         </div>
 
         <div>
-          <label htmlFor="university">{t("shared.nearestUniversity")}</label>
+          <label htmlFor="university">{t("shared.nearestUniversity")}<Required /></label>
           <UniversityCombobox
             id="university"
             value={watch("university") ?? ""}
@@ -335,6 +351,10 @@ export function ListingForm({
       </div>
 
       <div>
+        <span className="mb-1.5 block text-sm font-medium text-foreground">
+          {t("listingForm.photos")}
+          <Required />
+        </span>
         {user ? (
           <PhotoUploader value={photoUrls} onChange={(urls) => setValue("photoUrls", urls)} />
         ) : null}

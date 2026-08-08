@@ -154,19 +154,35 @@ export function ListingCard({ listing }: { listing: Listing }) {
           </span>
         </div>
 
-        {listing.university ? (
-          <div className="mt-1.5 inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary sm:mt-2">
-            <GraduationCap className="h-3.5 w-3.5 shrink-0" />
-            <span className="line-clamp-1">{listing.university}</span>
-          </div>
-        ) : null}
+        {/*
+          The university chip, and the reason card heights were ragged.
+
+          It is conditional, so a tagged card stood ~28px taller than an
+          untagged one beside it, and because the only `mt-auto` on the card was
+          on the owner block — which is demo-mode-only and therefore null in
+          production — nothing pinned the footer. Every card's "Написать" button
+          landed at a different height.
+
+          `min-h-[1.75rem]` reserves the chip's slot whether or not there is a
+          chip, so a row of cards shares one baseline instead of relying on
+          every listing happening to be tagged. The footer below is separately
+          pinned with `mt-auto`, which is what actually guarantees it.
+        */}
+        <div className="mt-1.5 min-h-[1.75rem] sm:mt-2">
+          {listing.university ? (
+            <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">
+              <GraduationCap className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span className="line-clamp-1">{listing.university}</span>
+            </span>
+          ) : null}
+        </div>
 
         {owner ? (
           /* The filled panel this used to sit in gave the host the same visual
              weight as the price. A hairline rule instead: it still separates the
              person from the property, without competing. `mt-auto` pins it to
              the bottom so cards with different title lengths still align. */
-          <div className="mt-auto flex items-center gap-2.5 border-t border-border/70 pt-3">
+          <div className="flex items-center gap-2.5 border-t border-border/70 pt-3">
             <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-surface-muted">
               {owner.photoURL ? (
                 <Image src={owner.photoURL} alt="" fill className="object-cover" sizes="32px" />
@@ -192,7 +208,10 @@ export function ListingCard({ listing }: { listing: Listing }) {
           </div>
         ) : null}
 
-        <div className="mt-2 flex items-center gap-4 text-xs text-foreground/55 sm:mt-3">
+        {/* `mt-auto` here, so the bed/bath row and the action row below it sit on the
+            card's bottom edge regardless of how tall the title or chip above ran.
+            This is what makes a row of cards share one button baseline. */}
+        <div className="mt-auto flex items-center gap-4 pt-2 text-xs text-foreground/55 sm:pt-3">
           <span className="inline-flex items-center gap-1">
             <BedDouble className="h-3.5 w-3.5" />
             {listing.bedrooms} {t("shared.bedroomsAbbrev")}

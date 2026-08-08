@@ -1,4 +1,3 @@
-import { getUniversityCity } from "@/lib/constants/universities";
 import type { Listing } from "@/types/listing";
 
 /**
@@ -102,12 +101,21 @@ export function applyListingFilters<T>(
 
   if (filters.city) next = next.eq("city", filters.city);
   if (filters.university) {
-    // A listing with no university of its own still belongs to a university's
-    // city, so it stays in that university's results.
-    const fallbackCity = getUniversityCity(filters.university);
-    next = next.or(
-      `university.eq.${filters.university},and(university.is.null,city.eq.${fallbackCity}),and(university.eq.,city.eq.${fallbackCity})`
-    );
+    // EXACT match. Nothing else.
+    //
+    // This used to OR in "any listing with NO university, in this university's
+    // city", on the theory that an untagged Almaty flat is still near an Almaty
+    // campus. In practice it made the filter meaningless: 37 of the Almaty
+    // listings carry no university at all, so Al-Farabi, Turan, KBTU and Narxoz
+    // every one returned the SAME 38 rows — one genuine match buried under 37
+    // that matched nothing but the city. The single real Turan listing sorted
+    // onto a later page, which is exactly why tagging a listing looked like it
+    // made the listing vanish from its own filter.
+    //
+    // There is already a city filter for "anything in Almaty". A university
+    // filter that silently also means "or the whole city" is not a second way
+    // of saying that — it is a broken version of it.
+    next = next.eq("university", filters.university);
   }
   if (filters.listingType) next = next.eq("listing_type", filters.listingType);
   if (filters.propertyType) next = next.eq("property_type", filters.propertyType);

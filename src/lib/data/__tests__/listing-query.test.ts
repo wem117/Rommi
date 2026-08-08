@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyListingFilters,
   buildListingQueryString,
   pageNumbers,
   parseListingFilters,
@@ -146,5 +147,60 @@ describe("sanitiseSearch", () => {
   it("returns an empty string for nothing useful", () => {
     expect(sanitiseSearch(undefined)).toBe("");
     expect(sanitiseSearch("   ")).toBe("");
+  });
+});
+
+/**
+ * University filtering.
+ *
+ * The filter used to OR in "any listing with no university, in this
+ * university's city". Because 37 of the Almaty listings carry no university at
+ * all, selecting Al-Farabi, Turan, KBTU or Narxoz each returned the SAME 38
+ * rows — one real match under 37 that matched only the city — and the single
+ * genuine Turan listing sorted onto a later page, so tagging a listing looked
+ * like it removed it from its own filter.
+ */
+describe("university filter", () => {
+  function record() {
+    const calls: Array<{ op: string; args: unknown[] }> = [];
+    const q = {
+      eq: (...args: unknown[]) => { calls.push({ op: "eq", args }); return q; },
+      gte: (...args: unknown[]) => { calls.push({ op: "gte", args }); return q; },
+      lte: (...args: unknown[]) => { calls.push({ op: "lte", args }); return q; },
+      or: (...args: unknown[]) => { calls.push({ op: "or", args }); return q; },
+      order: (...args: unknown[]) => { calls.push({ op: "order", args }); return q; }
+    };
+    return { q, calls };
+  }
+
+  it("matches the university column exactly", () => {
+    const { q, calls } = record();
+    applyListingFilters(q, { university: "Turan University" }, false);
+    expect(calls).toContainEqual({ op: "eq", args: ["university", "Turan University"] });
+  });
+
+  it("never widens the filter to the university's city", () => {
+    // The regression itself: any `or` mentioning city alongside university is
+    // the old behaviour coming back.
+    const { q, calls } = record();
+    applyListingFilters(q, { university: "Al-Farabi Kazakh National University" }, false);
+    const ors = calls.filter((c) => c.op === "or").map((c) => String(c.args[0]));
+    for (const clause of ors) {
+      expect(clause).not.toContain("city.eq");
+      expect(clause).not.toContain("university.is.null");
+    }
+  });
+
+  it("does not touch the university column when no university is selected", () => {
+    const { q, calls } = record();
+    applyListingFilters(q, {}, false);
+    expect(calls.some((c) => c.op === "eq" && c.args[0] === "university")).toBe(false);
+  });
+
+  it("keeps city and university as independent filters", () => {
+    const { q, calls } = record();
+    applyListingFilters(q, { city: "Almaty", university: "KBTU" }, false);
+    expect(calls).toContainEqual({ op: "eq", args: ["city", "Almaty"] });
+    expect(calls).toContainEqual({ op: "eq", args: ["university", "KBTU"] });
   });
 });

@@ -53,10 +53,18 @@ export const listingSchema = z
       .refine(isMeaningfulDescription, "Enter a meaningful description (a few real sentences)"),
     propertyType: z.enum(["apartment", "house", "dorm", "studio"]),
     listingType: z.enum(["private_room", "shared_room", "entire_place"]),
+    // A positive integer, not >= 0.
+    //
+    // Zero was accepted and rendered as "Price not specified" — a truthful
+    // label for a Telegram post that never stated a price, and meaningless on a
+    // form where someone is deliberately listing their own room. Every
+    // price-less card in the browse feed came from this field being left
+    // untouched. The import path builds rows through createListing() rather
+    // than this schema, so its genuine "price unknown" case is unaffected.
     monthlyRent: z
       .number()
-      .int()
-      .min(0, "Rent must be at least 0")
+      .int("Rent must be a whole number")
+      .min(1, "Enter the monthly rent")
       .max(MAX_MONTHLY_RENT, `Rent must be at most ${MAX_MONTHLY_RENT.toLocaleString()} KZT`),
     depositRequired: z.boolean().default(false),
     depositAmount: z.number().int().min(0).default(0),
@@ -79,9 +87,18 @@ export const listingSchema = z
     genderPreference: z.enum(["any", "male", "female"]),
     smoking: z.enum(["no", "yes"]),
     pets: z.enum(["no_pets", "allowed"]),
-    // Photos are OPTIONAL — a listing without photos publishes normally and the
-    // UI renders a designed "no photo" placeholder (never a broken image).
-    photoUrls: z.array(z.string().url("Photo must be a valid URL")).max(10)
+    // At least one photo. Required, deliberately reversing the earlier choice.
+    //
+    // The "no photo" placeholder was built so an IMPORTED listing — a Telegram
+    // post with no images — never rendered a broken box. It was never meant to
+    // be a state someone could choose while filling in this form, and a browse
+    // feed of grey placeholders is the single loudest signal that a marketplace
+    // is empty. Imports still reach createListing() directly and keep the
+    // placeholder for the case it was built for.
+    photoUrls: z
+      .array(z.string().url("Photo must be a valid URL"))
+      .min(1, "Add at least one photo of the room")
+      .max(10)
   })
   // The pin IS the location now, so a listing cannot be published without one:
   // it would be unplaceable on any map. Reported on `lat` so the message lands

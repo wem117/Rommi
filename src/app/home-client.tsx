@@ -17,7 +17,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
-import { CountUp } from "@/components/count-up";
 import { Footer } from "@/components/layout/footer";
 import { LanguageMenu } from "@/components/layout/language-menu";
 import { useAuth } from "@/context/auth-context";
@@ -448,7 +447,12 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
             </div>
           </nav>
 
-          <div className="flex min-h-[520px] items-center justify-center py-16 sm:min-h-[760px] sm:py-28 lg:min-h-[820px]">
+          {/* Min-heights reduced by what the statistics row occupied (~96px
+              mobile, ~120px from `sm` up). The hero centres its content, so
+              leaving them at 520/760/820 would not have moved the copy — it
+              would have padded the same box with more empty photograph above
+              and below it. These keep the previous content-to-space ratio. */}
+          <div className="flex min-h-[440px] items-center justify-center py-16 sm:min-h-[640px] sm:py-28 lg:min-h-[700px]">
             <div className="w-full max-w-4xl text-center">
               {/*
                 The text-shadow is the third layer of defence: it holds the
@@ -495,20 +499,6 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
                     {t("home.searchButton")}
                   </button>
                 </div>
-              </div>
-
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-5 text-white sm:mt-10 sm:gap-10">
-                {stats.map((stat, index) => (
-                  <div key={stat.key} className="flex items-center gap-5 sm:gap-10">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold sm:text-3xl">
-                        <CountUp value={stat.value} format={(n) => `${formatNumber(n)}${stat.suffix}`} />
-                      </p>
-                      <p className="mt-1 text-xs text-white/70 sm:text-sm">{stat.label}</p>
-                    </div>
-                    {index < stats.length - 1 ? <div className="hidden h-10 w-px bg-white/15 sm:block" /> : null}
-                  </div>
-                ))}
               </div>
             </div>
           </div>

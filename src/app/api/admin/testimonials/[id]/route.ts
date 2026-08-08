@@ -18,6 +18,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (input.quote !== undefined) payload.quote = input.quote;
     if (input.imageUrl !== undefined) payload.image_url = input.imageUrl || null;
     if (input.badge !== undefined) payload.badge = input.badge;
+    if (input.rating !== undefined) payload.rating = input.rating;
     if (input.position !== undefined) payload.position = input.position;
     if (input.active !== undefined) payload.active = input.active;
 

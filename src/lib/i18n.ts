@@ -68,6 +68,8 @@ const translations = {
       rights: "All rights reserved.",
     },
     home: {
+      testimonialFlowTitle: "What students say about Roomi",
+      testimonialFlowSubtitle: "Find your roommate. Live better.",
       heroTitleLead: "Find Your Perfect",
       heroTitleAccent: "Roommate & Room",
       heroDescription:
@@ -722,6 +724,8 @@ const translations = {
       rights: "Все права защищены.",
     },
     home: {
+      testimonialFlowTitle: "Что студенты говорят о Roomi",
+      testimonialFlowSubtitle: "Найдите соседа. Живите лучше.",
       heroTitleLead: "Найдите идеального",
       heroTitleAccent: "соседа и жилье",
       heroDescription:
@@ -1374,6 +1378,8 @@ const translations = {
       rights: "Барлық құқықтар қорғалған.",
     },
     home: {
+      testimonialFlowTitle: "Студенттер Roomi туралы не дейді",
+      testimonialFlowSubtitle: "Көршіңізді табыңыз. Жақсырақ өмір сүріңіз.",
       heroTitleLead: "Өзіңізге лайық",
       heroTitleAccent: "көрші мен бөлме табыңыз",
       heroDescription:

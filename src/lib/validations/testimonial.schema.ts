@@ -11,6 +11,8 @@ const testimonialFields = {
   quote: z.string().trim().min(1).max(600),
   imageUrl: imageReference,
   badge: z.string().trim().max(60),
+  // Coerced: the admin form sends a string from a number input.
+  rating: z.coerce.number().int().min(1).max(5),
   position: z.number().int().min(0).max(999),
   active: z.boolean()
 };
@@ -21,6 +23,7 @@ export const testimonialCreateSchema = z.object({
   quote: testimonialFields.quote,
   imageUrl: testimonialFields.imageUrl.optional().default(""),
   badge: testimonialFields.badge.optional().default(""),
+  rating: testimonialFields.rating.optional().default(5),
   position: testimonialFields.position.optional().default(0),
   active: testimonialFields.active.optional().default(true)
 });
@@ -32,6 +35,7 @@ export const testimonialUpdateSchema = z.object({
   quote: testimonialFields.quote.optional(),
   imageUrl: testimonialFields.imageUrl.optional(),
   badge: testimonialFields.badge.optional(),
+  rating: testimonialFields.rating.optional(),
   position: testimonialFields.position.optional(),
   active: testimonialFields.active.optional()
 });

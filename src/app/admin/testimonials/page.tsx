@@ -8,7 +8,7 @@ import type { Testimonial } from "@/lib/data/testimonials";
 
 type AdminTestimonial = Testimonial & { position: number; active: boolean };
 
-const EMPTY_FORM = { name: "", role: "", quote: "", imageUrl: "", badge: "" };
+const EMPTY_FORM = { name: "", role: "", quote: "", imageUrl: "", badge: "", rating: 5 };
 
 export default function AdminTestimonialsPage() {
   const [items, setItems] = useState<AdminTestimonial[]>([]);
@@ -116,7 +116,7 @@ export default function AdminTestimonialsPage() {
 
   function startEdit(item: AdminTestimonial) {
     setEditingId(item.id);
-    setForm({ name: item.name, role: item.role, quote: item.quote, imageUrl: item.image, badge: item.badge });
+    setForm({ name: item.name, role: item.role, quote: item.quote, imageUrl: item.image, badge: item.badge, rating: item.rating ?? 5 });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -141,6 +141,8 @@ export default function AdminTestimonialsPage() {
           <input placeholder="Name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <input placeholder="Role (e.g. Student at KazNU)" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} />
           <input placeholder="Badge (e.g. Verified Tenant)" value={form.badge} onChange={(e) => setForm({ ...form, badge: e.target.value })} />
+          {/* The stars on the home page render this, rather than a hardcoded five. */}
+          <input type="number" min={1} max={5} placeholder="Rating (1-5)" value={form.rating} onChange={(e) => setForm({ ...form, rating: Number(e.target.value) })} />
           <input placeholder="Image URL" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
           <textarea
             placeholder="Quote *"

@@ -11,8 +11,6 @@ import {
   Menu,
   MessageCircle,
   Search,
-  Sparkles,
-  Star,
   UserCircle,
   Users,
   X
@@ -34,6 +32,7 @@ import { useLocale } from "@/context/locale-context";
 import { CITIES } from "@/lib/constants/cities";
 import { DEFAULT_HOMEPAGE_SECTIONS, type PublicSettings } from "@/lib/data/public-settings";
 import { type Testimonial } from "@/lib/data/testimonials";
+import { TestimonialsFlow } from "@/components/home/testimonials-flow";
 import { universityDisplayName, type UniversityWithStats } from "@/lib/data/universities";
 import { formatNumber } from "@/lib/utils/format";
 import {
@@ -292,49 +291,13 @@ export default function HomeClient({ initialData }: { initialData: HomeInitialDa
         </div>
       </section>
     ),
-    testimonials: testimonials.length === 0 ? null : (
-      <section key="testimonials" className="bg-[#fffdf9] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
-        <div className="mx-auto max-w-5xl">
-          <SectionHeader badge={t("home.testimonialBadge")} title={t("home.testimonialTitle")} centered />
-
-          <Carousel className="mt-10" ariaLabel={t("home.testimonialTitle")}>
-            {testimonials.map((testimonial) => (
-              <div
-                key={testimonial.name}
-                className="grid items-center gap-6 rounded-[2rem] border border-[#efe5d9] bg-white p-6 shadow-soft sm:gap-8 sm:p-8 md:grid-cols-[0.9fr_1.1fr] md:p-10"
-              >
-                <div className="relative mx-auto h-44 w-44 overflow-hidden rounded-[1.75rem] bg-[#f5efe6] sm:h-56 sm:w-56">
-                  <Image src={testimonial.image} alt={testimonial.name} fill className="object-cover" sizes="224px" />
-                  <div className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-full bg-[#f1a531] text-white shadow-lg">
-                    <Sparkles className="h-4 w-4" />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-1 text-[#f1a531]">
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <Star key={index} className="h-4 w-4 fill-current" />
-                    ))}
-                  </div>
-                  <blockquote className="mt-5 font-heading text-lg leading-8 text-foreground/80 sm:text-2xl sm:leading-9">
-                    &quot;{testimonial.quote}&quot;
-                  </blockquote>
-                  <div className="mt-6 flex flex-wrap items-center gap-3">
-                    <div>
-                      <p className="font-semibold">{testimonial.name}</p>
-                      <p className="text-sm text-foreground/55">{testimonial.role}</p>
-                    </div>
-                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                      {testimonial.badge}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </Carousel>
-        </div>
-      </section>
-    ),
+    // Replaced an arrow-and-dots carousel that showed ONE testimonial at a time.
+    // A carousel has to be operated, and almost nobody operates one, so every
+    // testimonial past the first was effectively unpublished. A continuous
+    // stream shows a dozen at a glance, which is the actual job of a
+    // testimonial wall: "many people use this" is a quantity you have to see.
+    // The section key is unchanged, so admin ordering and visibility still work.
+    testimonials: <TestimonialsFlow key="testimonials" testimonials={testimonials} />,
     faq: (
       <section key="faq" className="bg-[#fbf7f0] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-4xl">

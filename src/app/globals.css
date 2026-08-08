@@ -193,6 +193,127 @@ label {
   outline-offset: 2px;
 }
 
+/*
+ * Infinite testimonial flow.
+ *
+ * The track holds the testimonials TWICE and is `width: max-content`, so
+ * translating exactly -50% lands copy 2 precisely where copy 1 started. That is
+ * what makes the loop seamless: there is no reset to disguise, because the
+ * frame after the animation restarts is pixel-identical to the frame before it.
+ * Any other distance (a fixed px value, or -100%) produces the visible jump.
+ *
+ * `linear` is required, not a preference — any easing makes the stream visibly
+ * accelerate and decelerate once per cycle, which is exactly the "carousel with
+ * pauses" feel this replaces.
+ *
+ * translate3d, not translateX, to keep the track on its own compositor layer:
+ * the animation then runs off the main thread and never triggers layout, so it
+ * holds 60fps while React does whatever else it needs to.
+ */
+@keyframes roomi-flow-left {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes roomi-flow-right {
+  from {
+    transform: translate3d(-50%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.roomi-flow-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation-duration: var(--flow-duration, 60s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.roomi-flow-track[data-direction="left"] {
+  animation-name: roomi-flow-left;
+}
+
+.roomi-flow-track[data-direction="right"] {
+  animation-name: roomi-flow-right;
+}
+
+/*
+ * Edge fade. A mask rather than a gradient overlay so it works over whatever
+ * section background sits behind it, in either theme, without having to know
+ * the colour — an overlay would need a hardcoded colour and would be wrong in
+ * dark mode the moment the section background changed.
+ */
+.roomi-flow-mask {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 5rem,
+    #000 calc(100% - 5rem),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 5rem,
+    #000 calc(100% - 5rem),
+    transparent 100%
+  );
+}
+
+@media (max-width: 640px) {
+  .roomi-flow-mask {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 1.5rem,
+      #000 calc(100% - 1.5rem),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 1.5rem,
+      #000 calc(100% - 1.5rem),
+      transparent 100%
+    );
+  }
+}
+
+/*
+ * Reduced motion: stop the stream and drop the duplicate set entirely.
+ *
+ * The global reduced-motion rule above collapses animation-duration to 0.01ms,
+ * which would freeze the track mid-translate at an arbitrary offset — cards cut
+ * off at the edges with no way to reach them. Instead the track becomes a
+ * normal wrapping grid showing each testimonial once, which is a better reading
+ * experience than the animated version rather than a degraded one.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .roomi-flow-track {
+    animation: none !important;
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .roomi-flow-duplicate {
+    display: none;
+  }
+
+  .roomi-flow-mask {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
 /* Map marker + preview entrance animations (Google Maps AdvancedMarkers). The
    appear animation lives on a wrapper so hover scale transforms on the pill
    itself aren't overridden by the animation's fill mode. */

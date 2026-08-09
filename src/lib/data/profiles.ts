@@ -109,25 +109,45 @@ export async function getProfileById(uid: string) {
 
   const supabase = getSupabaseBrowserClient();
 
-  // `select("*")` can NEVER succeed for an anonymous caller. The contact-privacy
-  // migration gives `anon` column-level SELECT on the public columns only —
-  // telegram and phone are deliberately excluded — and Postgres rejects a
-  // whole-row read with 42501 rather than returning the readable subset.
+  // Never `select("*")`, signed in or not.
   //
-  // Signed in, the full row is readable and contacts are exactly what callers
-  // want (the roommate page re-fetches through here to reveal them), so the
-  // wildcard is kept for that case and only the anonymous read is narrowed.
+  // The wildcard used to be kept for the signed-in case, because the whole row
+  // was readable and contacts are what the roommate page wants. That is exactly
+  // what made every member's contacts harvestable: the same request without
+  // `.eq("uid", ...)` returned phone, telegram and email for the entire table,
+  // and `contacts_hidden` was consulted only by a React component.
+  //
+  // Contacts now come from get_profile_contacts(), one profile per call, which
+  // re-checks authentication, contacts_hidden, banned and suspended in SQL.
   const {
     data: { session }
   } = await supabase.auth.getSession();
 
   const { data, error } = await supabase
     .from("profiles")
-    .select(session ? "*" : PUBLIC_PROFILE_COLUMNS)
+    .select(`${PUBLIC_PROFILE_COLUMNS}, contacts_hidden`)
     .eq("uid", uid)
     .maybeSingle();
   if (error) throw error;
-  return data ? mapProfileRow(data as unknown as Record<string, unknown>) : null;
+  if (!data) return null;
+
+  const row = data as unknown as Record<string, unknown>;
+
+  if (session) {
+    // A hidden profile and a failed call both end as empty contact fields: the
+    // page is useful without contacts, so neither should take it down.
+    const { data: contacts } = await supabase.rpc("get_profile_contacts", { target_uid: uid });
+    const contact = (Array.isArray(contacts) ? contacts[0] : contacts) as
+      | { phone?: string | null; telegram?: string | null; email?: string | null }
+      | undefined;
+    if (contact) {
+      row.phone = contact.phone ?? "";
+      row.telegram = contact.telegram ?? "";
+      row.email = contact.email ?? null;
+    }
+  }
+
+  return mapProfileRow(row);
 }
 
 export async function getRoommateProfiles(currentUid?: string | null) {

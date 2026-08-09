@@ -39,11 +39,21 @@ describe("signup without a session", () => {
 });
 
 describe("anonymous profile reads", () => {
-  it("getProfileById never issues a wildcard read without a session", () => {
+  it("getProfileById never issues a wildcard read, signed in or not", () => {
     const profiles = code(read("lib/data/profiles.ts"));
-    // The wildcard is still allowed, but only on the signed-in branch.
-    expect(profiles).toMatch(/session \? "\*" : PUBLIC_PROFILE_COLUMNS/);
+    // Stronger than the rule this test originally held. The wildcard used to be
+    // permitted on the signed-in branch, which is precisely what let one account
+    // harvest phone/telegram/email for the whole table in a single PostgREST
+    // request. There is now no branch on which it is allowed.
+    expect(profiles).not.toMatch(/session \? "\*"/);
     expect(profiles).not.toMatch(/from\("profiles"\)\s*\.select\("\*"\)/);
+  });
+
+  it("reveals contacts only through the RPC that enforces contacts_hidden", () => {
+    const profiles = code(read("lib/data/profiles.ts"));
+    // get_profile_contacts() re-checks authentication, contacts_hidden, banned
+    // and suspended in SQL. Selecting the columns directly would bypass all four.
+    expect(profiles).toMatch(/rpc\("get_profile_contacts"/);
   });
 
   it("PUBLIC_PROFILE_COLUMNS stays free of contact fields", () => {

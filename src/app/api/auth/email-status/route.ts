@@ -9,6 +9,22 @@ const schema = z.object({
   email: z.string().email()
 });
 
+/**
+ * Neutralises LIKE metacharacters in a value that reaches `.ilike()`.
+ *
+ * `_` is a LEGAL email character and a single-character LIKE wildcard, so the
+ * unescaped lookup answered a broader question than the caller asked:
+ * `a_b@example.com` also matched `axb@example.com`. On an endpoint whose entire
+ * job is to report whether an address is registered, that turns one throttled
+ * request into a multi-address probe — the 10/min limit bounds enumeration only
+ * if one request means one address.
+ *
+ * Backslash first, or it would escape the escapes added after it.
+ */
+export function escapeLikePattern(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/[%_]/g, (ch) => `\\${ch}`);
+}
+
 export async function POST(request: Request) {
   try {
     // This endpoint reveals whether an email is registered (needed for the
@@ -27,7 +43,7 @@ export async function POST(request: Request) {
 
     const { email } = schema.parse(await request.json());
     const supabase = createSupabaseAdminClient();
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = escapeLikePattern(email.trim().toLowerCase());
 
     const { data, error } = await supabase
       .from("profiles")

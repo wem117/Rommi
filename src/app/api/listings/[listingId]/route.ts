@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { consume, rateLimitResponse } from "@/lib/api/rate-limit";
+import { revalidatePublic } from "@/lib/api/revalidate";
 import { deleteListing, updateListing } from "@/lib/data/listings-admin";
 import { requireSessionUser } from "@/lib/supabase/session";
 import { friendlySupabaseError } from "@/lib/utils/errors";
@@ -55,6 +56,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       photoUrls: input.photoUrls
     });
 
+    revalidatePublic("listings");
+
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Update listing failed", error);
@@ -72,6 +75,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
     const { listingId } = await context.params;
 
     await deleteListing(listingId, user.id);
+
+    revalidatePublic("listings");
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Delete listing failed", error);

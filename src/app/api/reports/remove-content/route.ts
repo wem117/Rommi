@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { apiErrorResponse } from "@/lib/api/error-response";
+import { revalidatePublic } from "@/lib/api/revalidate";
 import { requireAdminUser } from "@/lib/supabase/admin";
 
 const moderateSchema = z.object({
@@ -45,6 +46,11 @@ export async function POST(request: Request) {
       .update({ status: "resolved", ...(note ? { admin_note: note } : {}) })
       .eq("id", reportId);
     if (statusError) throw statusError;
+    // A takedown that leaves the content on a cached page for two more
+    // minutes has not taken it down. admin/users/ban already does this;
+    // arriving at the same state through a report must not behave differently.
+    revalidatePublic(report.target_type === "listing" ? "listings" : "profiles");
+
 
     return NextResponse.json({ ok: true });
   } catch (error) {

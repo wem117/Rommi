@@ -1,31 +1,45 @@
 -- Step 3 of 3: close the hole 20240101004200 built the door for.
 --
--- `authenticated` loses column-level SELECT on profiles.phone / .telegram /
--- .email. After this, the harvesting request
+-- `authenticated` could read profiles.phone / .telegram / .email for every row,
+-- so one signed-in account could harvest the whole membership with
 --   GET /rest/v1/profiles?select=phone,telegram,email
--- fails with 42501 for an ordinary signed-in user instead of returning the
--- whole membership, and contact reveal goes through get_profile_contacts(),
--- which enforces contacts_hidden / banned / suspended per row.
+-- and `contacts_hidden` — checked only in a React component — did not stop it.
 --
--- ORDERING MATTERS. This must not be applied before the application that calls
--- the RPC is live, or every signed-in visitor loses contact reveal at once.
+-- WHY THIS IS NOT JUST `REVOKE SELECT (phone) ...`
+-- ------------------------------------------------
+-- That was the first attempt and it silently did nothing. `authenticated` holds
+-- a TABLE-level SELECT on public.profiles, and a table grant already covers
+-- every column, so there is no column-level grant for the column-level revoke to
+-- remove. Postgres reports success and the columns stay readable. The table
+-- grant has to go, and a explicit column list re-granted in its place — the same
+-- shape 20240101000300_contact_privacy.sql used for `anon`.
 --
--- NOT AFFECTED:
---   * anon — never had these columns (20240101000300_contact_privacy.sql).
---   * service_role — bypasses RLS and column grants. getListingOwnerServer()
---     and the admin routes read contacts through the admin client and keep
---     working unchanged.
---   * the owner reading their own contacts — get_profile_contacts() returns
---     them for p.uid = auth.uid() regardless of contacts_hidden.
+-- The list is written out rather than computed. A column added later is then
+-- unreadable until someone grants it deliberately, which is the correct default
+-- for a table that holds phone numbers.
 --
--- REVERSIBLE. To roll back:
---   grant select (phone, telegram, email) on public.profiles to authenticated;
+-- ORDERING. Apply only once the application calling get_profile_contacts() is
+-- live, or contact reveal breaks for every signed-in visitor at once.
+--
+-- NOT AFFECTED: `anon` (never had these columns), `service_role` (bypasses
+-- grants — getListingOwnerServer() and the admin routes are untouched), and a
+-- member reading their own contacts (the RPC returns them for uid = auth.uid()).
+--
+-- REVERSIBLE:  grant select on public.profiles to authenticated;
 
 begin;
 
-revoke select (phone) on public.profiles from authenticated;
-revoke select (telegram) on public.profiles from authenticated;
-revoke select (email) on public.profiles from authenticated;
+revoke select on public.profiles from authenticated;
+
+grant select (
+  age, banned, banned_at, bio, city, contacted_listing_ids, contacts_hidden,
+  created_at, favorite_listing_ids, favorite_roommate_ids, featured,
+  featured_position, full_name, gender, lifestyle, looking_for_apartment,
+  max_budget, min_budget, occupation, onboarding_complete, photo_url,
+  preferred_move_in_date, profile_completion, role, roommate_status, suspended,
+  suspended_at, terms_accepted_at, terms_version, uid, university, updated_at,
+  verified, verified_at, viewed_listing_ids
+) on public.profiles to authenticated;
 
 commit;
 

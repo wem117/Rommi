@@ -160,7 +160,7 @@ jobs:
       # GHCR visibility rules afterward, so the deploy job's later `docker
       # pull` (still using GHCR_PAT, which already has read access proven by
       # the sibling image) is unaffected.
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}

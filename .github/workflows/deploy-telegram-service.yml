@@ -212,7 +212,7 @@ jobs:
           echo "b64=$(base64 -w0 /tmp/telegram-migrations.sql)" >> "$GITHUB_OUTPUT"
 
       - name: Deploy to VPS via SSH
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.5
         env:
           MIG_B64: ${{ steps.mig.outputs.b64 }}
         with:
